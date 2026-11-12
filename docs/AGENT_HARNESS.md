@@ -23,9 +23,10 @@ by case and `.agents/project.py` holds its facts; where this doc and those files
 are current. Agent features (hook events, permission decisions, sandbox keys) follow each tool's own documentation;
 recheck them when a tool's major version changes.
 
-**Related.** [DOCUMENTATION_GUIDELINES](DOCUMENTATION_GUIDELINES.md) — how docs are written, and the split the harness
-rests on: knowledge in docs, workflow in the kit (GUIDELINES §1). §17 holds a prompt that builds or fills in a harness
-from this doc.
+**Related.** DOCUMENTATION_GUIDELINES — how docs are written, and the split the harness rests on — kept in the
+docs-authoring-and-sync skill (`.agents/skills/docs-authoring-and-sync/references/guidelines.md`), so the skill carries
+it to any repo: knowledge in docs, workflow in the kit (GUIDELINES §1). §17 holds a prompt that builds or fills in a
+harness from this doc.
 
 **Stability.** Cite this doc as `AGENT_HARNESS §n`. Do not renumber; add new material under the next free number.
 
@@ -164,6 +165,7 @@ These rules hold for every harness, whatever the project. Each rule gives its re
 | Choose a model and effort for an agent, or cut token use | Agent frontmatter, the loop's output, the index's size | §18 |
 | Decide what goes in the chat, the task file, the repo or per-user memory | The memory layers | §19 |
 | See how often a judge agrees with the person | `verify.py calibration` | §9 |
+| Create a doc in `docs/` | The `doc-writer` agent, or `new_doc.py` in the docs-authoring-and-sync skill | §7.3, §8.2; the template for its type |
 | Check the wiring on a new machine | `verify.py doctor` | §10.1 |
 | Refuse a commit that carries a debug line or a secret | The pre-commit hook | §13 |
 
@@ -416,7 +418,7 @@ the project. A project adds its own domain skills as the code grows.
 | Skill | Role | Owns | Generic |
 | --- | --- | --- | --- |
 | `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | Yes — the project's lists are in `project.py` |
-| `docs-authoring-and-sync` | The doc guidelines as one-line rules; keeping docs true; rewriting without loss; the doc lint | Doc lint, anchor and citation check, link check | Yes |
+| `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | Yes — and portable: the folder works in any repo |
 | `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
 | `ui-designer` | The three design gates — mock, built, target — and the review of a UI diff | — | Yes, for any project with an interface |
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), and how to check each | `contrast.py` | Yes |
@@ -434,7 +436,9 @@ Each skill must hold the following:
   change needs it, and the person's sign-off; record every lesson, the person's and the agent's own, with its route,
   never only in per-user memory; after exit `3`, record the failed approach. It also holds the routes table (§9),
   where the state lives, and its traps.
-- **`docs-authoring-and-sync`**: the guidelines' rules, each citing its §; the procedures for keeping docs true (grep
+- **`docs-authoring-and-sync`**: the documentation guidelines themselves, in `references/guidelines.md`, so the folder
+  is portable; a template per doc type and a scaffolder that names the file, fills the opening block and lists the doc
+  in README; the guidelines' rules, each citing its §; the procedures for creating a doc, for keeping docs true (grep
   the name first, update every restatement in the same commit) and for rewriting a doc (inventory, verify, map,
   rewrite, check the map, report what moved); and the lint list with baselines. The lint checks title, contents table,
   numbering, anchors and § citations, fence language, bold-as-heading, history words, filler, tag legend, ASCII art,
@@ -503,8 +507,10 @@ You are the <role> for <project>.
   go only in the rubric. The agent file then stays stable, and the rubric's history shows what the harness learned.
 - **Fix the output format.** The loop records verdicts by agent name, and the person compares runs.
 - **A runner reports and never fixes.** Feature work, doc edits and commits stay with the coordinating agent.
-- **A builder stops at each gate.** Its draft mode edits nothing in the repo; its build mode starts only from a named,
-  approved draft (§20.2).
+- **A builder stops at each gate its work has.** A builder of what the person must like — a screen, motion, copy —
+  drafts in a mode that edits nothing, and builds only from a named, approved draft (§20.2). A builder of docs outlines
+  in a mode that edits nothing, writes from an outline the person agreed or a request specific enough to write from,
+  and hands its work to the `doc-reviewer`; a doc's facts, not its look, are what the person settles.
 
 ### 8.2 The harness's agents
 
@@ -513,6 +519,7 @@ You are the <role> for <project>.
 | `code-reviewer` | Judge | The code changes | The frame is; the rules it applies are the project's docs |
 | `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | Yes |
 | `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | Yes, for any project with an interface |
+| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | Yes |
 | `target-runner` | Runner | The change needs the target | The frame is; the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | Yes |
 | Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | No |
@@ -523,6 +530,10 @@ What each one does:
   correctness at the edges, the project's layering and conventions, coupled settings moved together, debug lines left
   in, secrets, error handling, tests, and docs updated in the same change. Verdict: **blocking** when an item fails
   against a doc § or skill rule; should-fix findings and notes do not block.
+- **`doc-writer`**: in outline mode, proposes the doc's type, name, sections and sources, and the questions only the
+  person can answer, and edits nothing; in write mode, scaffolds a new doc for its type or extends an existing one, and
+  fills every block from facts it verified — what it could not verify goes in as an open item; in rewrite mode,
+  inventories the doc and reports where every item went. It runs the doc checks and fixes nothing in the code.
 - **`doc-reviewer`**: runs two halves in one pass. *Form* runs the doc lint against its baselines plus the judgment
   rules. *Drift* takes every backticked name, value, path, token and § citation in a doc and greps for it in the code
   and config, and checks that every § a code comment cites still resolves. It quotes both sides and fixes nothing.
@@ -1054,7 +1065,7 @@ rules its judges score — almost all of it in one settings file.
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
 | `untrusted.py`, `pre-commit` | All of it | Nothing |
 | Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
-| Agents | `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
+| Agents | `doc-writer`, `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
 | Rubrics | The verdict and evidence rules | The items, as the project's rules grow |
 | Adapters | All of it | A Read deny per secret file; the Codex network list from `ALLOWED_HOSTS` |
 
@@ -1075,7 +1086,7 @@ Each layer rests on the ones before it. An agent building a later layer already 
 
 | Layer | Holds | After | Why this order |
 | --- | --- | --- | --- |
-| 1. Knowledge | `docs/` with the documentation guidelines; the `AGENTS.md` skeleton; `CLAUDE.md` | — | Skills cite docs, and a skill written first holds facts that have no home |
+| 1. Knowledge | `docs/`; the docs-authoring-and-sync skill, which carries the documentation guidelines; the `AGENTS.md` skeleton; `CLAUDE.md` | — | Skills cite docs, and a skill written first holds facts that have no home |
 | 2. Doc tools and domain rules | `docs-authoring-and-sync` with its lint and baselines; `<domain>-rules` | 1 | The doc checks keep the docs true from the first commit |
 | 3. Controls | The settings file's secrets, hosts and gates; the guard and its self-test, the injection flag, the pre-commit hook, CI, the adapters, `.cache/` ignored | 1 | Every later step then runs behind them |
 | 4. The loop | `verify.py` with the `docs` and `harness` checks; the verify-change skill; `doctor` | 2, 3 | Its first checks are the ones that exist already |
@@ -1162,8 +1173,9 @@ These alternatives do not work:
 ## 17. Bootstrap prompt
 
 This prompt has a coding agent set up the harness, or fill in the template's. In a repo made from the template, the
-kit is already there and the prompt fills in its project parts; in any other repo, copy this doc and
-DOCUMENTATION_GUIDELINES into `docs/` first, and the prompt builds the kit too.
+kit is already there and the prompt fills in its project parts; in any other repo, copy this doc into `docs/` and the
+docs-authoring-and-sync skill folder into `.agents/skills/` first — the skill carries DOCUMENTATION_GUIDELINES — and the
+prompt builds the rest of the kit.
 
 ### 17.1 The prompt
 
@@ -1211,7 +1223,7 @@ Work in the doc's build order (AGENT_HARNESS §15.2). At the end of each phase, 
 self-tests and checks, and wait for my go.
 
 Phase 1, knowledge and doc tools. Read the repo. Fill in AGENTS.md as an index with the sections in AGENT_HARNESS §6,
-keeping CLAUDE.md as the single line @AGENTS.md. Set PROJECT_NAME and DOC_PREFIX in .agents/project.py. Write the first
+keeping CLAUDE.md as the single line @AGENTS.md. Set PROJECT_NAME and DOC_PREFIX in .agents/project.py. Write, with the doc-writer and new_doc.py, the first
 docs an agent needs to change this code safely — the design tokens, the components, the architecture as far as it
 exists: rules with their reasons, traps, decisions, open items. Facts go in docs and steps go in skills; nothing lives
 in two places. Anything you could not verify is an open item, not a fact. Set the doc checks' baselines at today's
@@ -1306,6 +1318,7 @@ reasons before it answers.
 | `open-items-curator` | `sonnet` | `medium` | Matches results to items and drafts edits |
 | Search and exploration | `haiku` | `low` | Finds code and returns a conclusion |
 | Docs research | `haiku`; `sonnet` where sources conflict | `low` or `medium` | Fetches and condenses |
+| `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
 between the ends. Cached input costs a small fraction of fresh input. The provider's pricing page has the current
@@ -1446,8 +1459,8 @@ flowchart TD
 
 - **Only the person's yes approves, and it names the draft.** A yes covers exactly the draft it names: a changed draft
   needs a new yes, and an unchanged draft keeps its yes for the rest of the task — `start` clears approvals, so a yes
-  from an earlier task is recorded again before the build, or named in a "design given" decision. Silence, a yes to something else, a judge's pass, a
-  check that passed or the agent's own reading never approves.
+  from an earlier task is recorded again before the build, or named in a "design given" decision. Silence, a yes to
+  something else, a judge's pass, a check that passed or the agent's own reading never approves.
 - **Record the yes with the file's hash, the moment it is given** — `verify.py approve <file> --kind <kind>`. `finish`
   refuses a hand-over whose draft was approved after the first run that built it, or whose approved file changed.
 - **Draft where it costs nothing**: in the scratchpad, at the target's real sizes, in its real colours and type — never
@@ -1491,8 +1504,8 @@ to gate 3.
 
 ## 21. Open items
 
-These claims about the coding agents have not been checked against the tools' current documentation. Each one closes when it is checked against that documentation, or seen in a Codex
-session; its outcome then replaces the `[?]` in place.
+These claims about the coding agents have not been checked against the tools' current documentation. Each one closes
+when it is checked against that documentation, or seen in a session with that tool; its outcome then replaces the `[?]` in place.
 
 | Claim | Where | What would settle it |
 | --- | --- | --- |

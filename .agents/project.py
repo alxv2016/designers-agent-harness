@@ -23,7 +23,7 @@ DOC_PREFIX = ""
 
 # Docs that apply to any project and travel between repos unchanged: they name no project and link only to each
 # other (DOCUMENTATION_GUIDELINES §3.1).
-PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", "docs/DOCUMENTATION_GUIDELINES.md")
+PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and-sync/references/guidelines.md")
 
 # --- Where things are -------------------------------------------------------------------------------------------
 

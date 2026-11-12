@@ -53,7 +53,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
 | [`skills/`](skills/) | The 7 skills, each a `SKILL.md` with its `scripts/` |
-| [`agents/`](agents/) | The 5 agents, one prompt each |
+| [`agents/`](agents/) | The 6 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
 | [`githooks/`](githooks/) | The pre-commit hook; CI runs the same rules on every push |
@@ -70,7 +70,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | --- | --- | --- |
 | [`verify-change`](skills/verify-change/SKILL.md) | The loop every change runs: `verify.py` picks the checks and reviewers, records the person's approvals and the target, and refuses a hand-over while anything is open | Every session; the reviewers |
 | [`build-run-test`](skills/build-run-test/SKILL.md) | Building, running, testing, screenshots; a fresh clone — filled in per project | `target-runner`, `ui-designer` |
-| [`docs-authoring-and-sync`](skills/docs-authoring-and-sync/SKILL.md) | Writing docs and keeping them true to the code; the doc checks | `doc-reviewer`, `open-items-curator` |
+| [`docs-authoring-and-sync`](skills/docs-authoring-and-sync/SKILL.md) | Creating docs, writing them and keeping them true to the code. Portable: it carries the documentation guidelines (`references/guidelines.md`), a template per doc type, the scaffolder (`new_doc.py`) and the doc checks | `doc-writer`, `doc-reviewer`, `open-items-curator` |
 | [`commit-message`](skills/commit-message/SKILL.md) | The repo's commit format, and stating honestly what was verified | — (loaded by task) |
 
 ### Design
@@ -88,6 +88,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Agent | What it is for | Modes | Model / effort |
 | --- | --- | --- | --- |
 | [`ui-designer`](agents/ui-designer.md) | Screens, components, styles, motion and copy through the three gates, from DESIGN.md, accessibility first | mock, build, review | sonnet / high |
+| [`doc-writer`](agents/doc-writer.md) | Docs in `docs/`: a new doc scaffolded for its type, a new section, a rewrite — from verified facts and the person's answers | outline, write, rewrite | sonnet / medium |
 
 ### Reviewers — read-only; each scores a diff against its rubric and returns a verdict
 

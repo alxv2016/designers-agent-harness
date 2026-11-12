@@ -193,8 +193,9 @@ def check_docs(run_dir: Path) -> dict:
     """Every doc and kit-link check, each exiting 1 over its baseline."""
     return scripts_check("docs", [["bash", f"{DOC_SCRIPTS}/doc_checks.sh"],
                                   [sys.executable, f"{DOC_SCRIPTS}/check_anchors.py"],
-                                  [sys.executable, f"{DOC_SCRIPTS}/check_links.py"]], run_dir,
-                         "doc lint, anchors, links")
+                                  [sys.executable, f"{DOC_SCRIPTS}/check_links.py"],
+                                  [sys.executable, f"{DOC_SCRIPTS}/new_doc.py", "--test"]], run_dir,
+                         "doc lint, anchors, links, the scaffolder's self-test")
 
 
 def check_harness(run_dir: Path) -> dict:
@@ -209,7 +210,8 @@ def check_harness(run_dir: Path) -> dict:
 
 def check_design(run_dir: Path) -> dict:
     """DESIGN.md against its contrast floors and the token files; then no colour literal in a UI file."""
-    results = [sh([sys.executable, DESIGN_CHECK], run_dir / "design.brief.log")]
+    results = [sh([sys.executable, DESIGN_CHECK], run_dir / "design.brief.log"),
+               sh([sys.executable, DESIGN_CHECK, "--test"], run_dir / "design.selftest.log")]
     if project.TOKEN_FILES:
         results.append(sh([sys.executable, TOKEN_CHECK], run_dir / "design.tokens.log"))
     ok = all(code == 0 for code, _ in results)

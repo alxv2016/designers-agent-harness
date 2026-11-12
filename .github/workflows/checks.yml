@@ -22,7 +22,10 @@ jobs:
         run: >-
           python3 .agents/githooks/pre-commit
           --range "${{ github.event.pull_request.base.sha || github.event.before }}..${{ github.sha }}"
-      - name: The guard's and the injection flag's self-tests
+      - name: The hooks' and the kit scripts' self-tests
         run: |
           python3 .agents/hooks/guard.py --test
           python3 .agents/hooks/untrusted.py --test
+          python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test
+          python3 .agents/skills/design-system/scripts/design_check.py --test
+          python3 .agents/skills/accessibility/scripts/contrast.py --test

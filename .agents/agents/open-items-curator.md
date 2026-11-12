@@ -17,7 +17,7 @@ story of how it was found is dropped (GUIDELINES §4.3).
 ## Load first
 
 Read `.agents/skills/docs-authoring-and-sync/SKILL.md` (Rules 7, 11, 13, 15; Never "write history"; and the §4.6
-removal table in `docs/DOCUMENTATION_GUIDELINES.md`).
+removal table in `.agents/skills/docs-authoring-and-sync/references/guidelines.md`).
 
 ## Input
 

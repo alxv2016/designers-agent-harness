@@ -7,16 +7,16 @@
 #
 # Each check prints its name, its hit count and — on a whole-docs run — its sanctioned baseline from the skill, then
 # one line per hit; a whole-docs run over a baseline exits 1. Run it with bash: under zsh an unquoted file list does
-# not split. The project name and doc prefix come from .agents/project.py.
+# not split. The project name and doc prefix come from .agents/project.py when the repo has one (_config.py).
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 2
 shopt -s nullglob
 
-cfg() { python3 -c "import sys; sys.path.insert(0, '.agents'); import project; v = project.$1; print('\n'.join(v) if isinstance(v, (tuple, list)) else v)"; }
+cfg() { python3 "$(dirname "$0")/_config.py" "$1"; }  # .agents/project.py when present, else the skill's defaults
 PROJECT_NAME=$(cfg PROJECT_NAME)
 DOC_PREFIX=$(cfg DOC_PREFIX)
 PROJECT_WIDE=$(cfg PROJECT_WIDE_DOCS)
-GUIDE=docs/DOCUMENTATION_GUIDELINES.md
+GUIDE=.agents/skills/docs-authoring-and-sync/references/guidelines.md
 
 if [ $# -gt 0 ]; then
     DOCS=("$@")
@@ -24,8 +24,8 @@ if [ $# -gt 0 ]; then
     WHOLE=0
 else
     DESIGN_FILE=$(cfg DESIGN_FILE)
-    DOCS=(docs/*.md .agents/HARNESS.md .agents/skills/*/references/*.md)
-    [ -f "$DESIGN_FILE" ] && DOCS+=("$DESIGN_FILE")
+    DOCS=(docs/*.md .agents/skills/*/references/*.md)
+    for f in .agents/HARNESS.md "$DESIGN_FILE"; do [ -f "$f" ] && DOCS+=("$f"); done  # when the repo has them
     WITH_README=(README.md)
     WHOLE=1
 fi
@@ -62,7 +62,9 @@ s1() {
         head -1 "$f" | grep -q '^# ' || { echo "$f: no title on line 1"; continue; }
         if is_wide "$f"; then
             named && grep -nF "$PROJECT_NAME" "$f" | sed "s|^|$f:|"
-            awk '/^ *(```|~~~)/{c=!c;next} !c{gsub(/`[^`]*`/,"");print FNR":"$0}' "$f" | grep -E '\]\(\.\./' | sed "s|^|$f: links out of docs/:|"
+            # In docs/, a project-wide doc links only to its siblings; kept in a skill, only within the skill's folder.
+            case "$f" in .agents/skills/*) out='\]\(\.\./\.\./' where="its skill" ;; *) out='\]\(\.\./' where="docs/" ;; esac
+            awk '/^ *(```|~~~)/{c=!c;next} !c{gsub(/`[^`]*`/,"");print FNR":"$0}' "$f" | grep -E "$out" | sed "s|^|$f: links out of $where:|"
         elif named && { [ "$f" = .agents/HARNESS.md ] || [ "$f" = "$(cfg DESIGN_FILE)" ] || { [ -n "$DOC_PREFIX" ] && case "$f" in docs/"$DOC_PREFIX"_*) true ;; *) false ;; esac; }; }; then
             head -1 "$f" | grep -qF "# $PROJECT_NAME — " || echo "$f: title is not '# $PROJECT_NAME — <Topic>'"
         fi
@@ -71,7 +73,7 @@ s1() {
 s2() { for f in "${DOCS[@]}"; do [ "$(wc -l < "$f")" -gt 150 ] && ! grep -q '^| § | Section | Look here for |' "$f" && echo "$f"; done; }
 s3() {
     for f in "${DOCS[@]}"; do
-        case "$f" in .agents/skills/*/references/*) continue ;; esac  # a reference may continue its skill's numbering
+        case "$f" in "$GUIDE") ;; .agents/skills/*/references/*) continue ;; esac  # a reference may continue its skill's numbering; the guidelines do not
         awk -v F="$f" '/^ *```/{c=!c;next} c{next} /^## [0-9]+\. /{split($2,a,".");n=a[1]+0;if(n!=t+1)printf "%s:%d: ## %d after %d\n",F,NR,n,t;t=n;s=0;next} /^### [0-9]+\.[0-9]+ /{split($2,a,".");if(a[1]+0!=t)printf "%s:%d: ### %s under ## %d\n",F,NR,$2,t;else if(a[2]+0!=s+1)printf "%s:%d: ### %s after %d.%d\n",F,NR,$2,t,s;s=a[2]+0}' "$f"
     done
 }

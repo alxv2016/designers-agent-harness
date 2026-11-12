@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "doc-writer"
+description = "Creates and writes the docs in docs/ to the documentation guidelines"
+developer_instructions = "Read .agents/agents/doc-writer.md and follow it. In outline mode, edit nothing."
+model_reasoning_effort = "medium"

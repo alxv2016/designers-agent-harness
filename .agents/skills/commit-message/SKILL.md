@@ -101,8 +101,8 @@ Signed off on the target by the person: "rows feel right on the phone, type is r
 
 | Topic | Where |
 | --- | --- |
-| Docs change with the code | [DOCUMENTATION_GUIDELINES §7](../../../docs/DOCUMENTATION_GUIDELINES.md#7-keeping-docs-true) |
-| Reporting moved and removed items | [DOCUMENTATION_GUIDELINES §8](../../../docs/DOCUMENTATION_GUIDELINES.md#8-rewriting-an-existing-doc) |
-| Renumbering and citations | [DOCUMENTATION_GUIDELINES §3.4](../../../docs/DOCUMENTATION_GUIDELINES.md#34-numbering-and-headings) |
+| Docs change with the code | [DOCUMENTATION_GUIDELINES §7](../docs-authoring-and-sync/references/guidelines.md#7-keeping-docs-true) |
+| Reporting moved and removed items | [DOCUMENTATION_GUIDELINES §8](../docs-authoring-and-sync/references/guidelines.md#8-rewriting-an-existing-doc) |
+| Renumbering and citations | [DOCUMENTATION_GUIDELINES §3.4](../docs-authoring-and-sync/references/guidelines.md#34-numbering-and-headings) |
 | What ran, what was approved | [`verify-change`](../verify-change/SKILL.md) |
 | The convention itself | `git log -40 --format='%h %s%n%b'` |

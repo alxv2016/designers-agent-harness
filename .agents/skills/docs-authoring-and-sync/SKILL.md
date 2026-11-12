@@ -1,19 +1,28 @@
 ---
 name: docs-authoring-and-sync
-description: Applies the documentation guidelines (docs/DOCUMENTATION_GUIDELINES.md) — writes, restructures and keeps true the docs in docs/ and the rules kept in the kit: a new doc or section, a value, token or symbol that changed in code, a heading renamed or renumbered, a doc rewritten — and runs the doc checks before committing (title, contents table, numbering, anchors, § citations, fences, bold headings, history and filler words, tag legend, ASCII art, Mermaid colours, line numbers, README listing, long sections, links). Use when adding or editing anything in docs/, changing code or a design token a doc describes, closing an open item, splitting a long doc, or asked "update the docs", "rewrite this doc" or "check the docs".
+description: Creates, writes, restructures and keeps true the docs in docs/, carrying the documentation guidelines with it (references/guidelines.md) so the folder works in any repo — a new doc scaffolded from the template for its type (new_doc.py: rules, interface, system, config, notes, requirements) and listed in README, a new section, rule, trap or open item, a value, token or symbol that changed in code, a heading renamed or renumbered, a doc rewritten without loss — and runs the doc checks before committing (title, contents table, numbering, anchors, § citations, fences, bold headings, history and filler words, tag legend, ASCII art, Mermaid colours, line numbers, README listing, long sections, links). Use when creating a doc, adding or editing anything in docs/, documenting a feature, a system or a decision, changing code or a design token a doc describes, closing an open item, splitting a long doc, or asked "write docs for", "document this", "update the docs", "rewrite this doc" or "check the docs".
 ---
 
 # Docs authoring and sync
 
-How every doc in `docs/` is written, kept in step with the code, and rewritten without losing anything. The rules and
-their reasons are DOCUMENTATION_GUIDELINES (GUIDELINES below, in
-[docs/DOCUMENTATION_GUIDELINES.md](../../../docs/DOCUMENTATION_GUIDELINES.md)); this skill indexes them — each rule is
-one line citing the § that holds it — and is the home of the steps the guidelines point to: the Procedure and the
-Checks. The guidelines win if this page and they disagree — fix this page.
+How every doc in `docs/` is created, written, kept in step with the code, and rewritten without losing anything. The
+rules and their reasons are DOCUMENTATION_GUIDELINES (GUIDELINES below), kept in this skill at
+[references/guidelines.md](references/guidelines.md); this page indexes them — each rule is one line citing the § that
+holds it — and is the home of the steps the guidelines point to: the Procedure and the Checks. The guidelines win if
+this page and they disagree — fix this page. In the agent-harness kit, the `doc-writer` agent creates and writes docs
+with this skill and the `doc-reviewer` checks them (`.agents/agents/`).
+
+**Portable.** This folder is self-contained, and links to nothing outside itself (it names the rest of a kit in
+backticks): the guidelines, a template per doc type
+([references/templates/](references/templates/)), the doc scaffolder and the doc checks
+([scripts/](scripts/)). Copy it into any repo's `.agents/skills/` (or `.claude/skills/`) and it works there: the
+scripts read `PROJECT_NAME`, `DOC_PREFIX` and the code's paths from `.agents/project.py` when the repo has one, and
+fall back to their defaults when it does not ([scripts/_config.py](scripts/_config.py)). They need git and Python 3.9+.
 
 ## When to use
 
-- Writing a new doc, section, rule, trap, measurement or open item.
+- Creating a new doc — for a feature, a system, the design tokens, a setting, a requirement, the open items.
+- Writing a new section, rule, trap, measurement or open item.
 - Changing a design token, component, API, setting, stored key or behaviour that a doc or code comment describes.
 - Renaming a doc or a heading, renumbering, or splitting a long doc.
 - Rewriting or reorganising a doc; closing an open item; the last pass before a commit.
@@ -65,6 +74,30 @@ Checks. The guidelines win if this page and they disagree — fix this page.
 
 ## Procedure
 
+### Creating a doc
+
+GUIDELINES §2, §3 and §4 hold the rules these steps follow.
+
+1. **Check it needs a new doc** — grep `docs/` for the topic (`git grep -n -i "<topic words>" docs`); a topic another
+   doc owns is a new section there, under its next free number (GUIDELINES §3.4, §5).
+2. **Pick the type** by what readers come for (GUIDELINES §2) —
+   `python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --list`.
+3. **Scaffold it**:
+   `python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --type <type> --topic <TOPIC> --purpose "<1–4
+   lines>"` [`--summary "<one line for README>"`]. It writes `docs/<PREFIX>_<TOPIC>.md` with the opening block and
+   the blocks for its type, in §3.3 order, and lists it in README's Documentation section in one line — the summary,
+   or the purpose's first sentence. It never overwrites a doc.
+4. **Gather the facts before writing** — read the code, config and design files it describes; ask the person for what
+   only they know (why a decision was made, what the target showed). A fact you could not verify is an open item,
+   tagged `[?]`, never a guess written as fact (GUIDELINES §4.5).
+5. **Fill every `<…>`** — one fact per bullet, the rule first and its reason after, names in backticks, a unit on every
+   number, a source tag on every figure (GUIDELINES §3.6, §4.2, §5). Draw any flow in Mermaid (§6.1).
+6. **Drop the blocks that stayed empty**, and add a contents table once the doc passes ~150 lines (GUIDELINES §3.3,
+   §3.5).
+7. **Keep workflow out** — steps, recipes and checklists go to the skill that runs them, linked (GUIDELINES §1
+   Principle 7).
+8. **Run the checks** below; leave no hit. Then ask the `doc-reviewer`.
+
 ### Keeping docs true
 
 GUIDELINES §7 holds the rules these steps follow.
@@ -89,7 +122,7 @@ GUIDELINES §8 holds the rules these steps follow.
 4. **Rewrite** into the §3 structure.
 5. **Check the map** — every item at its destination; nothing missing without a §4.6 reason.
 6. **Report** moved and removed items in the commit message ("Nothing dropped" when true) — see the
-   [`commit-message`](../commit-message/SKILL.md) skill.
+   `commit-message` skill, where the repo has one.
 7. **Fix inbound links and `§n` citations** (Keeping docs true, step 3).
 
 ### Length and splitting
@@ -102,6 +135,12 @@ awk '/^## /{if(n)printf "%5d  %s\n", w, n; n=$0; w=0; next} {w+=NF} END{printf "
 ```
 
 ## Checks
+
+Every new or changed doc:
+
+- [ ] (script) No `<…>` placeholder left in a project doc — `grep -n '<[A-Za-z][^>]*>' docs/<DOC>.md` prints only
+  intended examples in backticks
+- [ ] Its type's opening and blocks, empty blocks dropped (§2, §3.2, §3.3)
 
 Judgment — the pre-commit pass GUIDELINES §11 points here for; each item cites the § it tests:
 
@@ -126,13 +165,14 @@ Judgment — the pre-commit pass GUIDELINES §11 points here for; each item cite
 
 Scripts — in [`scripts/`](scripts/), run from the repo root **with `bash` and `python3`** (under zsh an unquoted file
 list does not split). Each prints its check's name, its hit count and the baseline, then one line per hit; `verify.py
-run` runs all three when a doc, the kit or the code changes:
+run` runs them, and the scaffolder's self-test, when a doc, the kit or the code changes:
 
 ```sh
 bash .agents/skills/docs-authoring-and-sync/scripts/doc_checks.sh               # S1–S3, S5–S14, every doc
 bash .agents/skills/docs-authoring-and-sync/scripts/doc_checks.sh docs/<DOC>.md  # some docs, no baselines
 python3 .agents/skills/docs-authoring-and-sync/scripts/check_anchors.py         # S4
 python3 .agents/skills/docs-authoring-and-sync/scripts/check_links.py           # S15
+python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test        # the scaffolder's own cases
 ```
 
 Baselines are counts sanctioned today: a new hit on a line you touched is yours to fix, an old one elsewhere is left
@@ -140,7 +180,8 @@ for its own change (§7). When a hit is sanctioned, raise the baseline beside th
 script.
 
 - [ ] (script) **S1 Title** — every doc has one; a project doc `# <Project> — <Topic>` once `PROJECT_NAME` is set in
-  `.agents/project.py`; a project-wide doc names no project and links nothing outside `docs/` (§3.1) — 0 hits.
+  `.agents/project.py`; a project-wide doc names no project and links nothing outside `docs/` — or, kept in a skill
+  like the guidelines, outside its skill's folder (§3.1) — 0 hits.
 - [ ] (script) **S2 Contents table** on every doc over 150 lines (§3.5) — 0 hits.
 - [ ] (script) **S3 Numbering** gaps, duplicates, `###` under the wrong `##` (§3.4) — 0 hits.
 - [ ] (script) **S4 Contents rows, anchors, `§n` citations** — every `##` in the contents table, every `#anchor`
@@ -150,7 +191,8 @@ script.
 - [ ] (script) **S7 History words** (§4.3) — 0 hits. Plain *was* is too common to grep; read for it.
 - [ ] (script) **S8 Filler and "as above"** (§3.6, §5) — 0 hits.
 - [ ] (script) **S9 Tag used but not in the legend** (§4.5) — 0 hits.
-- [ ] (script) **S10 ASCII art** in prose or an unlabelled fence (§6.1) — 0 hits; a fence with a language is code, not a diagram.
+- [ ] (script) **S10 ASCII art** in prose or an unlabelled fence (§6.1) — 0 hits; a fence with a language is code, not a
+  diagram.
 - [ ] (script) **S11 `style`/`classDef` in Mermaid** (§6.1) — 0 hits.
 - [ ] (script) **S12 Line-number references** (§6) — 0 hits.
 - [ ] (script) **S13 Doc missing from README** (§7) — 0 hits.
@@ -160,6 +202,10 @@ script.
 
 ## Traps
 
+- **A new doc duplicates a section another doc owns** → the topic was not grepped first → make it a section there,
+  and link from where readers look (GUIDELINES §5; Creating a doc, step 1).
+- **A scaffolded doc is committed with `<…>` left in it** → the template's blocks were kept, not filled → fill or drop
+  every block before the commit (Checks).
 - **An anchor that looks right does not resolve** → an em dash, backtick or `&` in the heading changes the slug → run
   the anchors script; `—` leaves `--` (GUIDELINES §3.5).
 - **A renumber silently breaks code comments** → `§n` citations live in the code and the kit, not only docs → run the
@@ -176,20 +222,20 @@ script.
 
 | Topic | Where |
 | --- | --- |
-| Principles | [DOCUMENTATION_GUIDELINES §1](../../../docs/DOCUMENTATION_GUIDELINES.md#1-principles) |
-| Doc types and openings | [DOCUMENTATION_GUIDELINES §2](../../../docs/DOCUMENTATION_GUIDELINES.md#2-doc-types) |
-| Opening block | [DOCUMENTATION_GUIDELINES §3.2](../../../docs/DOCUMENTATION_GUIDELINES.md#32-opening-block) |
-| Building blocks | [DOCUMENTATION_GUIDELINES §3.3](../../../docs/DOCUMENTATION_GUIDELINES.md#33-section-building-blocks) |
-| Numbering | [DOCUMENTATION_GUIDELINES §3.4](../../../docs/DOCUMENTATION_GUIDELINES.md#34-numbering-and-headings) |
-| Contents table, slugs | [DOCUMENTATION_GUIDELINES §3.5](../../../docs/DOCUMENTATION_GUIDELINES.md#35-contents-table) |
-| Writing a section | [DOCUMENTATION_GUIDELINES §3.6](../../../docs/DOCUMENTATION_GUIDELINES.md#36-writing-a-section) |
-| Current state, closing items | [DOCUMENTATION_GUIDELINES §4.3](../../../docs/DOCUMENTATION_GUIDELINES.md#43-current-state-not-history) |
-| Sources and tags | [DOCUMENTATION_GUIDELINES §4.5](../../../docs/DOCUMENTATION_GUIDELINES.md#45-sources-and-confidence) |
-| What may be removed | [DOCUMENTATION_GUIDELINES §4.6](../../../docs/DOCUMENTATION_GUIDELINES.md#46-what-may-be-removed) |
-| Style | [DOCUMENTATION_GUIDELINES §5](../../../docs/DOCUMENTATION_GUIDELINES.md#5-writing-style) |
-| Markdown, Mermaid | [DOCUMENTATION_GUIDELINES §6](../../../docs/DOCUMENTATION_GUIDELINES.md#6-markdown-mechanics), [§6.1](../../../docs/DOCUMENTATION_GUIDELINES.md#61-diagrams) |
-| Keeping docs true | [DOCUMENTATION_GUIDELINES §7](../../../docs/DOCUMENTATION_GUIDELINES.md#7-keeping-docs-true) |
-| Rewrite process | [DOCUMENTATION_GUIDELINES §8](../../../docs/DOCUMENTATION_GUIDELINES.md#8-rewriting-an-existing-doc) |
-| Length and splitting | [DOCUMENTATION_GUIDELINES §9](../../../docs/DOCUMENTATION_GUIDELINES.md#9-length-and-splitting) |
-| Template | [DOCUMENTATION_GUIDELINES §10](../../../docs/DOCUMENTATION_GUIDELINES.md#10-template) |
-| README listing | [README Documentation](../../../README.md#documentation) |
+| Principles | [DOCUMENTATION_GUIDELINES §1](references/guidelines.md#1-principles) |
+| Doc types and openings | [DOCUMENTATION_GUIDELINES §2](references/guidelines.md#2-doc-types) |
+| Opening block | [DOCUMENTATION_GUIDELINES §3.2](references/guidelines.md#32-opening-block) |
+| Building blocks | [DOCUMENTATION_GUIDELINES §3.3](references/guidelines.md#33-section-building-blocks) |
+| Numbering | [DOCUMENTATION_GUIDELINES §3.4](references/guidelines.md#34-numbering-and-headings) |
+| Contents table, slugs | [DOCUMENTATION_GUIDELINES §3.5](references/guidelines.md#35-contents-table) |
+| Writing a section | [DOCUMENTATION_GUIDELINES §3.6](references/guidelines.md#36-writing-a-section) |
+| Current state, closing items | [DOCUMENTATION_GUIDELINES §4.3](references/guidelines.md#43-current-state-not-history) |
+| Sources and tags | [DOCUMENTATION_GUIDELINES §4.5](references/guidelines.md#45-sources-and-confidence) |
+| What may be removed | [DOCUMENTATION_GUIDELINES §4.6](references/guidelines.md#46-what-may-be-removed) |
+| Style | [DOCUMENTATION_GUIDELINES §5](references/guidelines.md#5-writing-style) |
+| Markdown, Mermaid | [DOCUMENTATION_GUIDELINES §6](references/guidelines.md#6-markdown-mechanics), [§6.1](references/guidelines.md#61-diagrams) |
+| Keeping docs true | [DOCUMENTATION_GUIDELINES §7](references/guidelines.md#7-keeping-docs-true) |
+| Rewrite process | [DOCUMENTATION_GUIDELINES §8](references/guidelines.md#8-rewriting-an-existing-doc) |
+| Length and splitting | [DOCUMENTATION_GUIDELINES §9](references/guidelines.md#9-length-and-splitting) |
+| Template | [DOCUMENTATION_GUIDELINES §10](references/guidelines.md#10-template) |
+| README listing | The repo's `README.md` → Documentation, which `new_doc.py` keeps |

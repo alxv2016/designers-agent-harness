@@ -24,7 +24,7 @@ README.md's Documentation section, checked for two things:
 
 Read `.agents/skills/docs-authoring-and-sync/SKILL.md` — its Rules (12, 15 and 17 for drift), its Checks (the judgment
 list and S1–S15) with the baselines noted against each, and its Procedure. Open
-`docs/DOCUMENTATION_GUIDELINES.md` for any rule you cite.
+`.agents/skills/docs-authoring-and-sync/references/guidelines.md` for any rule you cite.
 
 Score against [`.agents/rubrics/doc-reviewer.md`](../rubrics/doc-reviewer.md) — its verdict, evidence rules and every
 item, the Learned ones too. Run `python3 .agents/skills/verify-change/scripts/verify.py status` first: each `decision`

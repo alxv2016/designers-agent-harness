@@ -96,8 +96,8 @@ The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
 | [.agents/project.py](.agents/project.py) | The one settings file: checks, UI paths, the design brief and token files, secrets, allowed hosts, commands that ask | Every list — commented examples for web, mobile and Python |
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |
-| [.agents/skills/](.agents/skills/) | 7 skills — the loop, docs, commits, UI design, accessibility, design tokens, build and run | `build-run-test` |
-| [.agents/agents/](.agents/agents/) | 5 agents — `ui-designer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
+| [.agents/skills/](.agents/skills/) | 7 skills — the loop, docs, commits, UI design, accessibility, design tokens, build and run. The docs skill is portable: it carries the documentation guidelines, a template per doc type and a doc scaffolder, so its folder works in any repo | `build-run-test` |
+| [.agents/agents/](.agents/agents/) | 6 agents — `ui-designer`, `doc-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
 | `.agents/hooks/` | The guard and the injection flag, with self-tests | — |
 | `.agents/githooks/pre-commit` | Refuses a commit with a secret, a build file or a debug line | — |
@@ -115,7 +115,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — the rules, the loop, the guard, the reviewers, the design gates, memory, token use, and the bootstrap prompt. Generic: any project, any stack |
 | [DESIGN](DESIGN.md) | The product's design brief — principles and tokens. A demo until you write yours; AGENT_HARNESS §23 explains how agents use it |
-| [DOCUMENTATION_GUIDELINES](docs/DOCUMENTATION_GUIDELINES.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
+| [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
 
 The kit's own pages: [.agents/README.md](.agents/README.md) (the skills and agents in plain words) and
 [.agents/HARNESS.md](.agents/HARNESS.md) (this repo's policy, case by case).

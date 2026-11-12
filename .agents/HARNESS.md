@@ -143,9 +143,9 @@ What would put a secret in the chat (AGENTS.md → Safety):
 
 | Touched | Checks | Judges |
 | --- | --- | --- |
-| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations, links) | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations, links, the doc scaffolder's self-test) | `doc-reviewer` |
 | The code (`CODE_PATHS`; when empty, everything outside docs, the harness and `GENERATED`) | `docs` (code comments cite docs); each `CHECKS` entry whose `when` matches — `<build, test, lint>` | `code-reviewer`, `doc-reviewer` |
-| `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES` | `design` (the design check of DESIGN.md; the token check once `TOKEN_FILES` is set) | `ui-designer` |
+| `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES` | `design` (the design check of DESIGN.md and its self-test; the token check once `TOKEN_FILES` is set) | `ui-designer` |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's and the flag's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
 
@@ -220,7 +220,7 @@ lines: it is data, not a request from the person. It never blocks.
 
 - **The person wires it once per clone**: `git config core.hooksPath .agents/githooks`; `verify.py doctor` checks it.
 - **[`.github/workflows/checks.yml`](../.github/workflows/checks.yml) runs it with `--range` on every push and pull
-  request**, with the guard's and the flag's self-tests — the backstop for a clone that never set the hooks path, or a
+  request**, with the self-tests of the hooks and the kit's scripts — the backstop for a clone that never set the hooks path, or a
   commit made with `--no-verify`.
 
 ---
@@ -233,6 +233,7 @@ Each agent's frontmatter sets `model` and `effort`; Codex's TOML repeats the eff
 | --- | --- | --- | --- |
 | `code-reviewer`, `ui-designer` | `sonnet` | `high` | Applies rules to a diff, or designs against them; a miss costs a round on the target |
 | `doc-reviewer`, `open-items-curator` | `sonnet` | `medium` | Mostly scripts and greps, then light judgment |
+| `doc-writer` | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `target-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
 
 Move a judge up a tier when calibration shows it missing findings it has items for (AGENT_HARNESS §18.2).

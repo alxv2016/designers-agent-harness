@@ -6,12 +6,14 @@ designer or developer needs is written down, and a coding agent finds it without
 not the goal — findable is.
 
 These guidelines are product-neutral. A project fills in two names once: its **doc prefix** (`<PREFIX>`, a short code
-for the product) and its **project name** (`<Project>`, used in titles). In a repo built from the agent-harness
-template both live in `.agents/project.py` (`DOC_PREFIX`, `PROJECT_NAME`), where the doc checks read them.
+for the product) and its **project name** (`<Project>`, used in titles). The doc checks read both from
+`.agents/project.py` (`DOC_PREFIX`, `PROJECT_NAME`) when the repo has one.
 
-**Related.** [AGENT_HARNESS](AGENT_HARNESS.md) — the harness these guidelines are part of: knowledge in docs, workflow
-in the kit (§1). Its docs-authoring skill applies these rules on every doc change and holds the steps and checks they
-point to.
+**Where they live.** In the `docs-authoring-and-sync` skill, beside the steps, templates and checks that apply them —
+[its SKILL.md](../SKILL.md). The skill folder is self-contained: copy it into any repo's `.agents/skills/` and these
+guidelines, the doc scaffolder and the doc checks come with it. In a repo with the agent harness, AGENT_HARNESS
+(`docs/AGENT_HARNESS.md`) describes the harness these guidelines are part of: knowledge in docs, workflow in the kit
+(§1).
 
 **Stability.** Cite this doc as `DOCUMENTATION_GUIDELINES §n`, or `GUIDELINES §n` for short. Do not renumber; add new
 material under the next free number.
@@ -61,11 +63,12 @@ material under the next free number.
      become the kit, and link it.
 8. **Documentation is `docs/`, the design brief, and the rules kept in the kit.** `docs/` holds what the product is and
    how it works; `DESIGN.md` at the root holds what it should look and feel like (§3.1); the kit holds what an agent
-   applies while doing a task — the harness's own policy (`.agents/HARNESS.md`) and any rules a skill keeps in its
-   `references/` — and docs cite those as they cite a doc (`DESIGN §n`, `HARNESS §n`). Material fed in from outside for
-   one session — chat logs, private notes, a vendor's email — is not documentation: no doc, skill, agent or code comment
-   cites it, and a fact a reader needs from it is written into the doc that owns the topic. Design files, platform
-   specifications, vendor API docs and research findings are **sources**, cited with a tag (§4.5), not documentation.
+   applies while doing a task — these guidelines, the harness's own policy (`.agents/HARNESS.md`) and any rules a skill
+   keeps in its `references/` — and docs cite those as they cite a doc (`GUIDELINES §n`, `DESIGN §n`, `HARNESS §n`).
+   Material fed in from outside for one session — chat logs, private notes, a vendor's email — is not documentation: no
+   doc, skill, agent or code comment cites it, and a fact a reader needs from it is written into the doc that owns the
+   topic. Design files, platform specifications, vendor API docs and research findings are **sources**, cited with a tag
+   (§4.5), not documentation.
 
 ---
 
@@ -91,13 +94,16 @@ A doc that mixes types opens with the type most readers come for.
 - **A project doc** is `docs/<PREFIX>_<TOPIC>.md`, titled `# <Project> — <Topic>`. `<TOPIC>` is upper snake case
   (`DATA_MODEL`); `<Topic>` is the same words in title case (`Data Model`). Use one `<PREFIX>` for every doc in
   the repo, or none at all.
-- **A project-wide doc drops the prefix**: `docs/<TOPIC>.md`, titled `# <Topic>`. It applies to any repo and any
-  product — these guidelines, the agent-harness guide — so it names no project and links only to the other
-  project-wide docs beside it. What this repo does with it goes in a project doc that links to it; the project-wide
-  doc never links back.
+- **A project-wide doc drops the prefix**: `docs/<TOPIC>.md`, titled `# <Topic>`. It applies to any repo and any product
+  — the agent-harness guide, say — so it names no project and links only to the other project-wide docs beside it; it
+  names a rule kept in a skill by its path, in backticks, so the link survives a copy. A project-wide doc kept in a
+  skill, like these guidelines, links only within its skill's folder, which travels with it. What this repo does with it
+  goes in a project doc that links to it; the project-wide doc never links back.
 - **The design brief is `DESIGN.md` at the repo root**, titled `# <Project> — Design`, beside `README.md` and
   `AGENTS.md`: people and agents look for it there by name. It holds the product's principles and every design token
   by role with its value per theme, follows these guidelines like any doc, and is cited `DESIGN §n`.
+- **Rules kept in a skill are cited by their title**: these guidelines, in the docs-authoring-and-sync skill's
+  `references/guidelines.md`, are `DOCUMENTATION_GUIDELINES` (or `GUIDELINES`), and follow every rule here.
 - Renaming an existing doc or its title changes links — check inbound links first (§7).
 
 ### 3.2 Opening block
@@ -166,8 +172,8 @@ Pick the blocks a doc needs and keep them in this order. **Omit empty blocks** �
   dropped, backticks too (`## 3. The list and app_routes` → `#3-the-list-and-app_routes`). `## 9. Type (body and
   display)` → `#9-type-body-and-display`. A dropped character between two spaces leaves a double hyphen:
   `### 3.1 Space — padding` → `#31-space--padding`, `## 4. Tokens & themes` → `#4-tokens--themes`.
-- **Update the table in the same change as any heading edit.** The docs-authoring skill's anchors check proves every
-  link resolves.
+- **Update the table in the same change as any heading edit.** The docs-authoring-and-sync skill's anchors check proves
+  every link resolves.
 
 ### 3.6 Writing a section
 
@@ -400,7 +406,7 @@ dropped facts or reasons.
 - **Report what moved and what was removed** in the commit message.
 - **Fix inbound links and `§n` citations** (§7).
 
-Steps: the project's docs-authoring skill → Rewriting a doc.
+Steps: the docs-authoring-and-sync skill → Rewriting a doc.
 
 ---
 
@@ -416,14 +422,16 @@ Steps: the project's docs-authoring skill → Rewriting a doc.
   - rules are buried inside explanation
 - **Length is never a reason to split a doc.** Split only when it covers topics that change independently — along
   topic lines, keeping cited `§n` stable, with a short hub section that links to the parts.
-- **Measure before restructuring** — words per section; the commands belong in the project's docs-authoring skill →
+- **Measure before restructuring** — words per section; the commands belong in the docs-authoring-and-sync skill →
   Length and splitting.
 
 ---
 
 ## 10. Template
 
-Keep the opening block; add blocks from §3.3 in order, and drop any that would be empty.
+Keep the opening block; add blocks from §3.3 in order, and drop any that would be empty. This is the shape every doc
+shares; the docs-authoring-and-sync skill keeps one skeleton per doc type (§2) in `references/templates/`, which its
+`new_doc.py` scaffolds from — where a type's skeleton and this one differ, the type's opening (§2) decides.
 
 ````markdown
 # <Project> — <Topic>
@@ -517,7 +525,7 @@ Related: §1, [<doc>](<PREFIX>_<DOC>.md).
 
 ## 11. Pre-commit checklist
 
-The last pass before committing a doc — the judgment checks, each citing the § here it tests, and the script checks
-with their baselines — belongs in the project's docs-authoring skill → Checks (§1, Principle 7). Until that skill
-exists, the checks are §3.5 (contents and anchors), §4.5 (every figure tagged), §6 (lint) and §7 (values verified,
-inbound links fixed, README listing).
+The last pass before committing a doc — the judgment checks, each citing the § here it tests, and the script checks with
+their baselines — belongs in the docs-authoring-and-sync skill → Checks (§1, Principle 7). In a repo without that skill,
+the checks are §3.5 (contents and anchors), §4.5 (every figure tagged), §6 (lint) and §7 (values verified, inbound links
+fixed, README listing).

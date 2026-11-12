@@ -12,7 +12,7 @@ skills and agents exist, and the rules for every change.
 workflow.** Docs hold the product's rules, reasons, values, decisions and measurements; skills and agents hold the
 steps and condense the docs in one-line rules that cite `DOC §n`. A skill and a doc that disagree: the doc wins. A doc
 and the code: find out which is intended before changing either
-([DOCUMENTATION_GUIDELINES §1](docs/DOCUMENTATION_GUIDELINES.md#1-principles)).
+([DOCUMENTATION_GUIDELINES §1](.agents/skills/docs-authoring-and-sync/references/guidelines.md#1-principles)).
 
 ---
 
@@ -60,7 +60,7 @@ A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. 
 | [`accessibility`](.agents/skills/accessibility/SKILL.md) | Contrast against what is painted, focus and keyboard, names, target size, reduced motion |
 | [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, components, exceptions; the design and token checks |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start |
-| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Any doc change, or code a doc describes; the doc checks |
+| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks |
 | [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit |
 
 ---
@@ -72,6 +72,7 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 | Agent | Role |
 | --- | --- |
 | [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review |
+| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite |
 | [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules |
 | [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) |
 | [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw |
@@ -152,7 +153,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | Doc | Owns |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
-| [DOCUMENTATION_GUIDELINES](docs/DOCUMENTATION_GUIDELINES.md) | How every doc is written and kept true — generic, any project |
+| [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true — generic, any project; kept in the docs skill so it travels with it |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
 

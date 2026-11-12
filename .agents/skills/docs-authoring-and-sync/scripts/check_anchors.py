@@ -5,9 +5,9 @@ docs, README and the kit resolves, and every `<DOC> §n` cited in them and in th
     python3 .agents/skills/docs-authoring-and-sync/scripts/check_anchors.py
 
 A doc is cited by its file name without the project's doc prefix (`docs/<PREFIX>_DATA_MODEL.md` → `DATA_MODEL
-§2.3`). Rules kept in the kit count as docs too: `.agents/HARNESS.md` is `HARNESS`, and a skill's references are cited
-by the skill's name in capitals (`.agents/skills/accessibility/references/*.md` → `ACCESSIBILITY`), and the design brief
-by its name (`DESIGN.md` → `DESIGN`). `GUIDELINES` is
+§2.3`). Rules kept in the kit count as docs too: `.agents/HARNESS.md` is `HARNESS`, a skill's reference is cited by its
+title in capitals (`# Documentation Guidelines` → `DOCUMENTATION_GUIDELINES`), and the design brief by its name
+(`DESIGN.md` → `DESIGN`). `GUIDELINES` is
 short for `DOCUMENTATION_GUIDELINES`. Anchors follow GitHub's slugs (GUIDELINES §3.5): lowercase, spaces to `-`,
 punctuation but `-` and `_` dropped, so an em dash leaves `--`.
 
@@ -21,8 +21,8 @@ import sys
 
 ROOT = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip() or '.'
 os.chdir(ROOT)
-sys.path.insert(0, '.agents')
-import project  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _config as project  # noqa: E402 — .agents/project.py when present, else the skill's defaults
 
 BASELINE = 0
 ALIASES = {'GUIDELINES': 'DOCUMENTATION_GUIDELINES'}
@@ -66,9 +66,11 @@ def doc_name(path):
         return 'HARNESS'
     if path == project.DESIGN_FILE:
         return os.path.basename(path)[:-3].upper()
-    m = re.match(r'\.agents/skills/([^/]+)/references/', path)
-    if m:
-        return m.group(1).upper().replace('-', '_')
+    if re.match(r'\.agents/skills/[^/]+/references/', path):
+        # A rule kept in a skill is cited by its title: `# Documentation Guidelines` → DOCUMENTATION_GUIDELINES.
+        with open(path, encoding='utf-8') as fh:
+            title = fh.readline().lstrip('#').strip().split(' — ')[-1]
+        return re.sub(r'[^A-Za-z0-9]+', '_', title).strip('_').upper()
     base = os.path.basename(path)[:-3]
     prefix = project.DOC_PREFIX + '_' if project.DOC_PREFIX else None
     return base[len(prefix):] if prefix and base.startswith(prefix) else base
