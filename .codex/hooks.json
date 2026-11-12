@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agents/hooks/guard.py\" --agent codex",
+            "timeout": 10,
+            "statusMessage": "Harness guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Bash|mcp__.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agents/hooks/untrusted.py\"",
+            "timeout": 10,
+            "statusMessage": "Harness: checking outside content"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agents/skills/verify-change/scripts/verify.py\" unverified --hook",
+            "timeout": 20,
+            "statusMessage": "Harness: checking the tree was verified"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "target-runner"
+description = "Runs the change on the target and reports what it saw"
+developer_instructions = "Read .agents/agents/target-runner.md and follow it. It reports and fixes nothing."
+model_reasoning_effort = "low"

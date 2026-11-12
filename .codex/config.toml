@@ -1,0 +1,12 @@
+# The harness's Codex sandbox (.agents/HARNESS.md §3.2). Codex loads it only while the project is trusted.
+# Writes stay in the repo and the temp directory; .agents/, .codex/ and .git/ are read-only to commands.
+# Outbound traffic goes through Codex's proxy, which allows only the hosts below: they repeat ALLOWED_HOSTS in
+# .agents/project.py, and `verify.py doctor` checks the two agree.
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
+
+[features.network_proxy]
+enabled = true
+domains = { "**.github.com" = "allow", "**.githubusercontent.com" = "allow" }
