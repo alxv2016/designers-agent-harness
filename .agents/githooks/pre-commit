@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Refuses a commit that carries a generated file, a secret, a debug marker or a broken invariant (AGENTS.md →
+Safety; .agents/HARNESS.md §7; docs/AGENT_HARNESS.md §13).
+
+    .agents/githooks/pre-commit                      # git runs it on what is staged
+    .agents/githooks/pre-commit --range BASE..HEAD   # the same rules on commits already made: what CI runs on a push
+
+Git runs it for every agent and every person once `git config core.hooksPath .agents/githooks` is set — the person
+runs that once per clone; the harness guard asks before an agent changes the hooks path or uses `--no-verify`. A clone
+that never set the hooks path, or a commit made with `--no-verify`, still meets these rules in CI
+(.github/workflows/checks.yml), which runs this script with --range on what was pushed.
+
+The project's lists — generated paths, secret files, debug markers, invariants — come from .agents/project.py.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
+            or ".")
+sys.path.insert(0, str(ROOT / ".agents"))
+import project  # noqa: E402 — the project's facts: .agents/project.py
+
+SECRET_FILES = re.compile(r"(^|/)\.env(\.(?!example$|sample$|template$)[\w.-]+)?$|\.(pem|p12|pfx|key)$"
+                          r"|(^|/)id_(rsa|dsa|ecdsa|ed25519)$"
+                          + "".join(f"|(^|/){re.escape(n)}$" for n in project.SECRET_FILES))
+SECRETS = [
+    (r"-----BEGIN [A-Z ]*PRIVATE KEY-----", "a private key"),
+    (r"(?i)\b(password|passphrase|api_?key|secret|token|client_secret)\b\s*[=:]\s*[\"'][^\"'\s]{8,}[\"']",
+     "a credential assigned as a string literal"),
+    (r"\b(ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{20,}", "a GitHub token"),
+    (r"\bsk-[A-Za-z0-9_-]{20,}", "an API secret key (sk-…)"),
+    (r"\bAKIA[0-9A-Z]{16}\b", "an AWS access key"),
+    (r"\bAIza[0-9A-Za-z_-]{35}\b", "a Google API key"),
+    (r"\bxox[abpr]-[A-Za-z0-9-]{10,}", "a Slack token"),
+]
+SELF = ".agents/githooks/pre-commit"
+# Files whose text names the patterns above on purpose.
+PATTERN_HOMES = {SELF, ".agents/project.py", ".agents/hooks/guard.py"}
+# git's empty tree: the base for a range with none before it — a new branch, or a push's `before` that is all zeros.
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+def git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT)
+
+
+def known(rev: str) -> bool:
+    return bool(rev.strip("0")) and git("cat-file", "-e", f"{rev}^{{commit}}").returncode == 0
+
+
+def problems_in(base: str | None, head: str | None) -> list[str]:
+    """Every rule broken, by what is staged (base and head None) or by the commits base..head."""
+    staged = head is None
+    diff = ["--cached"] if staged else [base, head]
+    problems = []
+    for name in git("diff", *diff, "--name-only", "--diff-filter=ACMR").stdout.splitlines():
+        if project.matches(name, project.GENERATED):
+            problems.append(f"{name}: a generated file — {'unstage it' if staged else 'remove it in a commit'}, and "
+                            "keep it in .gitignore")
+        if SECRET_FILES.search(name):
+            problems.append(f"{name}: a secret file — never committed (AGENTS.md → Safety)")
+    if project.DEBUG_MARKERS:
+        grep = ["grep", "--cached", "-nE", project.DEBUG_MARKERS] if staged \
+            else ["grep", "-nE", project.DEBUG_MARKERS, head]
+        for hit in git(*grep, "--", *project.code_pathspec()).stdout.splitlines():
+            problems.append(f"{hit}: a debug marker — remove the temporary line before committing")
+    for path, pattern, why in project.INVARIANTS:
+        text = git("show", f":{path}" if staged else f"{head}:{path}").stdout
+        if not re.search(pattern, text, re.M):
+            problems.append(f"{path}: lacks /{pattern}/ — {why}")
+    current = None
+    for line in git("diff", *diff, "-U0", "--no-color", "--no-ext-diff").stdout.splitlines():
+        if line.startswith("+++ "):
+            current = line[6:] if line.startswith("+++ b/") else None
+        elif line.startswith("+") and current and current not in PATTERN_HOMES:
+            for pattern, what in SECRETS:
+                if re.search(pattern, line):
+                    problems.append(f"{current}: {what} — read it from the environment or a secret store; commit a "
+                                    "placeholder")
+    return problems
+
+
+def main() -> int:
+    base = head = None
+    if len(sys.argv) == 3 and sys.argv[1] == "--range" and ".." in sys.argv[2]:
+        base, head = sys.argv[2].split("..", 1)
+        if not known(head):
+            print(f"pre-commit: {head} is not a commit here — fetch the whole history", file=sys.stderr)
+            return 2
+        # A new branch, or a force-push whose old head is gone: everything in head is new.
+        base = base if known(base) else EMPTY_TREE
+    elif len(sys.argv) != 1:
+        print(__doc__, file=sys.stderr)
+        return 2
+    problems = problems_in(base, head)
+    if problems:
+        print(f"pre-commit: {'commit refused' if head is None else 'these commits break the rules'} "
+              "(AGENTS.md → Safety)", file=sys.stderr)
+        for p in problems:
+            print(f"  {p}", file=sys.stderr)
+        return 1
+    if head is not None:
+        print(f"pre-commit: {base[:7]}..{head[:7]} keeps the rules")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "ui-designer"
+description = "Designs, builds and reviews UI through the three gates"
+developer_instructions = "Read .agents/agents/ui-designer.md and follow it. In mock or review mode, edit nothing in the repo."
+model_reasoning_effort = "high"

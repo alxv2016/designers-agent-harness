@@ -1,0 +1,31 @@
+# The pre-commit hook's rules on every push and pull request (.agents/HARNESS.md §7): no generated file, no secret, no
+# debug marker, no broken invariant. The hook runs them at each commit, but only in a clone that set core.hooksPath and
+# on a commit not made with --no-verify; this is the backstop for the rest. Add the project's build and tests as
+# further jobs once they exist.
+name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rules:
+    name: harness rules
+    # A named release, not ubuntu-latest, which moves to a new release under the job; the job needs only git and
+    # Python 3.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the pushed range's first commit, to diff against
+      - name: The pre-commit hook on what was pushed
+        run: >-
+          python3 .agents/githooks/pre-commit
+          --range "${{ github.event.pull_request.base.sha || github.event.before }}..${{ github.sha }}"
+      - name: The hooks' and the kit scripts' self-tests
+        run: |
+          python3 .agents/hooks/guard.py --test
+          python3 .agents/hooks/untrusted.py --test
+          python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test
+          python3 .agents/skills/design-system/scripts/design_check.py --test
+          python3 .agents/skills/accessibility/scripts/contrast.py --test

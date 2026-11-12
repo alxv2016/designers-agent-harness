@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "code-reviewer"
+description = "Reviews a diff to the code against the project's rules"
+developer_instructions = "Read .agents/agents/code-reviewer.md and follow it. It is read-only: edit nothing."
+model_reasoning_effort = "high"

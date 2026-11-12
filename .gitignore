@@ -1,0 +1,27 @@
+# The harness's task state, run logs and build logs (docs/AGENT_HARNESS.md §10.3) — one machine's, never committed.
+.cache/
+
+# Secrets — the guard denies them to agents and the pre-commit hook refuses them; keep them out of git too.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.p12
+*.pfx
+*.key
+
+# Build output and dependencies — trim or extend to your stack, and keep GENERATED in .agents/project.py in step.
+build/
+dist/
+out/
+coverage/
+node_modules/
+.venv/
+__pycache__/
+
+# Editors and the OS
+.DS_Store
+.idea/
+*.swp
