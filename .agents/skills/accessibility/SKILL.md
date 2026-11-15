@@ -44,8 +44,8 @@ three gates, `design-system` keeps the product's colour pairs, and `verify.py ru
    visual order, no positive tabindex (WCAG 2.4.3, 2.4.7, 2.4.11; ACCESSIBILITY §5).
 6. **Give every control a name a screen reader says, containing its visible label** — an icon-only button named for
    its action; inputs keep a visible label, not only a placeholder (WCAG 4.1.2, 2.5.3, 3.3.2; ACCESSIBILITY §4, §9).
-7. **Make targets at least 24 × 24 px, and aim for the platform's 44 pt or 48 dp**, with no two overlapping
-   (WCAG 2.5.8; 2.5.5 at AAA; ACCESSIBILITY §6).
+7. **Make targets at least 24 × 24 px, and aim for the platform's 44 pt or 48 dp unless the design brief sets its
+   own size**, with no two overlapping (WCAG 2.5.8; 2.5.5 at AAA; ACCESSIBILITY §1, §6).
 8. **Never use colour as the only signal** — an error has an icon or words, a link in text has an underline, a chart
    has labels or patterns (WCAG 1.4.1; ACCESSIBILITY §2).
 9. **Let text resize to 200 % and reflow at 320 px wide**, and never block pinch zoom (WCAG 1.4.4, 1.4.10, 1.4.12;

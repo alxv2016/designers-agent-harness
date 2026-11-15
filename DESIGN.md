@@ -83,7 +83,7 @@ Each role has a kind, which says what it may be painted on and which floor appli
 | non-text | Borders, separators, the focus ring | On every surface, floor 3 |
 | fill | A solid background for a control | As the background for every on-fill role |
 | on-fill | Words and icons on a fill | On every fill, floor 4.5 |
-| scrim, exempt | Never under text; disabled or decorative | Not paired |
+| scrim, exempt | Never under text; disabled, decorative, or a logotype — a logotype that carries meaning has a text alternative naming it (WCAG 1.1.1) | Not paired |
 
 | Token | Kind | Light | Dark | Use |
 | --- | --- | --- | --- | --- |
@@ -185,7 +185,8 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `space.xl` | 24 px | Between groups; screen edge on medium and up |
 | `space.2xl` | 32 px | Between sections |
 | `space.3xl` | 48 px | Above a screen's first section on expanded |
-| `size.target` | 44 px | The smallest hit area of any control, drawn or padded |
+| `size.target` | 44 px | The smallest hit area of any control, drawn or padded, on every platform |
+| `size.target.material` | 48 px | Optional on Android: Material Design's recommended hit area (48 dp), where a layout has room; never below `size.target` |
 | `size.content-max` | 720 px | The widest a column of text runs |
 
 - **Sizes are written in px at 100 % text size; code carries type and space in a unit that scales with the person's
@@ -221,6 +222,8 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `duration.base` | 200 ms | Most moves: a menu, a popover, a toast, a list reordering, each item of a list entering; the exit of anything that enters at `duration.slow` |
 | `duration.slow` | 300 ms | The longest move: a sheet, a dialog, a full-screen change |
 | `duration.stagger` | 40 ms | The delay between items of a list entering together |
+| `duration.spin` | 1000 ms | One full turn of a `Spinner` |
+| `delay.indicator` | 1000 ms | How long a wait runs before a `Spinner` shows |
 | `easing.enter` | `cubic-bezier(0.22, 1, 0.36, 1)` | Something arriving: fast at once, a long settle |
 | `easing.exit` | `cubic-bezier(0.33, 1, 0.68, 1)` | Something leaving: it moves the moment it is dismissed, quieter than its entrance |
 | `easing.standard` | `cubic-bezier(0.65, 0, 0.35, 1)` | A move that starts and ends on screen: a list reordering, a highlight sliding between tabs |
@@ -231,8 +234,8 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `scale.press` | 0.97 | A control while pressed |
 
 The curves: the `cubic-bezier` fits of Robert Penner's ease-out quint (`easing.enter`), ease-out cubic
-(`easing.exit`) and ease-in-out cubic (`easing.standard`) equations as published on easings.net; CSS `ease` (`easing.hover`) from CSS Easing
-Functions Level 1; the sheet curve from the open-source Vaul drawer.
+(`easing.exit`) and ease-in-out cubic (`easing.standard`) equations as published on easings.net; CSS `ease`
+(`easing.hover`) from CSS Easing Functions Level 1; the sheet curve from the open-source Vaul drawer.
 
 | Surface | Enters | Leaves |
 | --- | --- | --- |
@@ -242,7 +245,7 @@ Functions Level 1; the sheet curve from the open-source Vaul drawer.
 | `Toast` | `duration.base`, `easing.enter`, from its screen edge | `duration.fast`, `easing.exit`, to the same edge |
 
 Menus and popovers have no row in §8 yet; they take these values when they are added there. A loading indicator —
-`Button`'s loading state included — takes its values when the spinner is designed (§11).
+`Button`'s loading state included — is the `Spinner` in §8.
 
 - **How often a thing is seen decides first whether it moves.** An action a person repeats many times an hour —
   typing, moving through a list, a command palette, a menu opened by a keyboard shortcut — does not animate; motion on
@@ -260,19 +263,26 @@ Menus and popovers have no row in §8 yet; they take these values when they are 
 - **A move triggered again mid-flight continues from where it is**, never restarts from its first frame — a restart
   makes the surface jump under the person's eye.
 - **No move the product starts runs longer than `duration.slow`**; anything longer is an exception in §10. The
-  ceiling applies to each move — in a staggered list, to each item's move, so five items at `duration.base` finish within 360 ms.
+  ceiling applies to each move — in a staggered list, to each item's move, so five items at `duration.base` finish
+  within 360 ms.
 - **Motion the person drives sits outside the ceiling** — a drag, a scroll or a hold filling up lasts as long as they
   drive it.
-- **A wait indicator sits outside the ceiling** — a spinner or progress bar lasts as long as the wait; a spinner's
-  cycle is open in §11.
+- **A wait indicator sits outside the ceiling** — a spinner or progress bar lasts as long as the wait.
+- **A wait shows no `Spinner` under `delay.indicator`, a `Spinner` from it, and a progress bar when it is expected to
+  pass 10 s** — under a second the person's flow holds without a signal, and past ten they need to know how long
+  (Jakob Nielsen, "Response Times: The 3 Important Limits", Nielsen Norman Group: 0.1 s, 1 s, 10 s). Only the
+  `Spinner` waits: the control the person pressed shows its pressed state at once. The progress bar is not designed
+  yet (§11).
+- **A `Spinner` turns once per `duration.spin` on `easing.linear`** — chosen to read as busy rather than agitated
+  (§11), and one turn a second is far under 3 flashes a second (WCAG 2.3.1).
 - **Only position, scale, rotation, opacity and colour animate**, never size or layout, which drop frames.
 - **A list enters with `duration.stagger` between its first five items; the rest enter with the fifth**, and only the
   items enter, not their container too — the order shows how to read it, and a longer cascade becomes a wait.
 - **Hover never scales: it changes colour, through a role token such as `color.accent.pressed`** — a hover is a state,
   not a move, and growing the thing under the pointer shifts it while the person aims.
 - **Opacity on hover is for non-text only, and the dimmed result still meets its floor against what is painted behind
-  it** — 3:1 for a border or other non-text `[SPEC]` (WCAG 1.4.11), 4.5:1 for an icon that carries meaning, which §2.1
-  paints as text; dimmed text would paint a colour no §2.2 pair covers.
+  it** — 3:1 for a border or other non-text `[SPEC]` (WCAG 1.4.11), 4.5:1 for an icon that carries meaning, which
+  §2.1 paints as text; dimmed text would paint a colour no §2.2 pair covers.
 - **Under reduced motion, a move becomes a `duration.fast` fade on `easing.linear`, or nothing** (Principle 4) —
   above AA, from WCAG 2.3.3 at AAA `[SPEC]`.
 - **Under reduced motion, a list's stagger is dropped** — every item fades in at once.
@@ -311,10 +321,11 @@ Reuse before making one; a one-off moves here on its second caller (design-syste
 | --- | --- | --- | --- |
 | `Button` | An action: primary (one per view), secondary, text, danger | Rest, hover, pressed, focus, disabled, loading | Navigation to another screen — use a link or a `ListRow` |
 | `TextField` | Text a person types, with a visible label above | Rest, focus, filled, error with its message, disabled | A choice from a few options — use a segmented control |
-| `ListRow` | One item in a list: a title, optional supporting text, a trailing value or chevron | Rest, pressed, focus, selected | A paragraph of content |
+| `ListRow` | One item in a list: a title, optional supporting text, a trailing value or chevron | Rest, pressed, focus, selected — `color.bg.selected` with a checkmark in `color.accent` when the row is a choice, or a `space.xs` leading bar of `color.accent` at `radius.full` when it opens something; never a ring, which reads as focus; announced as selected (checked, for a choice), the mark itself hidden from screen readers | A paragraph of content |
 | `Sheet` | A focused task over the current screen that keeps its context | Opening, open, closing | Anything a person must finish before going on — use a `Dialog` |
-| `Dialog` | A decision the person must make now; a destructive action's confirmation | Open, with one primary (danger when it destroys) and one cancel | News — use a `Toast` |
-| `Toast` | News that asks nothing, on `color.bg.overlay`, announced as a status message; it stays 6 s, longer while hovered or focused, and has a close | Showing, paused, leaving | Errors that need an action — show them in place; the only place a fact appears |
+| `Dialog` | A decision the person must make now; a destructive action's confirmation; the confirmation behind a hold-to-confirm, opened by a tap, a key or a screen reader's action | Open, with one primary (danger when it destroys) and one cancel | News — use a `Toast` |
+| `Spinner` | A wait with no known length: shown from `delay.indicator`, turning once per `duration.spin`, named "Loading", with a status announcement when it shows and when the wait ends; `Button`'s loading state at the label's size, the `Button` marked busy from the press; its size, stroke and colours are open in §11 | Turning, until the wait ends in the content, an error or a timeout | A wait expected over 10 s — a progress bar with how much is done |
+| `Toast` | News that asks nothing, on `color.bg.overlay`, announced as a status message; it stays 6 s, paused while hovered, focused or pressed and resuming with the time left, and has a close | Showing, paused, leaving | Errors that need an action — show them in place; the only place a fact appears |
 
 ---
 
@@ -323,9 +334,15 @@ Reuse before making one; a one-off moves here on its second caller (design-syste
 This product meets WCAG 2.2 AA `[SPEC]`; the rules and how to check them are the
 [`accessibility`](.agents/skills/accessibility/SKILL.md) skill's. On top of AA:
 
-- **Hit areas are `size.target`, 44 px**, above AA's 24 px — the product is used one-handed on a phone.
+- **Hit areas are `size.target` (§4) on every platform, Android included**, above AA's 24 px — the product is used
+  one-handed on a phone; `size.target.material` is optional on Android, and Android's Accessibility Scanner flags a
+  hit area under 48 dp.
 - **Every pair in §2.2 passes in both themes**, checked by the design check on every change to this file.
-- **No time limit hides content**: a `Toast` pauses while hovered or focused and can be closed `[SPEC]` (WCAG 2.2.1).
+- **No time limit hides content**: a `Toast` pauses and can be closed (§8) `[SPEC]` (WCAG 2.2.1).
+- **Hold-to-confirm is a touch pattern for phones; every one also confirms through a `Dialog`**, which a tap,
+  a key or a screen reader's action on the same control opens, so no one has to hold. A release before the
+  fill completes — a tap included — never confirms: the fill drains and the `Dialog` opens `[SPEC]` (WCAG 2.1.1,
+  2.5.2).
 - **Text sizes follow the platform's text-size setting** up to 200 % without loss.
 - **Motion follows the platform's reduced-motion setting** (§6) — WCAG 2.3.3 is AAA `[SPEC]`; every platform ships
   the setting and people rely on it.
@@ -346,4 +363,5 @@ This product meets WCAG 2.2 AA `[SPEC]`; the rules and how to check them are the
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | `color.border` in dark passes at 3.33:1 on `color.bg.selected` and 4.26:1 on `color.bg.surface`; whether it reads comfortably on an OLED phone at low brightness `[?]` — a preference, not a compliance question | Open | The person's look on a phone at 20 % brightness |
-| A spinner's cycle length: outside the `duration.slow` ceiling (§6), slow enough to read as busy rather than agitated, and far under 3 cycles a second (WCAG 2.3.1) | Open | The spinner designed as a §8 component, judged by the person on the target |
+| Whether `duration.spin` at 1000 ms reads as busy rather than agitated on a phone `[?]` | Open | The person's look at the `Spinner` on the target |
+| The `Spinner`'s size, stroke and colours, the `ListRow` checkmark's size, the progress bar, and how long a hold-to-confirm takes to fill — values the specimen drew but this file does not yet decide | Open | Each one's mock at the first gate when it is built, with its tokens decided here first |

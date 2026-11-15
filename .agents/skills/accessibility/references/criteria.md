@@ -39,8 +39,9 @@ platforms' own guidelines assume.
 
 - **WCAG is written for the web and applies to native apps too.** The W3C's guidance on applying WCAG to mobile and
   non-web software maps each criterion to native screens; this doc gives the web, iOS and Android way side by side.
-- **A platform that asks for more wins on that platform** — Apple asks 44 × 44 pt targets and Material 48 × 48 dp where
-  WCAG asks 24 × 24 CSS px (§6).
+- **A platform that asks for more sets the size to aim for on that platform** — Apple asks 44 × 44 pt targets and
+  Material 48 × 48 dp where WCAG asks 24 × 24 CSS px (§6). A project's design brief decides whether it adopts each
+  platform's size; its auditors (Android's Accessibility Scanner at 48 dp) flag what falls under it.
 - **A project's design brief may set a floor above AA, never below it.** The brief writes each higher floor once with
   its reason; this doc stays the AA floor every project shares.
 - **Two AAA criteria are worth adopting by default**: animation from interactions can be turned off (WCAG 2.3.3, §8),
