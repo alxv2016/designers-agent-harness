@@ -71,7 +71,12 @@ stand behind it.
   message naming one is not blocked.
 - **A heredoc's body is data**, unless it is fed to `bash`, `sh` or `zsh`.
 - **Files are judged when written** through the edit tools, Codex's `apply_patch`, a redirect, `tee`, or a `cp`, `mv`,
-  `ln`, `install` or `rsync` destination; `sed -i`, `touch`, `dd` and scripts are not followed.
+  `ln`, `install` or `rsync` destination, `sed` or `perl` in place on the file (`-i`, `-Ei`, `-i.bak`, `-pi`,
+  `--in-place`), or an inline script — Python, Node, Ruby, Perl, PHP, Deno or Bun, by name, by path or as `$PY` — that
+  names the file in quotes and makes a write call from the guard's list. A script that names a protected file and
+  writes another asks too. A path the script builds, a script kept in a file, a `cd` before the write, `touch` and
+  `dd` are not followed.
+- **A NUL in a path ends it**, as it does for the shell, so a path can never crash the guard.
 - **A guard that crashes lets the call through** — both agents treat a hook error as non-blocking — and says why on
   stderr; `verify.py doctor` runs its self-test.
 

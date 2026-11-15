@@ -188,8 +188,9 @@ Each trap is written as symptom → cause → fix.
   `[TD]` → print the error on stderr, and run the self-test from `doctor`.
 - **The guard lets everything through after an edit to the settings file** → a syntax error in `project.py`, which the
   guard imports, crashes it → `doctor` runs the self-test; the guard asks before an agent edits the file.
-- **A file the guard should ask about gets written** → `sed -i`, `touch`, `dd` or a script wrote it, and the guard does
-  not follow those → the pre-commit hook and the person's review stand behind the guard (§13).
+- **A file the guard should ask about gets written** → `touch`, `dd`, a script kept in a file, a script that builds
+  the path, a write call outside the guard's list, or a `cd` before the write — the guard does not follow those → the
+  pre-commit hook and the person's review stand behind the guard (§13).
 - **The injection flag warns about the repo's own files** → the command mixed a reader with a program not on the
   reader list (`echo`, `printf`) → the warning is harmless; widen the list only with programs that cannot read from
   outside the repo (§12).
@@ -873,8 +874,12 @@ The guard judges each simple command by its program and arguments, so text that 
 - **Name a Python call by its module or script** (`python -m <module>`, `python <script>.py`).
 - **Let the strongest decision win** across the simple commands: deny over ask over allow.
 - **Judge writes made through** the edit tools, `apply_patch`, the redirects `>`, `>>` and `tee`, and the destination
-  of `cp`, `mv`, `ln`, `install` and `rsync`. Writes by `sed -i`, `touch`, `dd` or a script are not followed; the
-  pre-commit hook stands behind them.
+  of `cp`, `mv`, `ln`, `install` and `rsync`; `sed` or `perl` in place on the file; and an inline script, whatever
+  the interpreter is called, that names the file in quotes and makes a known write call — read as text. Writes by
+  `touch`, `dd`, a script kept in a file, a script that builds the path, or a write call the guard does not know are
+  not followed; the pre-commit hook stands behind them.
+- **Never let a path crash the guard** — a crash lets the call through, the secret deny with it; a NUL ends a path, as
+  it does for the shell.
 - **Judge Read, Grep and Glob only for credential paths**, Glob patterns that reach into them included.
 - **Make credential names the one word-match.** Any word in a shell command that names a credential path or file is
   denied before the program is looked at, so `grep -r token .env` and `echo id_rsa` are denied too. A pattern that
@@ -951,8 +956,8 @@ Content counts as outside when it is:
 ## 13. Git hooks
 
 `.agents/githooks/pre-commit` refuses a commit that carries something no commit should. It runs for agents and people
-alike, so it backs up the guard: it catches what the guard cannot see, such as `sed -i`, scripts, and agents with no
-hooks.
+alike, so it backs up the guard: it catches what the guard cannot see, such as a script kept in a file, and agents with
+no hooks.
 
 | Refuses | How it finds it |
 | --- | --- |

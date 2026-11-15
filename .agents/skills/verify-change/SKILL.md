@@ -188,9 +188,11 @@ instead of searching the chat for where the task stands.
   step, and grep that it landed before saying it is fixed.
 - **The guard blocks a command the task needs** → it is a rule from AGENTS.md → ask the person to run or approve it;
   never rephrase the command to get past it.
-- **A harness file was edited and the guard never asked** → the edit went through a script (`python3 - <<EOF`,
-  `sed -i`), which the guard reads as a command, not as an edit to that file → edit `.agents/hooks/`, `project.py`,
-  `verify-change` and the other harness files with the editor's edit tool, so the guard asks the person.
+- **A harness file was edited and the guard never asked** → a script built the path, a script kept in a file wrote it,
+  or a `cd` came first — the guard follows `sed`/`perl` in place and inline scripts that name the file in quotes and
+  make a known write call, nothing else → edit
+  `.agents/hooks/`, `project.py`, `verify-change` and the other harness files with the editor's edit tool, so the
+  guard asks the person.
 - **`V run` names no checks** → nothing differs from `HEAD`, or only files no check covers → the change is committed
   or not saved, or needs its own check in `.agents/project.py`.
 - **A project check fails with "not found"** → its program is not installed on this machine → install it, or ask the
