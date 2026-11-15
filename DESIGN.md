@@ -33,7 +33,7 @@ true, and that every token named here exists in the token files.
 | 2 | [Colour](#2-colour) | Colour roles with light and dark values; contrast pairs and their ratios |
 | 3 | [Type](#3-type) | The type scale: size, line height, weight, use |
 | 4 | [Space and size](#4-space-and-size) | The spacing scale; tap target; content width |
-| 5 | [Radius and elevation](#5-radius-and-elevation) | Corner radii, nesting rule, shadows |
+| 5 | [Radius and elevation](#5-radius-and-elevation) | Corner radii, nesting rule, elevation per theme, border widths, the layer order |
 | 6 | [Motion](#6-motion) | Durations, easings, scales; how each surface enters and leaves; the motion rules and reduced motion |
 | 7 | [Layout](#7-layout) | Breakpoints and how screens adapt |
 | 8 | [Components](#8-components) | What each component is for, its states, when not to use it |
@@ -57,13 +57,15 @@ meet the §9 floors. The floors are never weighed against a principle.
    - In practice: contrast pairs come from §2.2; targets are at least `size.target`; focus order is part of the mock.
    - Why: fixing access after the build means redrawing it.
 3. **Content leads, chrome recedes.** Surfaces, borders and shadows exist to group content, never to decorate.
-   - In practice: `color.bg.surface` groups; `color.border` separates only when space alone does not.
+   - In practice: `color.bg.surface` groups; `color.border.subtle` separates rows space already separates; `color.border`
+     separates only when space alone does not.
    - Why: every extra line competes with the content for attention.
 4. **Calm motion.** Motion explains a change — where something came from, where it went — and never decorates.
    - In practice: `duration.base` for most moves, nothing the product starts over `duration.slow`; under reduced
      motion, a fade or nothing — except a wait and motion the person drives (§6).
    - Why: motion that does not explain is noise, and for some people it is nausea.
-5. **Consistent by system.** Every colour, size, space, radius, duration, easing and scale is a token from this file.
+5. **Consistent by system.** Every colour, size, space, radius, border width, layer, duration, easing and scale is a
+   token from this file.
    - In practice: a value that is not here is an exception in §10, with its reason.
    - Why: a one-off value is a decision nobody can find again.
 
@@ -83,7 +85,7 @@ Each role has a kind, which says what it may be painted on and which floor appli
 | non-text | Borders, separators, the focus ring | On every surface, floor 3 |
 | fill | A solid background for a control | As the background for every on-fill role |
 | on-fill | Words and icons on a fill | On every fill, floor 4.5 |
-| scrim, exempt | Never under text; disabled, decorative, or a logotype — a logotype that carries meaning has a text alternative naming it (WCAG 1.1.1) | Not paired |
+| scrim, exempt | Never under text; disabled, decorative, or a logotype — a logotype that carries meaning has a text alternative naming it (WCAG 1.1.1); a divider or edge that is never a control's only boundary nor a state's only mark | Not paired |
 
 | Token | Kind | Light | Dark | Use |
 | --- | --- | --- | --- | --- |
@@ -99,6 +101,8 @@ Each role has a kind, which says what it may be painted on and which floor appli
 | `color.accent.pressed` | fill | `#1B45AD` | `#A5BEFF` | The primary action while pressed or hovered |
 | `color.text.disabled` | exempt | `#A3A8B0` | `#5A606B` | Disabled controls' text and icons — exempt from contrast, never used for anything enabled |
 | `color.border` | non-text | `#7D838D` | `#7A818E` | Control borders and separators that carry meaning |
+| `color.border.subtle` | exempt | `#E1E3E8` | `#2E333C` | A divider between rows already separated by space and identified by their content; never the only mark of a state or a boundary |
+| `color.edge` | exempt | `#0000001A` | `#FFFFFF1F` | The inside edge of an image, and of a raised surface in dark where a shadow cannot read; never a control's only boundary nor a state's only mark |
 | `color.focus` | non-text | `#2457D6` | `#7EA2FF` | The focus ring |
 | `color.danger` | text, fill | `#B42318` | `#FF8A80` | Destructive actions, errors |
 | `color.success` | text | `#177433` | `#5FD38A` | Confirmations |
@@ -145,7 +149,8 @@ with a ratio that differs from the computed one. Floors: 4.5 for text, 3 for non
 
 - **A new pair a screen paints gets a row here before the screen is built** — the mock's values file names it.
 - **Text never sits on `color.border`, `color.focus` or a translucent fill** unless its pair is in this table.
-- **The focus ring is 2 px of `color.focus`, offset 2 px outside the control**, so it is measured against the surface
+- **The focus ring is `border.width.focus` of `color.focus`, offset `space.focus-offset` outside the control**, so it
+  is measured against the surface
   the control sits on — never against the control's own fill (`color.focus` on `color.accent` is 1:1).
 - **A floor is 4.5 for any text or on-fill role** — the 3 floor is for non-text roles only (§3: no role but
   `text.display` is large text).
@@ -185,6 +190,7 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `space.xl` | 24 px | Between groups; screen edge on medium and up |
 | `space.2xl` | 32 px | Between sections |
 | `space.3xl` | 48 px | Above a screen's first section on expanded |
+| `space.focus-offset` | 2 px | The gap between a control and its focus ring |
 | `size.target` | 44 px | The smallest hit area of any control, drawn or padded, on every platform |
 | `size.target.material` | 48 px | Optional on Android: Material Design's recommended hit area (48 dp), where a layout has room; never below `size.target` |
 | `size.content-max` | 720 px | The widest a column of text runs |
@@ -202,15 +208,48 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `radius.md` | 8 px | Buttons, fields, list rows |
 | `radius.lg` | 16 px | Cards, sheets |
 | `radius.full` | 9999 px | Pills, avatars |
-| `elevation.raised` | `0 1px 2px rgba(0, 0, 0, 0.12)` | A card over the canvas |
-| `elevation.overlay` | `0 8px 24px rgba(0, 0, 0, 0.24)` | Sheets, dialogs, menus |
+
+Elevation, with a value per theme:
+
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `elevation.raised` | `0 1px 2px rgba(0, 0, 0, 0.12)` | `none` | A card over the canvas — in dark, `color.bg.surface` carries it |
+| `elevation.overlay` | `0 8px 24px rgba(0, 0, 0, 0.24)` | `0 8px 24px rgba(0, 0, 0, 0.24)` | Sheets, dialogs, menus — in dark, with `color.bg.overlay` |
+
+Border widths, and the stacking order — ordinals, not pixels: a screen names the layer, and only the order matters:
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `border.width.hairline` | 1 px | Dividers and edges: the device's thinnest crisp line — one physical pixel on dense screens where the platform allows |
+| `border.width.default` | 1 px | Control borders |
+| `border.width.focus` | 2 px | The focus ring |
+| `layer.raised` | 1 | Content lifted over the page |
+| `layer.sticky` | 10 | Headers and bars that stay while content scrolls under them |
+| `layer.scrim` | 20 | `color.scrim`, behind a `Sheet` or `Dialog` |
+| `layer.overlay` | 30 | `Sheet`, `Dialog` — a later overlay stacks above an earlier one, in the order they opened, each with its own `color.scrim` directly under it |
+| `layer.menu` | 40 | Menus and popovers — above a `Dialog`, so one opened inside it shows |
+| `layer.toast` | 50 | `Toast` — readable while a `Dialog` is open |
+| `layer.tooltip` | 60 | Tooltips, above everything |
 
 - **A nested corner is the outer radius minus the padding between them**, never the same radius twice (design-system
   Do 9). Round down to the nearest radius token, and use 0 when the result is under `radius.sm`; a computed radius is
   not an exception.
-- **Dark mode adds no shadow to `elevation.raised`**: a raised surface is `color.bg.surface` instead.
-- **Dark mode keeps `elevation.overlay` and shows the layer with `color.bg.overlay`** — a black shadow does not read on
-  `#111317`, so the lighter surface carries the elevation.
+- **In dark, every overlay takes a `border.width.hairline` inside edge of `color.edge`** — `color.bg.overlay` is
+  1.10:1 on `color.bg.surface` and 1:1 on another overlay, and a black shadow does not read, so without it a menu over
+  a card, or a `Toast` over a `Dialog`, melts into what is under it.
+- **A surface takes at most a step in surface colour and a shadow**; `color.edge` joins them only where the shadow
+  cannot read.
+- **Photos and screenshots take a `color.edge` inside edge**, so a pale image holds its shape on a matching surface.
+- **Overlays render at the top level of the screen, in the `layer.*` order** — a screen names the layer, never a
+  number, and nothing renders inside a parent that clips it.
+- **A menu opened inside a `Dialog` belongs to the dialog's focus scope**: Escape closes the menu first and returns
+  focus to its trigger, then the dialog `[SPEC]` (WAI-ARIA Authoring Practices, dialog and menu button patterns).
+- **No `Toast` or sticky bar covers the focused control** — a toast moves clear of it, and a scroll keeps the focused
+  control clear of a sticky bar `[SPEC]` (WCAG 2.4.11).
+- **A `Dialog` opened over a `Sheet` stacks above it with its own `color.scrim` between them** (`layer.overlay`'s
+  opening order), so the sheet dims like the rest of the screen.
+- **The stress walk proves the order**: a `Dialog`, a menu inside it, a tooltip and a `Toast` open at once, by touch,
+  keyboard and screen reader — nothing hidden that should show, focus never covered.
 
 ---
 
@@ -325,7 +364,7 @@ Reuse before making one; a one-off moves here on its second caller (design-syste
 | `Sheet` | A focused task over the current screen that keeps its context | Opening, open, closing | Anything a person must finish before going on — use a `Dialog` |
 | `Dialog` | A decision the person must make now; a destructive action's confirmation; the confirmation behind a hold-to-confirm, opened by a tap, a key or a screen reader's action | Open, with one primary (danger when it destroys) and one cancel | News — use a `Toast` |
 | `Spinner` | A wait with no known length: shown from `delay.indicator`, turning once per `duration.spin`, named "Loading", with a status announcement when it shows and when the wait ends; `Button`'s loading state at the label's size, the `Button` marked busy from the press; its size, stroke and colours are open in §11 | Turning, until the wait ends in the content, an error or a timeout | A wait expected over 10 s — a progress bar with how much is done |
-| `Toast` | News that asks nothing, on `color.bg.overlay`, announced as a status message; it stays 6 s, paused while hovered, focused or pressed and resuming with the time left, and has a close | Showing, paused, leaving | Errors that need an action — show them in place; the only place a fact appears |
+| `Toast` | News that asks nothing, on `color.bg.overlay`, announced as a status message; it stays 6 s, paused while hovered, focused or pressed and resuming with the time left, and has a close; one that appears while a modal `Dialog` is open is announced at once and starts its 6 s when the modal closes | Showing, paused, leaving | Errors that need an action — show them in place; the only place a fact appears |
 
 ---
 
@@ -363,5 +402,6 @@ This product meets WCAG 2.2 AA `[SPEC]`; the rules and how to check them are the
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | `color.border` in dark passes at 3.33:1 on `color.bg.selected` and 4.26:1 on `color.bg.surface`; whether it reads comfortably on an OLED phone at low brightness `[?]` — a preference, not a compliance question | Open | The person's look on a phone at 20 % brightness |
+| Whether `color.edge` at 12 % white reads on an OLED phone at low brightness `[?]` | Open | The person's look at a menu over a card in dark on a phone at 20 % brightness |
 | Whether `duration.spin` at 1000 ms reads as busy rather than agitated on a phone `[?]` | Open | The person's look at the `Spinner` on the target |
 | The `Spinner`'s size, stroke and colours, the `ListRow` checkmark's size, the progress bar, and how long a hold-to-confirm takes to fill — values the specimen drew but this file does not yet decide | Open | Each one's mock at the first gate when it is built, with its tokens decided here first |
