@@ -54,7 +54,9 @@ SKILLS = ".agents/skills"
 DOC_SCRIPTS = f"{SKILLS}/docs-authoring-and-sync/scripts"
 TOKEN_CHECK = f"{SKILLS}/design-system/scripts/token_check.py"
 DESIGN_CHECK = f"{SKILLS}/design-system/scripts/design_check.py"
-HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py")
+A11Y_SKILL = f"{SKILLS}/accessibility/"
+A11Y_SCRIPTS = f"{A11Y_SKILL}scripts"
+HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py", ".agents/skills/verify-change/scripts/verify.py")
 ROUTES = ["test", "rubric", "guard", "skill", "doc", "open-item", "none"]
 KINDS_BEFORE = ("mock", "motion", "copy")  # a draft, approved before the build
 KINDS_AFTER = ("built",)                   # the built thing beside its draft, approved after
@@ -135,6 +137,30 @@ def file_hash(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16] if path.is_file() else None
 
 
+def gated_contents(files: list[str] | None = None) -> dict:
+    """Each changed file a gate covers, with its content hash — what the gated files held at a start or a run, so a
+    change left uncommitted by an earlier task is not taken for this task's build."""
+    paths = tuple(p for _, ps, _ in project.GATES for p in ps)
+    return {f: file_hash(ROOT / f) for f in (files if files is not None else changed_files())
+            if project.matches(f, paths)}
+
+
+def first_build(task: dict, paths) -> str | None:
+    """When the first run built a change in these paths: the first run whose gated files differ from what they held
+    when the task started. A task or run recorded before `gated` was kept falls back to the first run that touched
+    them."""
+    start = task.get("gated_at_start")
+    for r in task["runs"]:
+        if start is None or "gated" not in r:
+            if any(project.matches(f, paths) for f in r["files"]):
+                return r["at"]
+            continue
+        held = {f: h for f, h in r["gated"].items() if project.matches(f, paths)}
+        if held != {f: h for f, h in start.items() if project.matches(f, paths)}:
+            return r["at"]
+    return None
+
+
 def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -154,7 +180,7 @@ def save(task: dict) -> None:
 def new_task(name: str) -> dict:
     return {"task": name, "started": now(), "commit": git("rev-parse", "--short", "HEAD").strip(), "failures": 0,
             "runs": [], "reviews": {}, "approvals": [], "decisions": [], "target": None, "signoffs": [],
-            "findings": []}
+            "findings": [], "gated_at_start": gated_contents()}
 
 
 # --- The checks --------------------------------------------------------------------------------------------------
@@ -229,7 +255,18 @@ def project_check(name: str):
     return run
 
 
-BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design}
+def check_a11y(run_dir: Path) -> dict:
+    """The accessibility scripts' self-tests; then the UI files against the accessibility patterns."""
+    results = [sh([sys.executable, f"{A11Y_SCRIPTS}/contrast.py", "--test"], run_dir / "a11y.contrast.log"),
+               sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py", "--test"], run_dir / "a11y.selftest.log")]
+    if project.UI_PATHS:
+        results.append(sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py"], run_dir / "a11y.ui.log"))
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the accessibility scripts and the UI {'at baseline' if ok else 'over a baseline'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -242,6 +279,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         "docs": any(is_kit_or_doc(f) or project.is_code(f) for f in files),
         "harness": any(f.startswith(HARNESS) for f in files),
         "design": (ROOT / DESIGN_CHECK).is_file() and any(is_design(f) for f in files),
+        "a11y": (ROOT / A11Y_SCRIPTS / "a11y_check.py").is_file()
+        and any(f.startswith(A11Y_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }
     return [c for c in CHECKS if wants[c]]
@@ -308,7 +347,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     task["failures"] = 0 if ok else task["failures"] + 1
     task["runs"].append({"n": n, "at": now(), "ok": ok,
                          "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
-                         "files": files, "fingerprint": tree_fingerprint(), "debug": bool(hits),
+                         "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
+                         "debug": bool(hits),
                          "seconds": round(time.time() - t0)})
     save(task)
     print(f"run {n}: {'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f} s — logs in {run_dir.relative_to(ROOT)}")
@@ -454,7 +494,7 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
         if no_visible or not paths or not any(project.matches(f, paths) for f in files):
             continue
         touched = True
-        first = next((r["at"] for r in task["runs"] if any(project.matches(f, paths) for f in r["files"])), None)
+        first = first_build(task, paths)
         for kind in kinds:
             if kind in KINDS_BEFORE and design_given:
                 continue
@@ -725,7 +765,37 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def self_test() -> int:
+    """The gate's own cases: which run first built a gated change (first_build)."""
+    def run(at, gated, files=("DESIGN.md",)):
+        return {"at": at, "files": list(files), "gated": gated}
+    cases = [
+        ("a change left by an earlier task, edited after the yes",
+         {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {"DESIGN.md": "a"}), run("3", {"DESIGN.md": "b"})]},
+         "3"),
+        ("a clean start, built at run 1", {"gated_at_start": {}, "runs": [run("1", {"DESIGN.md": "b"})]}, "1"),
+        ("never changed in this task", {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {"DESIGN.md": "a"})]},
+         None),
+        ("reverted to HEAD is a change", {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {})]}, "1"),
+        ("a task recorded before gated_at_start", {"runs": [{"at": "1", "files": ["DESIGN.md"]}]}, "1"),
+        ("a run recorded before gated", {"gated_at_start": {"DESIGN.md": "a"},
+                                         "runs": [{"at": "1", "files": ["DESIGN.md"]}, run("2", {"DESIGN.md": "a"})]},
+         "1"),
+        ("other paths ignored", {"gated_at_start": {}, "runs": [run("1", {"src/x.css": "z"}, ("src/x.css",))]}, None),
+    ]
+    bad = 0
+    for name, task, want in cases:
+        got = first_build(task, ("DESIGN.md",))
+        if got != want:
+            bad += 1
+            print(f"FAIL {name}: want {want}, got {got}")
+    print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
+    return 1 if bad else 0
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--test"]:
+        return self_test()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     s = sub.add_parser("start")

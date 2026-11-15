@@ -26,6 +26,8 @@ jobs:
         run: |
           python3 .agents/hooks/guard.py --test
           python3 .agents/hooks/untrusted.py --test
+          python3 .agents/skills/verify-change/scripts/verify.py --test
           python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test
           python3 .agents/skills/design-system/scripts/design_check.py --test
           python3 .agents/skills/accessibility/scripts/contrast.py --test
+          python3 .agents/skills/accessibility/scripts/a11y_check.py --test

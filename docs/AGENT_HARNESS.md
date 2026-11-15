@@ -312,7 +312,7 @@ The whole harness lives in a handful of paths. Only the task state is left out o
 | `.claude/skills`, `.claude/agents` | Symlinks to `../.agents/skills` and `../.agents/agents` | Yes |
 | `.codex/hooks.json`, `.codex/config.toml` | Codex's hooks and sandbox (§14.2) | Yes |
 | `.codex/agents/<name>.toml` | Codex's definition of each kit agent, pointing at its Markdown | Yes |
-| `.github/workflows/checks.yml` | CI: the pre-commit hook's rules on every push, the hooks' self-tests (§13) | Yes |
+| `.github/workflows/checks.yml` | CI: the pre-commit hook's rules on every push, the hooks' and the loop's self-tests (§13) | Yes |
 | `.mcp.json` | MCP servers the agents use: platform docs, package registries, design files | Yes |
 | `.cache/harness/` | The task's state, run logs, history (§10.3) | No — git-ignored |
 
@@ -421,7 +421,7 @@ the project. A project adds its own domain skills as the code grows.
 | `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | Yes — and portable: the folder works in any repo |
 | `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
 | `ui-designer` | The three design gates — mock, built, target — and the review of a UI diff | — | Yes, for any project with an interface |
-| `accessibility` | The accessibility floors (WCAG 2.2 AA), and how to check each | `contrast.py` | Yes |
+| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | Yes — and portable: the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, components, exceptions | `design_check.py`, `token_check.py` | Yes — `DESIGN.md` and the token files are the project's |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | No — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | No — added when needed |
@@ -448,8 +448,10 @@ Each skill must hold the following:
   only when asked".
 - **`ui-designer`**: `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; the mock's
   values file and "build from it unchanged"; the review of a UI diff, accessibility first.
-- **`accessibility`**: the floors with their source; "measure against the colour painted"; the walks the person does on
-  the target.
+- **`accessibility`**: the floors themselves, in `references/criteria.md` with how to meet and test each on every
+  platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
+  alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
+  the accessibility decisions settled beside a mock; the pattern check; the walks the person does on the target.
 - **`design-system`**: `DESIGN.md` as the place a token is decided; roles over values; themes as values for the
   same roles; registered exceptions; the design check and the token check.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
@@ -730,7 +732,7 @@ flowchart TD
 | `status` | Prints where the task stands — read this after compaction, not the chat |
 | `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open |
 | `calibration` | Agreement per judge (§9) |
-| `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, both self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
+| `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, the hooks' and the loop's self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
 | `unverified [--hook]` | Whether the tree changed since the last run; as the agents' Stop hook, asks once per tree (§14.1) |
 
 | Exit | Means |
@@ -750,8 +752,9 @@ file.
 | --- | --- | --- |
 | The code | The project's checks whose paths match — build, type check, tests, lint; `docs`, since code comments cite docs | `code-reviewer`; `doc-reviewer`, since docs describe the code |
 | `DESIGN.md`, UI paths and token files | `design` — `DESIGN.md`'s contrast pairs against their floors and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode |
+| UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check, link check | `doc-reviewer` |
-| The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's and the flag's self-tests, the pre-commit hook on the index | — |
+| The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
 - **A check or a judge joins the plan only once it exists.** The script tests for the agent's file or the check's
   entry, so the harness can name a future judge before it lands.
@@ -794,7 +797,8 @@ of these holds:
 - a judge the changed files call for has no review, said blocking, or reviewed an older version of its files;
 - a gated change lacks the person's yes of a kind its gate names, the approved file changed since, a draft's yes came
   after the first run that built it, or the built thing changed after its yes — unless the person recorded "no visible
-  change" or, for the draft, "design given";
+  change" or, for the draft, "design given". The first run that built it is the first whose gated files differ from
+  what they held when the task started, so a gated file an earlier task left uncommitted is not this task's build;
 - the change ran on the target and has no sign-off for the code as it ran.
 
 On exit `0` the draft is ready for the agent to fill in. The filled-in block goes into the hand-over message and the
@@ -958,7 +962,8 @@ hooks.
   secrets.
 - **`--no-verify` and `commit -n` ask the person**, through the guard.
 - **CI runs the same script with `--range <base>..<head>` on every push and pull request** — the backstop for clones
-  where the hooks path was never set and commits made with `--no-verify`. It runs the hooks' self-tests too.
+  where the hooks path was never set and commits made with `--no-verify`. It runs the hooks' and the loop's self-tests
+  too.
 
 ---
 

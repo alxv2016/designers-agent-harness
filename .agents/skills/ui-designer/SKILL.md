@@ -50,7 +50,8 @@ doc disagree — fix the skill.
 8. **Reuse before making** — an existing component first; a second caller moves a one-off into the shared components
    in the same change ([`design-system`](../design-system/SKILL.md) Do 10).
 9. **Design for every input the target has** — pointer, touch, keyboard, screen reader; the focus order is part of the
-   mock ([`accessibility`](../accessibility/SKILL.md) Do 4–6).
+   mock, and so is the plain alternative to each gesture, drag and hover ([`accessibility`](../accessibility/SKILL.md) Do 4–6,
+   Do 13–15).
 10. **Draft motion as motion** — a GIF or video at real speed, approved as `--kind motion`; a still cannot show timing.
 11. **Draft copy as copy** — the words in place in the mock; a change to meaning is the person's (`--kind copy` when
     the words are the change).
@@ -65,7 +66,7 @@ doc disagree — fix the skill.
 - **Change a value at gate 2 that the mock fixed** — a different layout is a new mock and a new yes.
 - **Claim how it feels on the target from reading code or a screenshot** — touch, speed, motion and the real screen
   are the person's to judge at gate 3.
-- **Call an element exempt from contrast unless it is disabled or decorative** ([`accessibility`](../accessibility/SKILL.md)).
+- **Call an element exempt from contrast unless it is disabled, decorative or a logotype** ([`accessibility`](../accessibility/SKILL.md)).
 - **Use a colour, size or duration that is not a token** — or register it as an exception with its reason
   ([`design-system`](../design-system/SKILL.md)).
 
@@ -93,7 +94,9 @@ Input: a described screen, component or flow. Everything here is written in the 
 4. **Write the focus order** — every stop a keyboard or switch user reaches, in order.
 5. **Settle the accessibility decisions** — each text and icon against the colour painted under it, as a DESIGN §2.2
    pair (`python3 .agents/skills/accessibility/scripts/contrast.py <fg> <bg>` for a new one), target sizes, what is disabled or decorative
-   and why, what reduced motion does ([`accessibility`](../accessibility/SKILL.md)).
+   and why, each control's name and image alternative, where focus goes when a modal opens and closes, the
+   alternative to each gesture, drag and hover, what reduced motion does, what is announced and what times out — the
+   seven decisions in [`accessibility`](../accessibility/SKILL.md#deciding-a-screens-accessibility-before-it-is-built).
 6. **Draw the mock** in DESIGN.md's tokens at the sizes DESIGN §7 names, with what renders them at real size — a static HTML page that loads the token
    file, an SVG, a frame exported from the design file — and save it as `<screen>_mock<n>.png` with its values in
    `<screen>_mock<n>.md`. Look at the PNG yourself; fix every contrast failure before showing it.

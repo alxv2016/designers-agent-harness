@@ -36,15 +36,17 @@ A result without evidence counts as unsure.
 | R2 | Built from the mock's values: the components, tokens and focus order in `<screen>_mock<n>.md` equal the code; a layout that differs came back as a new mock and a new yes (ui-designer Do 5) | Review 2 |
 | R3 | Gate 2, the built screen: a `built` approval on the side-by-side, the code unchanged since (ui-designer Do 6) | Review 2 |
 | R4 | The script checks: the design check (DESIGN.md's pairs and tokens) at 0, the token check and the project's lint with no hit on an added or changed line (ui-designer → Review 1; design-system Checks) | Review 1 |
-| R5 | Contrast: text 4.5:1, large text and non-text 3:1 against the colour painted, in every theme; only disabled and decorative exempt; no text dimmed with opacity (accessibility Do 1–3, Never) | Review 2 |
+| R5 | Contrast: text 4.5:1, large text and non-text 3:1 against the colour painted, in every theme; only disabled, decorative and logotype exempt; no text dimmed with opacity (accessibility Do 1–3, Never) | Review 2 |
 | R6 | Focus and input: every action reachable by keyboard, focus order follows reading order, a visible focus indicator, no trap (accessibility Do 4–5) | Review 2 |
-| R7 | Names and labels: every control has a name; inputs keep a visible label; images that mean something have a text alternative (accessibility Do 6, Do 11) | Review 2 |
-| R8 | Target size, colour as the only signal, resize and reflow, reduced motion (accessibility Do 7–10) | Review 2 |
+| R7 | Names and labels: every control has a name; inputs keep a visible label; images that mean something have a text alternative; headings, landmarks, the screen's title and language in code (accessibility Do 6, Do 11, Do 12) | Review 2 |
+| R8 | Target size, colour as the only signal, resize and reflow, reduced motion — travel removed, driven motion and waits still moving (accessibility Do 7–10) | Review 2 |
 | R9 | Tokens: every value one of DESIGN.md's tokens, roles at the call site, no literal, every state its token, exceptions registered in DESIGN §10 (design-system Do 2–8) | Review 2 |
 | R10 | Components: an existing one reused; a one-off moved to the shared components on its second caller (design-system Do 10; ui-designer Do 8) | Review 2 |
 | R11 | DESIGN.md in the same change: a new token decided there first, a new pair in DESIGN §2.2, a new component in §8, an exception in §10 (design-system Do 4, 6, 8, 10) | Review 2 |
 | R12 | Gate 3, the target: the Verified block, a screenshot of each changed screen, the walks handed to the person and never claimed from code; the person's sign-off in `status` — unsure while the review runs before it (ui-designer Gate 3) | Review 4 |
 | R13 | Principles: the change follows DESIGN §1 — where two options both pass the rules, the lower-numbered principle decides; a principle broken on purpose is the person's recorded decision (ui-designer Do 1; design-system Do 1) | Review 2 |
+| R14 | Alternatives to pointer input: every gesture, drag, long press and hover has a tap or visible control and a named screen-reader action that do the same; actions fire on release; hover and focus content can be dismissed, hovered and kept (accessibility Do 13–16, Never) | Review 2 |
+| R15 | Hidden content, modals and announcements: hidden is inert, a modal returns focus to its opener, a composite widget is one Tab stop, status changes are announced, time limits pause, fields name their purpose and errors, both orientations work; media captioned, instructions and links that stand alone, navigation, names and help consistent across screens (accessibility Do 17–23) | Review 2 |
 
 ## Learned
 

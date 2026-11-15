@@ -39,7 +39,8 @@ scratchpad, never the repo. Return:
    decided any close call.
 3. **Focus order.**
 4. **Accessibility decisions** — contrast pairs with their ratios (any new one proposed for DESIGN §2.2), target sizes, anything disabled or decorative and
-   why, reduced motion.
+   why, each control's name and image alternative, where focus goes when a modal opens and closes, the alternative to
+   each gesture, drag and hover, reduced motion, what is announced and what times out.
 5. **Open questions**, with concrete outcomes.
 6. **The mock** — `<screen>_mock<n>.png` and its `.md`, full paths, last.
 
