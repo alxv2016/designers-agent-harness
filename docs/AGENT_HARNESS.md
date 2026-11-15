@@ -422,7 +422,7 @@ the project. A project adds its own domain skills as the code grows.
 | `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
 | `ui-designer` | The three design gates — mock, built, target — and the review of a UI diff | — | Yes, for any project with an interface |
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | Yes — and portable: the folder works in any repo |
-| `design-system` | `DESIGN.md`: principles, tokens by role, themes, components, exceptions | `design_check.py`, `token_check.py` | Yes — `DESIGN.md` and the token files are the project's |
+| `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | Yes — and portable: the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | No — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | No — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | No — added when needed |
@@ -452,8 +452,10 @@ Each skill must hold the following:
   platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
   alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
   the accessibility decisions settled beside a mock; the pattern check; the walks the person does on the target.
-- **`design-system`**: `DESIGN.md` as the place a token is decided; roles over values; themes as values for the
-  same roles; registered exceptions; the design check and the token check.
+- **`design-system`**: how a brief is written, in `references/brief.md`, with a starter `DESIGN.md` that passes the
+  checks, so the folder is portable; `DESIGN.md` as the place a token is decided; roles over values; complete themes
+  as values for the same roles; at most a surface step and a shadow per surface; a named layer order; registered exceptions; the design
+  check and the token check.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -751,7 +753,7 @@ file.
 | Touched paths | Check | Judge |
 | --- | --- | --- |
 | The code | The project's checks whose paths match — build, type check, tests, lint; `docs`, since code comments cite docs | `code-reviewer`; `doc-reviewer`, since docs describe the code |
-| `DESIGN.md`, UI paths and token files | `design` — `DESIGN.md`'s contrast pairs against their floors and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode |
+| `DESIGN.md`, UI paths, token files, the design-system skill | `design` — `DESIGN.md`'s contrast pairs against their floors, a value in every theme, solid surfaces, and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode, for all but the skill |
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check, link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
@@ -1574,13 +1576,15 @@ the design skills and the `ui-designer` read it before any UI work. Agents desig
   column per theme; the colour table adds a `Kind` column (`| Token | Kind | Light | Dark | Use |`) giving each role's
   kinds — `surface`, `text`, `non-text`, `fill`, `on-fill`, `scrim`, `exempt`. The contrast-pairs table's header is
   `| Foreground | Background | Floor | <theme> | <theme> |`, with the ratio written per theme.
-- **The design check proves it** (`design_check.py`, run by `verify.py run` when `DESIGN.md`, the token files or the
-  UI change): D1, every contrast pair meets its floor in every theme, and no floor is under its kind's — 4.5 for text
-  and on-fill, 3 for non-text; D2, every ratio written in it is true; D3, every token it names, and every colour value
-  it gives, is in the token files; D4, every pair the kinds call for exists — each text and non-text role on each
-  surface, each on-fill role on each fill. A pair that fails is fixed with a different token, never a lower floor.
+- **The design check proves it** (`design_check.py`, run by `verify.py run` when `DESIGN.md`, the token files, the
+  UI or the design-system skill change): D1, every contrast pair meets its floor in every theme, and no floor is under
+  its kind's — 4.5 for text and on-fill, 3 for non-text — and none sits on a translucent background; D2, every ratio written in it is true; D3, every token it
+  names, and every colour value it gives, is in the token files; D4, every pair the kinds call for exists — each text
+  and non-text role on each surface, each on-fill role on each fill; D5, every colour has a value in every theme; D6,
+  no surface or fill is translucent. A pair that fails is fixed with a different token, never a lower floor.
 - **A change to it is a design change.** The `ui-designer` judges it, and the gate in `GATES` asks for the person's
   yes on a specimen — swatches, the type scale, a screen or two before and after — before the token files change. The
   principles are the person's: an agent proposes a change to one, and the person decides.
 - **The template ships a demo** with real, passing values, so the checks have something to run on from the first
-  commit. A new project writes its own over it, keeping the sections and the table shapes.
+  commit. A new project writes its own over it, keeping the sections and the table shapes. The design-system skill
+  carries a smaller starter (`references/templates/DESIGN.md`) for a repo that takes the skill without the template.

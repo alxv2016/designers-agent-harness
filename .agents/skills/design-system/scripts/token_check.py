@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The design-system skill's token check: a colour written as a literal in a UI file instead of taken from a design
-token. It reads UI_PATHS and TOKEN_FILES from .agents/project.py and scans every UI file that is not a token file.
+token. It reads UI_PATHS and TOKEN_FILES from .agents/project.py (in a repo without the kit: every tracked UI file,
+and no token files until one is named there — scripts/_config.py) and scans every UI file that is not a token file.
 
     python3 .agents/skills/design-system/scripts/token_check.py            # every UI file, against the baseline
     python3 .agents/skills/design-system/scripts/token_check.py FILE …     # some files, no baseline
@@ -20,8 +21,8 @@ from pathlib import Path
 
 ROOT = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
             or ".")
-sys.path.insert(0, str(ROOT / ".agents"))
-import project  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _config as project  # noqa: E402 — .agents/project.py when present, else the skill's defaults
 
 # Hits sanctioned today, each with its reason. A new hit on a line you touched is yours to fix.
 BASELINE = 0
@@ -33,9 +34,7 @@ LITERAL = re.compile(r"(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{
 
 
 def ui_files() -> list[str]:
-    out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
-                         capture_output=True, text=True).stdout.splitlines()
-    return [f for f in out if project.matches(f, project.UI_PATHS) and not project.matches(f, project.TOKEN_FILES)
+    return [f for f in project.tracked() if project.is_ui(f) and not project.matches(f, project.TOKEN_FILES)
             and Path(f).suffix in TEXT and (ROOT / f).is_file()]
 
 
@@ -56,7 +55,7 @@ def scan(files: list[str]) -> list[str]:
 
 def main(argv: list[str]) -> int:
     if not project.TOKEN_FILES:
-        print("token check — TOKEN_FILES is empty in .agents/project.py: nothing to check against")
+        print("token check — no TOKEN_FILES in .agents/project.py: nothing to check against")
         return 0
     whole = not argv
     hits = scan(ui_files() if whole else argv)

@@ -278,7 +278,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
     wants = {
         "docs": any(is_kit_or_doc(f) or project.is_code(f) for f in files),
         "harness": any(f.startswith(HARNESS) for f in files),
-        "design": (ROOT / DESIGN_CHECK).is_file() and any(is_design(f) for f in files),
+        "design": (ROOT / DESIGN_CHECK).is_file()
+        and any(is_design(f) or f.startswith(f"{SKILLS}/design-system/") for f in files),
         "a11y": (ROOT / A11Y_SCRIPTS / "a11y_check.py").is_file()
         and any(f.startswith(A11Y_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
