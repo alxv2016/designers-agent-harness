@@ -266,7 +266,22 @@ def check_a11y(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
-BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y}
+MOTION_SKILL = f"{SKILLS}/motion/"
+MOTION_CHECK = f"{MOTION_SKILL}scripts/motion_check.py"
+
+
+def check_motion(run_dir: Path) -> dict:
+    """The motion check's self-test; then the UI files against the motion patterns."""
+    results = [sh([sys.executable, MOTION_CHECK, "--test"], run_dir / "motion.selftest.log")]
+    if project.UI_PATHS:
+        results.append(sh([sys.executable, MOTION_CHECK], run_dir / "motion.ui.log"))
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the motion check and the UI {'at baseline' if ok else 'over a baseline'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
+           "motion": check_motion}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -282,6 +297,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(is_design(f) or f.startswith(f"{SKILLS}/design-system/") for f in files),
         "a11y": (ROOT / A11Y_SCRIPTS / "a11y_check.py").is_file()
         and any(f.startswith(A11Y_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "motion": (ROOT / MOTION_CHECK).is_file()
+        and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }
     return [c for c in CHECKS if wants[c]]

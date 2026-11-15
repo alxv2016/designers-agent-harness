@@ -17,8 +17,13 @@ guarded, checked and judged. Where this page and one of them disagree, they win 
   report. Builders make things; reviewers judge a diff, read-only; runners operate the target.
 - **A reviewer scores against its rubric** — a file in `rubrics/`, one item per step of its review, plus items learned
   from what the person found on the target. It opens its report with `Verdict: pass | blocking`.
-- **One file holds the design** — [`DESIGN.md`](../DESIGN.md) at the repo root: the principles and every token by
-  role. The design skills and the `ui-designer` read it before any UI work, and the design check keeps it honest.
+- **Skills act on principles and industry standards, and adapt to any project** — WCAG, the platforms' design
+  guidelines, MDN, published research. A design skill carries that knowledge in its `references/`, links nothing outside
+  its folder, and works when copied into another repo; it never assumes this template's values.
+- **One file holds the design** — [`DESIGN.md`](../DESIGN.md) at the repo root: the project's principles and every
+  token by role. The one in this template is an example to replace. The design skills and the `ui-designer` read
+  whatever brief the project has before any UI work, name its sections by what they hold, and the design check keeps
+  it honest.
 - **One file holds the project's facts** — [`project.py`](project.py): the checks, the judges' paths, the UI paths and
   the design gates, the secrets, the allowed hosts, the commands that ask. Every script reads it.
 
@@ -52,7 +57,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 7 skills, each a `SKILL.md` with its `scripts/` |
+| [`skills/`](skills/) | The 8 skills, each a `SKILL.md` with its `scripts/` |
 | [`agents/`](agents/) | The 6 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
@@ -80,6 +85,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`ui-designer`](skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a mock, the built screen beside it, the target — and the review of a UI diff | `ui-designer` |
 | [`accessibility`](skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors and how to meet and test each per platform: contrast against what is painted (`contrast.py`), focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements; the pattern check (`a11y_check.py`). Portable: it carries the criteria (`references/criteria.md`), so its folder works in any repo | `ui-designer` |
 | [`design-system`](skills/design-system/SKILL.md) | DESIGN.md — principles, tokens by role, themes, surfaces, layers, components, exceptions; the design check (`design_check.py`) and the token check (`token_check.py`). Portable: it carries how a brief is written (`references/brief.md`) and a starter DESIGN.md, so its folder works in any repo | `ui-designer` |
+| [`motion`](skills/motion/SKILL.md) | Whether and how things move, the motion brief before a study, the debugging loop, the review of motion, a glossary; the motion check (`motion_check.py`). Portable: it carries the principles (`references/motion.md`), and takes every value from the project's DESIGN.md | `ui-designer` |
 
 ## Agents
 

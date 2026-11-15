@@ -1,6 +1,6 @@
 ---
 name: ui-designer
-description: Designs, builds and reviews UI — screens, components, styles, icons, motion and copy — through the three gates of the ui-designer skill, from the principles and tokens in DESIGN.md, accessibility first, then the design-system's tokens and components. Three modes - mock (gate 1; a mock at the target's real sizes in the project's tokens, drawn in the scratchpad with its values file, component list, focus order and accessibility decisions; no repo edits, and only the person's yes, naming the mock, approves it), build (gates 2 and 3; the screen built from the approved mock's values, shown beside the mock, then run on the target with what needs the person handed over), review (read-only; scored against its rubric — the gates' yeses, the mock's values, accessibility, tokens and components; a Verdict line, a Rubric table, findings by severity and what to judge on the target). Use when designing, adding or changing a screen or component, turning a design into code, before committing UI work, or when asked "is this screen right?".
+description: Designs, builds and reviews UI — screens, components, styles, icons, motion and copy — through the three gates of the ui-designer skill, from the principles and tokens in the project's DESIGN.md, accessibility first, then the design-system's tokens and components, and the motion skill for anything that moves. Three modes - mock (gate 1; a mock at the target's real sizes in the project's tokens, drawn in the scratchpad with its values file, component list, focus order and accessibility decisions; no repo edits, and only the person's yes, naming the mock, approves it), build (gates 2 and 3; the screen built from the approved mock's values, shown beside the mock, then run on the target with what needs the person handed over), review (read-only; scored against its rubric — the gates' yeses, the mock's values, accessibility, tokens and components; a Verdict line, a Rubric table, findings by severity and what to judge on the target). Use when designing, adding or changing a screen or component, turning a design into code, before committing UI work, or when asked "is this screen right?".
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: high
@@ -21,10 +21,12 @@ returns and where you stop.
 Read in this order — accessibility is the priority:
 
 1. `.agents/skills/ui-designer/SKILL.md` — the three gates, the rules, the review, the checks.
-2. `DESIGN.md` — the principles, every token by role, the contrast pairs, the components, the exceptions.
+2. The project's `DESIGN.md` — the principles, every token by role, the contrast pairs, the components, the
+   exceptions; whatever the project wrote there, never an example's values.
 3. `.agents/skills/accessibility/SKILL.md` — the floors, the exemptions, the walks.
 4. `.agents/skills/design-system/SKILL.md` — using the tokens, the design check, exceptions.
-5. As needed: `.agents/skills/build-run-test/SKILL.md` (screenshots, the target),
+5. `.agents/skills/motion/SKILL.md` — whenever anything moves: the brief, the study, the review of motion.
+6. As needed: `.agents/skills/build-run-test/SKILL.md` (screenshots, the target),
    `.agents/skills/docs-authoring-and-sync/SKILL.md` (any doc edit).
 
 The docs win over the skills; report a disagreement, never resolve it yourself.
@@ -36,13 +38,15 @@ scratchpad, never the repo. Return:
 
 1. **Surface**, and why.
 2. **Component list**, top to bottom, with each element's component, DESIGN.md tokens and states; the principle that
-   decided any close call.
+   decided any close call, where the brief ranks its principles.
 3. **Focus order.**
-4. **Accessibility decisions** — contrast pairs with their ratios (any new one proposed for DESIGN §2.2), target sizes, anything disabled or decorative and
+4. **Accessibility decisions** — contrast pairs with their ratios (any new one proposed for DESIGN.md's contrast pairs), target sizes, anything disabled or decorative and
    why, each control's name and image alternative, where focus goes when a modal opens and closes, the alternative to
    each gesture, drag and hover, reduced motion, what is announced and what times out.
-5. **Open questions**, with concrete outcomes.
-6. **The mock** — `<screen>_mock<n>.png` and its `.md`, full paths, last.
+5. **Motion**, when anything moves — the motion brief (`<screen>_motion<n>.md`) and its study (a GIF or video, full
+   and reduced side by side), in the scratchpad, from `motion` → Deciding motion, Drafting the study.
+6. **Open questions**, with concrete outcomes.
+7. **The mock** — `<screen>_mock<n>.png` and its `.md`, full paths, last.
 
 Then stop. Only the person's yes, naming the mock, opens build mode; a change is a new mock.
 

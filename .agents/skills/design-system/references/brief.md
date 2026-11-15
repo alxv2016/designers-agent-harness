@@ -54,6 +54,8 @@ how to work in the repo, this one is what the product should look and feel like.
   `| Foreground | Background | Floor | <Theme> | … |`.
 - **Write each colour as hex in the token tables** — the value the checks measure. A product that authors in another
   space (OKLCH, a palette tool) keeps its source there and writes the resulting hex here.
+- **The numbers in this table are the starter's**; a product's brief may number its sections otherwise, and the
+  checks read the table shapes, never the numbers. Skills cite a section by what it holds.
 - **Number every section and never renumber** — skills, rubrics and code comments cite `DESIGN §n`.
 - **Start from the template** ([templates/DESIGN.md](templates/DESIGN.md)); it passes the design check as it stands.
 

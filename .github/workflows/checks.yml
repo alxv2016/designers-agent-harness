@@ -31,3 +31,4 @@ jobs:
           python3 .agents/skills/design-system/scripts/design_check.py --test
           python3 .agents/skills/accessibility/scripts/contrast.py --test
           python3 .agents/skills/accessibility/scripts/a11y_check.py --test
+          python3 .agents/skills/motion/scripts/motion_check.py --test

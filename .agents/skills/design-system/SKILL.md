@@ -5,10 +5,12 @@ description: The project's design system, decided in DESIGN.md at the repo root 
 
 # Design system
 
-How a screen takes its values: from tokens, by role, decided in one place. That place is **`DESIGN.md`** at the repo
-root — the design brief, cited `DESIGN §n` — which holds the product's principles (DESIGN §1), every token by role
-with its value in each theme (DESIGN §2–§7), the contrast pairs (DESIGN §2.2), the components (DESIGN §8), the floors
-above AA (DESIGN §9) and the exceptions (DESIGN §10). How a brief is written, and why, is kept in this skill at
+How a screen takes its values: from tokens, by role, decided in one place. That place is the project's own
+**`DESIGN.md`** at the repo root — its design brief, which the person writes or updates for their product. It holds the
+product's principles, every token by role with its value in each theme, the contrast pairs, the components, the
+floors above AA and the exceptions; this page names each by what it holds (in the starter's numbering: §1, §2–§7,
+§2.2, §8, §9, §10 — a brief numbered otherwise is cited by its own numbers). The values in any example DESIGN.md are
+not this skill's; it reads whatever brief the project has. How a brief is written, and why, is kept in this skill at
 [references/brief.md](references/brief.md) (cited `DESIGN_BRIEF §n`); this page indexes it in one-line rules and holds
 the steps and the checks. The product's DESIGN.md wins over the reference, and the reference over this page — fix
 this page.
@@ -35,8 +37,8 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 
 ### Do
 
-1. **Read DESIGN.md first** — the principles decide between two good options; the lower-numbered principle wins
-   (DESIGN §1; DESIGN_BRIEF §2).
+1. **Read DESIGN.md first** — the principles decide between two good options; where the brief ranks them, the higher-ranked wins
+   (DESIGN_BRIEF §2).
 2. **Take every colour, size, space, radius, shadow, layer and duration from a token** — a screen never holds a
    literal (DESIGN_BRIEF §3).
 3. **Use semantic roles at the call site** — `color.text.secondary`, `space.lg`, not `grey-600` or `16px`; a primitive
@@ -44,14 +46,14 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 4. **Decide a token in DESIGN.md, then carry it to the token files, in the same change** (DESIGN_BRIEF §3, §15).
 5. **Make a theme a second column of values for the same roles, complete in every cell**, with dark accents re-chosen
    by lightness on the same hue (DESIGN_BRIEF §5).
-6. **Give a new colour role its kind in DESIGN §2.1, then every pair its kind calls for in §2.2, with its floor and
-   its ratio per theme**, before any screen uses it (DESIGN_BRIEF §4).
+6. **Give a new colour role its kind in DESIGN.md's colour roles, then every pair its kind calls for in its contrast
+   pairs, with its floor and its ratio per theme**, before any screen uses it (DESIGN_BRIEF §4).
 7. **Give every interactive state its token** — rest, hover, pressed, focus, disabled, selected; never an opacity
    trick on text, and never a state that changes a size (DESIGN_BRIEF §4, §7).
-8. **Register every exception** — `token-exception` on its code line and a row in DESIGN §10 (DESIGN_BRIEF §14).
+8. **Register every exception** — `token-exception` on its code line and a row in DESIGN.md's exceptions (DESIGN_BRIEF §14).
 9. **Compute a nested radius** — inner = outer − the gap between them, so corners stay concentric (DESIGN_BRIEF §8).
 10. **Reuse a component before making one; move a one-off into the shared components on its second caller**, and give
-    it a row in DESIGN §8 (DESIGN_BRIEF §13).
+    it a row in DESIGN.md's components (DESIGN_BRIEF §13).
 11. **Draft a token change as a specimen and take the person's yes before the brief or the token files change** — the
     old and new values side by side on the screens that use them. A token is seen on every screen at once.
 12. **Paint surfaces and fills solid**; only a scrim or an exempt role is translucent (DESIGN_BRIEF §4).
@@ -70,7 +72,7 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 - **A token named for its value** (`blue`, `sixteen`) at a call site — the name outlives the value (DESIGN_BRIEF §3).
 - **A new token for one screen** — use the scale, or register an exception (DESIGN_BRIEF §3, §14).
 - **Opacity on text to make it secondary** — a role whose painted colour passes (DESIGN_BRIEF §4).
-- **A value in the token files that DESIGN.md does not have**, or a ratio in DESIGN §2.2 written by hand without
+- **A value in the token files that DESIGN.md does not have**, or a contrast ratio in DESIGN.md written by hand without
   running the check (DESIGN_BRIEF §15).
 - **Stacked depth cues, a second decorative gradient on a screen, or a fade over content that scrolls**
   (DESIGN_BRIEF §9, §11).
@@ -86,7 +88,7 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 2. Draft a specimen in the scratchpad — the old and new values side by side on the screens that use the token — and
    take the person's yes (`V approve <file> --kind mock` in the kit) (Do 11).
 3. Change the row in DESIGN.md: the value per theme, the use.
-4. For a colour, update every DESIGN §2.2 row that names it — run the design check and write the ratios it computes.
+4. For a colour, update every contrast-pair row that names it — run the design check and write the ratios it computes.
 5. Carry the value to the token files, named after the role (DESIGN_BRIEF §15).
 6. Run the checks — the design check, the token check, the project's build (`V run` in the kit).
 
@@ -115,17 +117,17 @@ python3 .agents/skills/design-system/scripts/design_check.py --file F     # anot
 python3 .agents/skills/design-system/scripts/token_check.py               # T1: colour literals in UI files
 ```
 
-- [ ] (script) **D1 contrast pair under its floor** — every DESIGN §2.2 pair, in every theme; no floor under its
+- [ ] (script) **D1 contrast pair under its floor** — every contrast pair, in every theme; no floor under its
   kind's; none on a translucent background — 0 hits
 - [ ] (script) **D2 ratio written wrong** — each ratio within 0.05 of the computed one — 0 hits
 - [ ] (script) **D3 token missing from the token files** — every token DESIGN.md names, and every colour value, is in
   the token files — 0 hits; skipped while there are none
-- [ ] (script) **D4 contrast pair missing** — every pair DESIGN §2.1's kinds call for has a row in §2.2 — 0 hits
+- [ ] (script) **D4 contrast pair missing** — every pair the colour kinds call for has a row in the contrast pairs — 0 hits
 - [ ] (script) **D5 theme value missing** — every colour has a value in every theme column — 0 hits
 - [ ] (script) **D6 translucent surface or fill** — 0 hits
 - [ ] (script) **T1 colour literal outside the tokens** — `token_check.py` — 0 hits (`BASELINE` in the script)
 - [ ] Roles, not scale steps, at every call site (Do 3); every number in a changed style is a token (Do 2)
-- [ ] Every state has its token and keeps its size (Do 7); every exception in DESIGN §10 (Do 8)
+- [ ] Every state has its token and keeps its size (Do 7); every exception in DESIGN.md's exceptions (Do 8)
 - [ ] No stacked depth cues; pressable things keep a 3:1 boundary; dark overlays' edges visible (Do 13, Do 14)
 - [ ] The change follows DESIGN.md's principles (Do 1)
 - [ ] A token change has the person's yes on its specimen (Do 11)
@@ -137,7 +139,7 @@ python3 .agents/skills/design-system/scripts/token_check.py               # T1: 
 - **D3 says a token is missing, but it is in the CSS** → its name there is spelled differently in a way the check
   cannot match (`--fg-2` for `color.text.secondary`) → name the code token after the role.
 - **A dark theme looks muddy** → the theme swapped scale steps, not roles, or mirrored the accent → define each role's
-  dark value and add its pairs to DESIGN §2.2 (Do 5).
+  dark value and add its pairs to the contrast pairs (Do 5).
 - **A menu disappears into the dark canvas** → its only depth cue was a black shadow → a lighter surface or a faint
   edge (Do 14).
 - **A selected tint goes grey in dark** → it was a translucent accent over the surface → a solid role with its own

@@ -25,7 +25,8 @@ DOC_PREFIX = ""
 # other (DOCUMENTATION_GUIDELINES §3.1).
 PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and-sync/references/guidelines.md",
                      ".agents/skills/accessibility/references/criteria.md",
-                     ".agents/skills/design-system/references/brief.md")
+                     ".agents/skills/design-system/references/brief.md",
+                     ".agents/skills/motion/references/motion.md")
 
 # --- Where things are -------------------------------------------------------------------------------------------
 

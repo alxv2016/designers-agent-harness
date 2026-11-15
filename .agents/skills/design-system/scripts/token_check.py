@@ -8,7 +8,7 @@ and no token files until one is named there — scripts/_config.py) and scans ev
 
 It finds hex colours (`#1a73e8`, `#fff`), `rgb()`, `rgba()`, `hsl()` and `hsla()` calls, and `0xFF1A73E8`-style
 colour integers. A line that carries `token-exception` is skipped: it is a sanctioned exception, registered with its
-reason in DESIGN.md's Exceptions (DESIGN §10). Prints one line per hit, then a count; a
+reason in DESIGN.md's exceptions. Prints one line per hit, then a count; a
 whole-tree run over BASELINE exits 1.
 """
 

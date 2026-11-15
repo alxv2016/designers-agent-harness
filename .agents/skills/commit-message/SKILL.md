@@ -91,7 +91,7 @@ ui,tokens,docs: the settings screen in the new type scale, with a 44 px tap targ
 
 - tokens: type scale from 12/14/16/20/28 to 13/15/17/22/28 (font-size-*), line heights to match.
 - ui: SettingsRow takes its height from space-11 (44 px); the chevron is an icon token, not a literal.
-- Docs: the type scale and the row's tap target (DESIGN §3, §4).
+- Docs: the type scale and the row's tap target (DESIGN.md: type, space).
 
 Verified: build, tests and doc checks pass. Approved by the person: settings_mock2.png, settings_side1.png.
 Signed off on the target by the person: "rows feel right on the phone, type is readable".
