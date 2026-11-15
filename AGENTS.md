@@ -60,6 +60,7 @@ A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. 
 | [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements |
 | [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks |
 | [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion |
+| [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec and the device walk |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start |
 | [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks |
 | [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit |
@@ -156,6 +157,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true — generic, any project; kept in the docs skill so it travels with it |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept: roles, themes, surfaces, layers, components, tokens in code — generic, any project; kept in the design-system skill so it travels with it |
+| [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |

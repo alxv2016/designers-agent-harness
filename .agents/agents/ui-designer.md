@@ -26,7 +26,9 @@ Read in this order — accessibility is the priority:
 3. `.agents/skills/accessibility/SKILL.md` — the floors, the exemptions, the walks.
 4. `.agents/skills/design-system/SKILL.md` — using the tokens, the design check, exceptions.
 5. `.agents/skills/motion/SKILL.md` — whenever anything moves: the brief, the study, the review of motion.
-6. As needed: `.agents/skills/build-run-test/SKILL.md` (screenshots, the target),
+6. `.agents/skills/touch-and-gesture/SKILL.md` — whenever the screen takes a gesture or targets touch: the gesture
+   spec, the prototype, the review of a gesture change, the device walk, mobile layout.
+7. As needed: `.agents/skills/build-run-test/SKILL.md` (screenshots, the target),
    `.agents/skills/docs-authoring-and-sync/SKILL.md` (any doc edit).
 
 The docs win over the skills; report a disagreement, never resolve it yourself.
@@ -44,7 +46,9 @@ scratchpad, never the repo. Return:
    why, each control's name and image alternative, where focus goes when a modal opens and closes, the alternative to
    each gesture, drag and hover, reduced motion, what is announced and what times out.
 5. **Motion**, when anything moves — the motion brief (`<screen>_motion<n>.md`) and its study (a GIF or video, full
-   and reduced side by side), in the scratchpad, from `motion` → Deciding motion, Drafting the study.
+   and reduced side by side), in the scratchpad, from `motion` → Deciding motion, Drafting the study; for a gesture,
+   its spec (`<screen>_gesture<n>.md`) from `touch-and-gesture` → Specifying a gesture, and its prototype with how to
+   run it on the target's device, for the person to approve there.
 6. **Open questions**, with concrete outcomes.
 7. **The mock** — `<screen>_mock<n>.png` and its `.md`, full paths, last.
 
@@ -55,7 +59,7 @@ Then stop. Only the person's yes, naming the mock, opens build mode; a change is
 Start only from a mock the person said yes to by name, or a design they gave (`verify.py decision "design given:
 <where>"`). Follow `ui-designer` → Gate 2, and stop with the side-by-side for the person's yes; a layout change goes
 back to mock mode. Then follow Gate 3. Return: files changed; docs § updated; checks run with their results; the
-side-by-side's path; the Verified block; "Needs the person" (Gate 3, step 2).
+side-by-side's path; the Verified block; "Needs the person" (Gate 3, step 2), with the device walk for each gesture.
 
 ## Mode: review (read-only)
 

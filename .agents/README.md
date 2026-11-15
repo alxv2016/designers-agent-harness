@@ -57,7 +57,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 8 skills, each a `SKILL.md` with its `scripts/` |
+| [`skills/`](skills/) | The 9 skills, each a `SKILL.md` with its `scripts/` |
 | [`agents/`](agents/) | The 6 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
@@ -86,6 +86,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`accessibility`](skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors and how to meet and test each per platform: contrast against what is painted (`contrast.py`), focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements; the pattern check (`a11y_check.py`). Portable: it carries the criteria (`references/criteria.md`), so its folder works in any repo | `ui-designer` |
 | [`design-system`](skills/design-system/SKILL.md) | DESIGN.md — principles, tokens by role, themes, surfaces, layers, components, exceptions; the design check (`design_check.py`) and the token check (`token_check.py`). Portable: it carries how a brief is written (`references/brief.md`) and a starter DESIGN.md, so its folder works in any repo | `ui-designer` |
 | [`motion`](skills/motion/SKILL.md) | Whether and how things move, the motion brief before a study, the debugging loop, the review of motion, a glossary; the motion check (`motion_check.py`). Portable: it carries the principles (`references/motion.md`), and takes every value from the project's DESIGN.md | `ui-designer` |
+| [`touch-and-gesture`](skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec, the prototype on the device and the device walk; the touch check (`touch_check.py`). Portable: it carries the principles (`references/touch.md`), and takes every value from the project's DESIGN.md | `ui-designer` |
 
 ## Agents
 

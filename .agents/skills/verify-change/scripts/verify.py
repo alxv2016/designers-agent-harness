@@ -280,8 +280,22 @@ def check_motion(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+TOUCH_SKILL = f"{SKILLS}/touch-and-gesture/"
+TOUCH_CHECK = f"{TOUCH_SKILL}scripts/touch_check.py"
+
+
+def check_touch(run_dir: Path) -> dict:
+    """The touch check's self-test; then the UI files against the touch patterns."""
+    results = [sh([sys.executable, TOUCH_CHECK, "--test"], run_dir / "touch.selftest.log")]
+    if project.UI_PATHS:
+        results.append(sh([sys.executable, TOUCH_CHECK], run_dir / "touch.ui.log"))
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the touch check and the UI {'at baseline' if ok else 'over a baseline'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
-           "motion": check_motion}
+           "motion": check_motion, "touch": check_touch}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -299,6 +313,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(A11Y_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "motion": (ROOT / MOTION_CHECK).is_file()
         and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "touch": (ROOT / TOUCH_CHECK).is_file()
+        and any(f.startswith(TOUCH_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }
     return [c for c in CHECKS if wants[c]]

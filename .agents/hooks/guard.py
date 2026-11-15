@@ -489,6 +489,7 @@ CASES = [
     ("python3 -c \"print(open('.agents/project.py').read())\"", None),
     ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
     ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
+    ("python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test", None),
     ("sed -Ei 's/a/b/' .agents/project.py", "ask"),
     ("sed -i.bak 's/a/b/' .agents/project.py", "ask"),
     ("sed --in-place=.bak 's/a/b/' .agents/project.py", "ask"),

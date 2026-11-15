@@ -96,7 +96,7 @@ The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
 | [.agents/project.py](.agents/project.py) | The one settings file: checks, UI paths, the design brief and token files, secrets, allowed hosts, commands that ask | Every list — commented examples for web, mobile and Python |
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |
-| [.agents/skills/](.agents/skills/) | 8 skills — the loop, docs, commits, UI design, accessibility, design tokens, motion, build and run. The docs, accessibility, design-system and motion skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
+| [.agents/skills/](.agents/skills/) | 9 skills — the loop, docs, commits, UI design, accessibility, design tokens, motion, touch and gesture, build and run. The docs, accessibility, design-system, motion and touch-and-gesture skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
 | [.agents/agents/](.agents/agents/) | 6 agents — `ui-designer`, `doc-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
 | `.agents/hooks/` | The guard and the injection flag, with self-tests | — |
@@ -117,6 +117,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [DESIGN](DESIGN.md) | The product's design brief — principles and tokens. A demo until you write yours; AGENT_HARNESS §23 explains how agents use it |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept, from token roles to surfaces, layers and tokens in code. Generic: any project, any stack |
+| [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified, built and walked on a device. Generic: any project, any stack |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed, with a glossary. Generic: any project, any stack |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS and Android. Generic: any project, any stack |
 

@@ -413,7 +413,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships eight skills. Seven are generic and copy across almost unchanged; `build-run-test` is filled in from
+The template ships nine skills. Eight are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
 | Skill | Role | Owns | Generic |
@@ -425,6 +425,7 @@ the project. A project adds its own domain skills as the code grows.
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | Yes — and portable: the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | Yes — and portable: the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | Yes — and portable: the folder works in any repo; the values are the project's DESIGN.md |
+| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `touch_check.py` | Yes — and portable: the folder works in any repo; the values are the project's DESIGN.md |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | No — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | No — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | No — added when needed |
@@ -461,6 +462,9 @@ Each skill must hold the following:
 - **`motion`**: the principles of motion in `references/motion.md`, so the folder is portable; "decide whether it
   moves before how"; the motion brief before a study; the debugging loop; the review categories with accessibility
   first; the motion check; values always from the project's own DESIGN.md.
+- **`touch-and-gesture`**: the principles of touch, gestures and mobile layout in `references/touch.md`, so the folder
+  is portable; the gesture spec and a prototype on the device before the build; the device walk handed to the person;
+  the touch check; values always from the project's own DESIGN.md.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -761,6 +765,7 @@ file.
 | `DESIGN.md`, UI paths, token files, the design-system skill | `design` — `DESIGN.md`'s contrast pairs against their floors, a value in every theme, solid surfaces, and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode, for all but the skill |
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
+| UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check, link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
@@ -1081,7 +1086,7 @@ rules its judges score — almost all of it in one settings file.
 | `verify.py` | All of it | Nothing — its lists are in the settings file |
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
 | `untrusted.py`, `pre-commit` | All of it | Nothing |
-| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `motion` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
+| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
 | Agents | `doc-writer`, `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
 | Rubrics | The verdict and evidence rules | The items, as the project's rules grow |
 | Adapters | All of it | A Read deny per secret file; the Codex network list from `ALLOWED_HOSTS` |
@@ -1107,7 +1112,7 @@ Each layer rests on the ones before it. An agent building a later layer already 
 | 2. Doc tools and domain rules | `docs-authoring-and-sync` with its lint and baselines; `<domain>-rules` | 1 | The doc checks keep the docs true from the first commit |
 | 3. Controls | The settings file's secrets, hosts and gates; the guard and its self-test, the injection flag, the pre-commit hook, CI, the adapters, `.cache/` ignored | 1 | Every later step then runs behind them |
 | 4. The loop | `verify.py` with the `docs` and `harness` checks; the verify-change skill; `doctor` | 2, 3 | Its first checks are the ones that exist already |
-| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility, design-system and motion skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
+| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility, design-system, motion and touch-and-gesture skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
 | 6. Code checks | The project's build, tests and lint in `CHECKS`; the quiet build wrapper; `build-run-test`; `commit-message` | Code that builds | A build check needs a build |
 | 7. The target | `target-runner`, the target scripts (health check, screenshots, logs), the routes | 6 | Evidence from the target needs a runnable build |
 | 8. Calibration | `judgements.jsonl`, `open-items-curator` | 7 | Findings come from the target |

@@ -51,7 +51,7 @@ doc disagree — fix the skill.
    in the same change ([`design-system`](../design-system/SKILL.md) Do 10).
 9. **Design for every input the target has** — pointer, touch, keyboard, screen reader; the focus order is part of the
    mock, and so is the plain alternative to each gesture, drag and hover ([`accessibility`](../accessibility/SKILL.md) Do 4–6,
-   Do 13–15).
+   Do 13–15); how each gesture and touch behaves is [`touch-and-gesture`](../touch-and-gesture/SKILL.md)'s.
 10. **Draft motion as motion** — the motion brief first, then a GIF or video at real speed beside it, approved as
     `--kind motion`; a still cannot show timing, and a gesture needs a prototype on the device
     ([`motion`](../motion/SKILL.md) → Deciding motion, Drafting the study).
@@ -103,8 +103,9 @@ Input: a described screen, component or flow. Everything here is written in the 
    file, an SVG, a frame exported from the design file — and save it as `<screen>_mock<n>.png` with its values in
    `<screen>_mock<n>.md`. Look at the PNG yourself; fix every contrast failure before showing it.
 7. **When anything moves, brief it and draft it as motion** — the motion brief beside the mock, then a study at real
-   speed, full and reduced side by side; a gesture gets a prototype on the device
-   ([`motion`](../motion/SKILL.md) → Deciding motion, Drafting the study).
+   speed, full and reduced side by side ([`motion`](../motion/SKILL.md) → Deciding motion, Drafting the study); a
+   gesture gets its spec and a prototype on the device
+   ([`touch-and-gesture`](../touch-and-gesture/SKILL.md) → Specifying a gesture, Prototyping and building).
 8. **Show the mock and stop.** The gate passes when the person's yes names it: `V approve <png> --kind mock`. A change
    is a new mock, `n + 1`, and a new yes.
 
@@ -114,7 +115,7 @@ Input: a described screen, component or flow. Everything here is written in the 
 2. **Update DESIGN.md in the same change** — a new component's row, a new contrast pair, an exception and its
    reason, each in its DESIGN.md section ([`design-system`](../design-system/SKILL.md)).
 3. **Run the checks** — `V run` runs the design check (DESIGN.md's pairs and tokens), the token check, the
-   accessibility and motion checks, the project's build, tests and lint; leave no new hit.
+   accessibility, motion and touch checks, the project's build, tests and lint; leave no new hit.
 4. **Screenshot the built screen** at the mock's sizes ([`build-run-test`](../build-run-test/SKILL.md) → screenshots),
    and put it beside the mock in one image, `<screen>_side<n>.png`. Read it: every difference from the mock is either
    fixed or named.
@@ -128,7 +129,8 @@ Input: a described screen, component or flow. Everything here is written in the 
    `V target`.
 2. **Hand over the Verified block, then what needs the person** for each changed screen: the walk with each input the
    target has (touch, keyboard, screen reader), motion and timing, contrast and legibility on the real screen, how it
-   feels.
+   feels — and for each gesture, the device walk ([`touch-and-gesture`](../touch-and-gesture/SKILL.md) → The device
+   walk).
 3. **The gate passes on the person's sign-off**: `V signoff "<their words>"`. What they report wrong is a finding,
    routed back to the gate that owns it (Do 7).
 
@@ -140,12 +142,14 @@ Input: a diff — `git diff`, `git diff <base>...HEAD` — or the paths given. R
 1. **Run the script checks** — `python3 .agents/skills/design-system/scripts/design_check.py`,
    `python3 .agents/skills/design-system/scripts/token_check.py <changed UI files>`,
    `python3 .agents/skills/accessibility/scripts/a11y_check.py <changed UI files>`,
-   `python3 .agents/skills/motion/scripts/motion_check.py <changed UI files>` and the project's lint; a hit is a
+   `python3 .agents/skills/motion/scripts/motion_check.py <changed UI files>`,
+   `python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <changed UI files>` and the project's lint; a hit is a
    finding only on an added or changed line.
 2. **Judge what no script can**, each against its skill's rule: accessibility first (contrast against what is painted,
    focus order and visibility, target size, names and labels, motion), then DESIGN.md's principles, then tokens and
    components, then motion through its review categories ([`motion`](../motion/SKILL.md) → Reviewing a motion change),
-   then the gates.
+   then each gesture against its spec ([`touch-and-gesture`](../touch-and-gesture/SKILL.md) → Reviewing a gesture
+   change), then the gates.
 3. **Rank the findings, accessibility highest**; each one `file:line` — rule broken — fix.
 4. **List what needs the target** — gate 3's hand-over list; never claim it passed from reading code.
 
@@ -162,8 +166,10 @@ Input: a diff — `git diff`, `git diff <base>...HEAD` — or the paths given. R
   at its baseline
 - [ ] The change follows DESIGN.md's principles, and every value is one of its tokens (Do 1)
 - [ ] Every text and icon pair meets its contrast floor — `contrast.py`, against the colour painted
-- [ ] (script) No accessibility or motion pattern on a changed UI line — `a11y_check.py`, `motion_check.py`
+- [ ] (script) No accessibility, motion or touch pattern on a changed UI line — `a11y_check.py`, `motion_check.py`,
+  `touch_check.py`
 - [ ] Anything that moves has its brief and an approved study, and passes the motion review
+- [ ] Every gesture has its spec, a prototype approved on the device, and its device walk handed to the person
 
 ## Traps
 
@@ -185,5 +191,7 @@ Input: a diff — `git diff`, `git diff <base>...HEAD` — or the paths given. R
 | The gates and their approvals | [HARNESS §9](../../HARNESS.md#9-the-person-in-the-loop), [AGENT_HARNESS §20](../../../docs/AGENT_HARNESS.md#20-human-in-the-loop) |
 | Approval before building | [AGENT_HARNESS §20.1](../../../docs/AGENT_HARNESS.md#201-approval-before-building) |
 | Contrast, focus, target size, motion | [`accessibility`](../accessibility/SKILL.md) |
+| Whether and how things move | [`motion`](../motion/SKILL.md) |
+| Gestures, touch, mobile layout | [`touch-and-gesture`](../touch-and-gesture/SKILL.md) |
 | Tokens, components, exceptions | [`design-system`](../design-system/SKILL.md) |
 | Screenshots and the target | [`build-run-test`](../build-run-test/SKILL.md), [`verify-change` → The target](../verify-change/SKILL.md#the-target) |
