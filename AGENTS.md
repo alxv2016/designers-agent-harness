@@ -56,7 +56,7 @@ A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. 
 | Skill | Use when |
 | --- | --- |
 | [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block |
-| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a mock, the built screen beside it, the target — and the review of a UI diff |
+| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a draft, the built screen beside it, the target — and the review of a UI change |
 | [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements |
 | [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks |
 | [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion |
@@ -159,6 +159,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true — generic, any project; kept in the docs skill so it travels with it |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept: roles, themes, surfaces, layers, components, tokens in code — generic, any project; kept in the design-system skill so it travels with it |
+| [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |

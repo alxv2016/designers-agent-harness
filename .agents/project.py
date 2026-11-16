@@ -27,7 +27,8 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/accessibility/references/criteria.md",
                      ".agents/skills/design-system/references/brief.md",
                      ".agents/skills/motion/references/motion.md",
-                     ".agents/skills/touch-and-gesture/references/touch.md")
+                     ".agents/skills/touch-and-gesture/references/touch.md",
+                     ".agents/skills/ui-designer/references/gates.md")
 
 # --- Where things are -------------------------------------------------------------------------------------------
 

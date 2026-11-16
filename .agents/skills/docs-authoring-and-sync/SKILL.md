@@ -205,6 +205,9 @@ script.
 
 ## Traps
 
+- **Half a table is left behind as stray text after an edit by script** → the section was cut at the next `---`,
+  which a table's separator row also matches, and no doc check sees a table with no header → cut a section between its
+  own heading and the next heading, and read the result before running the checks.
 - **A new doc duplicates a section another doc owns** → the topic was not grepped first → make it a section there,
   and link from where readers look (GUIDELINES §5; Creating a doc, step 1).
 - **A scaffolded doc is committed with `<…>` left in it** → the template's blocks were kept, not filled → fill or drop

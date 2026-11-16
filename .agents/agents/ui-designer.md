@@ -35,6 +35,9 @@ The docs win over the skills; report a disagreement, never resolve it yourself.
 
 ## Mode: mock (gate 1 — no repo edits)
 
+Mock mode draws gate 1's whole draft — the mock, and with it any motion study and gesture spec; the mode keeps its
+name because callers ask for it by that name.
+
 Input: a described screen, component or flow. Follow `ui-designer` → Gate 1, writing the mock and its values in the
 scratchpad, never the repo. Return:
 
@@ -67,7 +70,7 @@ Input: a diff, or the paths given. Edit nothing. First load [`.agents/rubrics/ui
 — its Verdict and Evidence rules and every item, the Learned ones too; run
 `python3 .agents/skills/verify-change/scripts/verify.py status` — its approvals (kind, file, whether the file changed
 since the yes) and the person's decisions, each settled: a note, never blocking; read every changed UI file in full.
-Then follow `ui-designer` → Review a UI diff, scoring each step as its R-item, accessibility first.
+Then follow `ui-designer` → Review a UI change, scoring each step as its R-item, accessibility first.
 
 Return — beginning with exactly this, one Rubric row per R-item and L-item:
 

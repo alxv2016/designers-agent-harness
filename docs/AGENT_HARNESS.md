@@ -421,7 +421,7 @@ the project. A project adds its own domain skills as the code grows.
 | `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | Yes — the project's lists are in `project.py` |
 | `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | Yes — and portable: the folder works in any repo |
 | `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
-| `ui-designer` | The three design gates — mock, built, target — and the review of a UI diff | — | Yes, for any project with an interface |
+| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md` | Yes, for any project with an interface — and portable: the folder works in any repo with the skills it applies |
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | Yes — and portable: the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | Yes — and portable: the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | Yes — and portable: the folder works in any repo; the values are the project's DESIGN.md |
@@ -449,8 +449,10 @@ Each skill must hold the following:
 - **`commit-message`**: the subject shape, per-area bullets, a `Docs:` bullet naming each doc § changed, a
   verification line that claims only what ran and what the person approved, the coding tool's trailer, and "commit
   only when asked".
-- **`ui-designer`**: `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; the mock's
-  values file and "build from it unchanged"; the review of a UI diff, accessibility first.
+- **`ui-designer`**: the gates themselves, in `references/gates.md`, so the folder is portable; the project's
+  `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; each yes recorded against its
+  file — by `verify.py` in the kit, by hand without it; the draft's values file and "build from it unchanged"; the
+  review of a UI change in a fixed order, accessibility first.
 - **`accessibility`**: the floors themselves, in `references/criteria.md` with how to meet and test each on every
   platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
   alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
@@ -551,9 +553,10 @@ What each one does:
   rules. *Drift* takes every backticked name, value, path, token and § citation in a doc and greps for it in the code
   and config, and checks that every § a code comment cites still resolves. It quotes both sides and fixes nothing.
   Blocking: a lint over its baseline, a broken link or citation, or drift in a value a reader would act on.
-- **`ui-designer`**: in mock mode, draws the mock in the scratchpad with its values file and stops for the yes; in
-  build mode, builds from the approved values, shows the built screen beside the mock, and stops again; in review
-  mode, scores a UI diff — the gates' yeses, accessibility, tokens, components — read-only.
+- **`ui-designer`**: in mock mode, draws gate 1's draft — the mock, a motion study, a gesture spec — in the scratchpad
+  with its values file and stops for the yes; in build mode, builds from the approved values, shows the built screen
+  beside the draft, and stops again; in review mode, scores a UI change — the gates' yeses, accessibility, tokens,
+  components, motion, gestures — read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -1479,19 +1482,15 @@ flowchart TD
   judge -->|yes: signoff| done[Done]
 ```
 
-- **Only the person's yes approves, and it names the draft.** A yes covers exactly the draft it names: a changed draft
-  needs a new yes, and an unchanged draft keeps its yes for the rest of the task — `start` clears approvals, so a yes
-  from an earlier task is recorded again before the build, or named in a "design given" decision. Silence, a yes to
-  something else, a judge's pass, a check that passed or the agent's own reading never approves.
+What counts as the person's yes, how a draft is made and how the build is held to it are the `ui-designer` skill's,
+in its reference (DESIGN_GATES §2, §4, §5), so they travel with the skill. The harness adds:
+
 - **Record the yes with the file's hash, the moment it is given** — `verify.py approve <file> --kind <kind>`. `finish`
   refuses a hand-over whose draft was approved after the first run that built it, or whose approved file changed.
-- **Draft where it costs nothing**: in the scratchpad, at the target's real sizes, in its real colours and type — never
-  as a change to the product.
-- **Write the draft's values down beside it, and build them unchanged.** A change the person asks for after seeing the
-  build goes back to a draft.
-- **Read the built thing against the draft before showing it**, and say where they differ.
-- **A design the person handed over is the approved draft** — record where it is with `verify.py decision "design
-  given: <where>"`; a change with nothing visible, with `"no visible change: <why>"`.
+- **`start` clears approvals**, so a yes from an earlier task is recorded again before the build, or named in a
+  "design given" decision.
+- **The two words that stand in for a draft are decisions** — `verify.py decision "design given: <where>"`, and
+  `"no visible change: <why>"`.
 
 ### 20.2 A skill or agent that does UI work
 
@@ -1507,15 +1506,9 @@ A UI skill or agent carries the gates in its own steps, so no session skips them
 
 ### 20.3 The three design gates
 
-A screen, component or style passes three gates, each its own step with its own yes. Each answer goes back to the gate
-that owns it: what it should look like or say to gate 1, a logic or layout fault to gate 2, feel and the real device
-to gate 3.
-
-| Gate | Settles | Artifact | Passes when |
-| --- | --- | --- | --- |
-| 1. Mock | Layout, look, words | A still at the target's sizes, in the scratchpad, with its values file | The person's yes names the mock (`approve --kind mock`) |
-| 2. Built | That the real screen holds the mock and passes the checks | The screen built from the mock's values, shown beside it | The checks pass, then the person's yes on the side-by-side (`approve --kind built`) |
-| 3. Target | Feel, speed, touch, the real screen | Screenshots, a recording, the walks | The person's sign-off (`signoff`) |
+A screen, component or style passes three gates — a draft, the built screen beside it, the target — each its own step
+with its own yes; the gates themselves are the `ui-designer` skill's (DESIGN_GATES §1). The harness records them:
+gate 1's yes with `approve --kind mock|motion|copy`, gate 2's with `approve --kind built`, gate 3's with `signoff`.
 
 - **The gates' paths live in the settings file** (`GATES`: by default the UI paths, with a mock and a built yes, and
   `DESIGN.md` with the token files, with a specimen's yes), so `finish` knows which changes need which yes.

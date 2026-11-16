@@ -28,7 +28,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 | 7 | [Git hooks and CI](#7-git-hooks-and-ci) | What the pre-commit hook refuses; wiring it; the backstop on every push |
 | 8 | [Models and effort per agent](#8-models-and-effort-per-agent) | Each agent's model and effort, and why |
 | 9 | [The person in the loop](#9-the-person-in-the-loop) | Every point that needs the person; approvals recorded with the file's hash |
-| 9.1 | [The design gates](#91-the-design-gates) | Mock, built screen, target: what each settles, its artifact, when it passes |
+| 9.1 | [The design gates](#91-the-design-gates) | Where the gates are defined, the gates' paths (`GATES`), how this repo records each yes |
 | 10 | [The stop reminder](#10-the-stop-reminder) | The Stop hook: unchecked work, asked once per tree |
 | 11 | [Decisions](#11-decisions) | Why the harness is built this way, and the alternatives that do not work |
 
@@ -269,17 +269,11 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 
 ### 9.1 The design gates
 
-**A screen, component or style passes three gates, each its own step with its own yes: a mock, the built screen, the
-target.** A design the person handed over starts at gate 2.
+**A screen, component or style passes three gates, each its own step with its own yes: a draft, the built screen, the
+target** — what each settles, its artifact and where an answer goes back to are in
+[DESIGN_GATES §1](skills/ui-designer/references/gates.md#1-the-three-gates). This repo records each yes with `verify.py`
+as §9 sets out.
 
-| Gate | Settles | Artifact | Passes when |
-| --- | --- | --- | --- |
-| 1. Mock | Layout, look, words | `<screen>_mock<n>.png` and its values file, in the scratchpad, at the target's sizes | The person's yes names the mock; a change is a new mock |
-| 2. Built | That the real screen holds the mock and passes the checks | The screen built from the mock's values; its screenshot beside the mock | The checks pass, then the person's yes on the side-by-side; a layout change goes back to gate 1 |
-| 3. Target | Feel, speed, touch, the real screen | Screenshots, a recording, the walks | The person's sign-off |
-
-- **Each answer goes back to the gate that owns it** — what it should look like or say to gate 1, a logic or focus
-  fault to gate 2, feel and the real device to gate 3.
 - **The gates' paths are `GATES` in `project.py`** — by default the `UI_PATHS`, with a mock and a built yes, and
   `DESIGN.md` with the token files, with a specimen's yes.
 
