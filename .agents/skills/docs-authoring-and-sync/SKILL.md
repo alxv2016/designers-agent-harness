@@ -59,6 +59,8 @@ fall back to their defaults when it does not ([scripts/_config.py](scripts/_conf
 16. **Write in the §5 style and the §6 mechanics; draw every flow in Mermaid** (GUIDELINES §5, §6, §6.1).
 17. **Change docs in the same commit as the code; grep the symbol and the behaviour first** (GUIDELINES §7).
 18. **List every doc in README.md's Documentation section** (GUIDELINES §7).
+19. **Explain local mechanics in a code comment; cite `DOC §n` for a decision, a value's provenance or a shared rule;
+    never a bare `§` or a line number in code** (GUIDELINES §4.8).
 
 ### Never
 
@@ -185,7 +187,8 @@ script.
 - [ ] (script) **S2 Contents table** on every doc over 150 lines (§3.5) — 0 hits.
 - [ ] (script) **S3 Numbering** gaps, duplicates, `###` under the wrong `##` (§3.4) — 0 hits.
 - [ ] (script) **S4 Contents rows, anchors, `§n` citations** — every `##` in the contents table, every `#anchor`
-  resolves, every `<DOC> §n` in docs, README, the kit and code names a real heading (§3.5, §7) — 0 hits.
+  resolves, every `<DOC> §n` in docs, README, the kit and code names a real heading (§3.5, §7); in code and the kit's
+  scripts, no `§` without its doc name and no line-number reference (§4.8) — 0 hits.
 - [ ] (script) **S5 Fence without a language**, MD040 (§6) — 0 hits.
 - [ ] (script) **S6 Bold paragraph as a heading**, MD036 (§6) — 0 hits.
 - [ ] (script) **S7 History words** (§4.3) — 0 hits. Plain *was* is too common to grep; read for it.

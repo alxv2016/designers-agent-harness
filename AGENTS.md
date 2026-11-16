@@ -110,7 +110,9 @@ never reword the command. The person runs `git config core.hooksPath .agents/git
 ## Conventions
 
 - `<Naming: files, components, tokens.>`
-- **Code comments cite docs as `DOC §n`**, never by line number.
+- **Code comments explain local mechanics in place, and cite `DOC §n` for a decision, a value's provenance or a rule
+  shared across files** — never a bare `§` or a line number in code; the anchor check fails a stale one
+  ([GUIDELINES §4.8](.agents/skills/docs-authoring-and-sync/references/guidelines.md#48-code-comments-and-citations)).
 - **Mark a temporary debug line with `DEBUG-TEMP`** — the pre-commit hook refuses it.
 
 ---

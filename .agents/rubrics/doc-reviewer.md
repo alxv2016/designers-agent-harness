@@ -42,7 +42,7 @@ A result without evidence counts as unsure.
 | R12 | Existence: every backticked name, token, setting, path and key a doc gives found in the code; with a diff, every name it changes grepped in `docs/` (GUIDELINES §7) | Drift 1–2 |
 | R13 | Values: each table row's value against its declaration, with units, expressions and shared names ruled out | Drift 3 |
 | R14 | Citations, doc → doc and code → doc: every named `§n` and `#anchor` resolves (S4) | Drift 4 |
-| R15 | Bare `§n` citations in code resolve in the doc the comment or the file's header names | Drift 5 |
+| R15 | No `§` in a code comment or kit script without its doc name, and no line-number reference (GUIDELINES §4.8); a bare `§n` inside a Markdown doc means that doc's own section | Drift 5 |
 | R16 | Behaviour claims: comments justifying a changed behaviour agree with it (GUIDELINES §7) | Drift 6 |
 | R17 | Classification: each disagreement's likely-current side named; a measured value or a behaviour only the target shows marked Needs the target — unsure, not fail | Drift 7 |
 

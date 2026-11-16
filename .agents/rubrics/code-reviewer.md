@@ -35,6 +35,7 @@ A result without evidence counts as unsure.
 | R5 | Errors and the person's data: failures handled and shown, nothing the user owns lost or sent where they did not ask | 5 |
 | R6 | Tests: new behaviour tested where the project tests that kind of thing; a fixed bug with a test that fails without the fix | 6 |
 | R7 | Docs in the same change: no doc outside the diff still states the old behaviour or value (GUIDELINES §7) | 7 |
+| R8 | Comments: local mechanics explained in place, briefly; a decision, a value's provenance or a rule shared across files cited as `DOC §n` — the comment may carry the argument too, never instead of the citation; no `§` without its doc name, no line number (GUIDELINES §4.8) | 8 |
 
 ## Learned
 

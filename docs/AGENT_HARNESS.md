@@ -444,7 +444,7 @@ Each skill must hold the following:
   in README; the guidelines' rules, each citing its §; the procedures for creating a doc, for keeping docs true (grep
   the name first, update every restatement in the same commit) and for rewriting a doc (inventory, verify, map,
   rewrite, check the map, report what moved); and the lint list with baselines. The lint checks title, contents table,
-  numbering, anchors and § citations, fence language, bold-as-heading, history words, filler, tag legend, ASCII art,
+  numbering, anchors and § citations (in code, no nameless `§` or line number), fence language, bold-as-heading, history words, filler, tag legend, ASCII art,
   diagram colours, line-number references, README listing, long sections and links.
 - **`commit-message`**: the subject shape, per-area bullets, a `Docs:` bullet naming each doc § changed, a
   verification line that claims only what ran and what the person approved, the coding tool's trailer, and "commit
@@ -766,7 +766,7 @@ file.
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
-| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check, link check | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
 - **A check or a judge joins the plan only once it exists.** The script tests for the agent's file or the check's

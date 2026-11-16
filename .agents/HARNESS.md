@@ -148,7 +148,7 @@ What would put a secret in the chat (AGENTS.md → Safety):
 
 | Touched | Checks | Judges |
 | --- | --- | --- |
-| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations, links, the doc scaffolder's self-test) | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
 | The code (`CODE_PATHS`; when empty, everything outside docs, the harness and `GENERATED`) | `docs` (code comments cite docs); each `CHECKS` entry whose `when` matches — `<build, test, lint>` | `code-reviewer`, `doc-reviewer` |
 | `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES`, the `design-system` skill | `design` (the design check of DESIGN.md and its self-test, which checks the starter brief too; the token check once `TOKEN_FILES` is set) | `ui-designer` for all but the skill |
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |

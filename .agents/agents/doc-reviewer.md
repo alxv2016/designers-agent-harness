@@ -63,8 +63,9 @@ run both.
    files share a name — check the file the doc links. Values in prose need reading.
 4. **Citations, doc → doc and code → doc** — S4 from the form half's run resolves every named `<DOC> §n` and every
    `#anchor`. In "drift" alone, run `check_anchors.py` here.
-5. **Bare citations in code** — `git grep -nE '§[0-9]'` in the code; a bare `§n` belongs to the doc the comment or the
-   file's header names.
+5. **Bare citations in code** — a `§` in a code comment or a kit script with no doc name before it, or a line-number
+   reference, is a finding (GUIDELINES §4.8); S4 reports both. Inside a Markdown doc, a bare `§n` means that doc's own
+   section and is not one.
 6. **Behaviour claims** — for a changed behaviour, grep the comments that explain it (GUIDELINES §7): a justifying
    comment is a claim like a doc.
 7. **Classify** each disagreement. The code is usually current, so the default fix is "update the doc"; but mark
