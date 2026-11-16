@@ -868,9 +868,17 @@ def self_test() -> int:
             bad += 1
             print(f"FAIL {name}: want {want}, got {got}")
     line_case = scan_text("ln.c", "int a;\n\nlv_label_set_text(l,\n  \"Oops\");", cfg)
-    long_word = "x" * 20000
     mb = 1 << 20
-    SLOW = 2.0  # seconds for an input of up to 1 MB: linear runs in well under it; a quadratic one takes minutes
+    GROWTH = 8  # linear is 4, quadratic 16: room for a noisy runner on either side
+    NOISE = 0.05  # seconds
+
+    def linear(name: str, make, n: int) -> bool:
+        """Scanning n repeats costs about four times n // 4, as a linear scan does; a quadratic one costs sixteen.
+        A ratio, not seconds: a shared CI runner runs several times slower than a laptop, and a fixed limit in
+        seconds failed there on a linear scan. Under NOISE the run is too short to measure, and passes."""
+        small = timed(lambda: scan_text(name, make(n // 4), cfg))
+        big = timed(lambda: scan_text(name, make(n), cfg))
+        return big < NOISE or big < GROWTH * max(small, NOISE / 4)
 
     def output_survives_ascii() -> bool:
         with tempfile.TemporaryDirectory() as d:
@@ -901,33 +909,29 @@ def self_test() -> int:
             "u.strings", decode('"a" = "Oops";'.encode("utf-16")), cfg)] == ["U4"]),
         ("output survives an ASCII terminal", output_survives_ascii),
         # a long input stays linear: 1 MB of calls, 40,000 literals on one line, unclosed interpolation, maps
-        ("timing: 1 MB of calls", lambda: timed(lambda: scan_text(
-            "big.c", 'lv_label_set_text(l, "Save");\n' * (mb // 30), cfg)) < SLOW),
-        ("timing: 40,000 literals on a line", lambda: timed(lambda: scan_text(
-            "big1.c", 'lv_label_set_text(l, "Save"); ' * 40000, cfg)) < SLOW),
-        ("timing: unclosed interpolation", lambda: timed(lambda: scan_text(
-            "big.swift", 'Text("' + "\\(a" * 333000, cfg)) < SLOW),
-        ("timing: button maps", lambda: timed(lambda: scan_text("big3.c", "btn_map[" * 125000, cfg)) < SLOW),
-        ("timing: blank lines", lambda: timed(lambda: scan_text("blank.c", "\n" * 200000, cfg)) < SLOW),
-        ("timing: unclosed regex classes", lambda: timed(lambda: scan_text("rx.js", "x = /[" * 40000, cfg)) < SLOW),
-        ("timing: placeholders", lambda: timed(lambda: scan_text(
-            "big4.c", 'lv_label_set_text(l, "' + "{a ${b " * 100000 + '");', cfg)) < SLOW),
-        ("timing: long literal", lambda: timed(lambda: scan_text(
-            "big5.c", 'const char *img = "' + "a" * 20000 + '";\nlv_label_set_text(l, "Save");', cfg)) < 1.0),
-        ("timing: open tag", lambda: timed(lambda: scan_text("big.tsx", ">" + "Word " * 4000, cfg)) < 1.0),
-        ("timing: long identifier", lambda: timed(lambda: scan_text(
-            "big6.c", "btn" * 7000 + "x[] = {1};", cfg)) < 1.0),
-        ("timing: nested calls", lambda: timed(lambda: scan_text("big2.swift", "Text(" * 4000, cfg)) < 1.0),
-        ("timing: unclosed quote", lambda: timed(lambda: scan_text(
-            "big2.tsx", "<p>Don't " + long_word + "</p>", cfg)) < 1.0),
-        ("timing: unclosed templates", lambda: timed(lambda: scan_text("big3.tsx", "`${" * 100000, cfg)) < SLOW),
-        ("timing: regex slashes", lambda: timed(lambda: scan_text("big4.tsx", "(/" * 200000, cfg)) < SLOW),
-        ("timing: markup slashes", lambda: timed(lambda: scan_text("big5.tsx", "<p>a // b " * 50000, cfg)) < SLOW),
-        ("timing: nested comments", lambda: timed(lambda: scan_text("big3.swift", "/*" * 200000, cfg)) < SLOW),
-        ("timing: raw-string hashes", lambda: timed(lambda: scan_text("big4.swift", "#" * 200000 + '"', cfg)) < SLOW),
-        ("timing: unclosed raw strings", lambda: timed(lambda: scan_text("big.cpp", 'R"(' * 200000, cfg)) < SLOW),
-        ("timing: nested interpolation", lambda: timed(lambda: scan_text("big5.swift", '"\\(' * 200000, cfg)) < SLOW),
-        ("timing: XML opens", lambda: timed(lambda: scan_text("big.xml", "<string name='a'>" * 30000, cfg)) < SLOW),
+        ("timing: 1 MB of calls", lambda: linear("big.c", lambda k: 'lv_label_set_text(l, "Save");\n' * k, mb // 30)),
+        ("timing: 40,000 literals on a line", lambda: linear(
+            "big1.c", lambda k: 'lv_label_set_text(l, "Save"); ' * k, 40000)),
+        ("timing: unclosed interpolation", lambda: linear("big.swift", lambda k: 'Text("' + "\\(a" * k, 333000)),
+        ("timing: button maps", lambda: linear("big3.c", lambda k: "btn_map[" * k, 125000)),
+        ("timing: blank lines", lambda: linear("blank.c", lambda k: "\n" * k, 200000)),
+        ("timing: unclosed regex classes", lambda: linear("rx.js", lambda k: "x = /[" * k, 40000)),
+        ("timing: placeholders", lambda: linear(
+            "big4.c", lambda k: 'lv_label_set_text(l, "' + "{a ${b " * k + '");', 100000)),
+        ("timing: long literal", lambda: linear(
+            "big5.c", lambda k: 'const char *img = "' + "a" * k + '";\nlv_label_set_text(l, "Save");', 20000)),
+        ("timing: open tag", lambda: linear("big.tsx", lambda k: ">" + "Word " * k, 4000)),
+        ("timing: long identifier", lambda: linear("big6.c", lambda k: "btn" * k + "x[] = {1};", 7000)),
+        ("timing: nested calls", lambda: linear("big2.swift", lambda k: "Text(" * k, 4000)),
+        ("timing: unclosed quote", lambda: linear("big2.tsx", lambda k: "<p>Don't " + "x" * k + "</p>", 20000)),
+        ("timing: unclosed templates", lambda: linear("big3.tsx", lambda k: "`${" * k, 100000)),
+        ("timing: regex slashes", lambda: linear("big4.tsx", lambda k: "(/" * k, 200000)),
+        ("timing: markup slashes", lambda: linear("big5.tsx", lambda k: "<p>a // b " * k, 50000)),
+        ("timing: nested comments", lambda: linear("big3.swift", lambda k: "/*" * k, 200000)),
+        ("timing: raw-string hashes", lambda: linear("big4.swift", lambda k: "#" * k + '"', 200000)),
+        ("timing: unclosed raw strings", lambda: linear("big.cpp", lambda k: 'R"(' * k, 200000)),
+        ("timing: nested interpolation", lambda: linear("big5.swift", lambda k: '"\\(' * k, 200000)),
+        ("timing: XML opens", lambda: linear("big.xml", lambda k: "<string name='a'>" * k, 30000)),
         ("matches folder glob", lambda: matches("components/ui_sheet/src/a.cpp", ("components/ui_*/",))),
         ("matches folder glob miss", lambda: not matches("components/uix.cpp", ("components/ui_*/",))),
         ("select: no kit", lambda: select(["src/a.tsx", "node_modules/x/a.js", "a.png"], None)[0] == ["src/a.tsx"]),

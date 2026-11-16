@@ -15,7 +15,7 @@ jobs:
     # Python 3.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5 # v5 runs on Node.js 24; v4's Node.js 20 is deprecated on the runners
         with:
           fetch-depth: 0 # the pushed range's first commit, to diff against
       - name: The pre-commit hook on what was pushed
