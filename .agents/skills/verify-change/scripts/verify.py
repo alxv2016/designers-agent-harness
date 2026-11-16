@@ -360,8 +360,22 @@ def check_touch(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+ESP_SKILL = f"{SKILLS}/esp-idf-setup/"
+ESP_SCRIPT = f"{ESP_SKILL}scripts/esp_idf.py"
+ESP_PATHS = ("main/", "components/", "CMakeLists.txt")
+
+
+def check_esp_idf(run_dir: Path) -> dict:
+    """The esp-idf-setup script's self-test; then the app's layering, E1–E5, when the repo is an ESP-IDF app."""
+    results = [sh([sys.executable, ESP_SCRIPT, "--test"], run_dir / "esp-idf.selftest.log"),
+               sh([sys.executable, ESP_SCRIPT, "check"], run_dir / "esp-idf.layering.log")]
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the esp-idf-setup script and the app's layering {'clean' if ok else 'failing'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
-           "motion": check_motion, "touch": check_touch, "scope": check_scope}
+           "motion": check_motion, "touch": check_touch, "esp-idf": check_esp_idf, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -381,6 +395,10 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "touch": (ROOT / TOUCH_CHECK).is_file()
         and any(f.startswith(TOUCH_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
+        "esp-idf": (ROOT / ESP_SCRIPT).is_file()
+        and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()
+                                            and project.matches(f, ESP_PATHS)) for f in files),
         "scope": any(f.startswith((f"{SKILLS}/", ".agents/agents/")) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }

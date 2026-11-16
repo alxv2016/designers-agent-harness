@@ -12,14 +12,16 @@ gated command is not blocked. `bash -c "…"` is opened and judged inside; wrapp
 are peeled. It decides:
 
   deny  — never from an agent, even with a yes: what would put a credential in the chat (credential files and
-          folders, the keychain, `.env` files, private keys, the project's SECRET_FILES and DENY_COMMANDS);
+          folders, the keychain, `.env` files, private keys, the project's SECRET_FILES) and the project's
+          DENY_COMMANDS — those, and commands that change a device for good, such as burning an eFuse;
   deny until corrected — a call the agent mends itself, after asking the person: a new skill or agent written with
-          no `scope:` of `portable` or `project` in its frontmatter; the corrected call is then asked;
+          no `scope:` of `portable` or `project` in its frontmatter (the corrected call is then asked), and a file
+          the project's NEEDS_DOC holds until a doc exists — a new ESP-IDF project while docs/ has no hardware spec;
   ask   — needs the person: a commit, a push, discarding changes, deleting files outside the temp directories,
           skipping or moving the git hooks, sending data off the machine or fetching from a host outside
           ALLOWED_HOSTS, writing generated or managed files, a branch switch or merge that rewrites the kit, editing
           the harness itself, creating a skill or agent (its prompt names the scope it will carry, or asks for one),
-          and the project's ASK_COMMANDS;
+          a NEEDS_DOC file written from the shell, and the project's ASK_COMMANDS — flashing a board among them;
   allow — everything else, with no output: reading, building, testing, running the app.
 
 For Codex an ask becomes a deny that says to ask the person: Codex parses "ask" but does not act on it.
@@ -38,6 +40,7 @@ The project's facts — secrets, hosts, gates, generated paths — come from .ag
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -53,7 +56,7 @@ import project  # noqa: E402 — the project's facts: .agents/project.py
 TEMP_DIRS = ("/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/")
 OPERATORS = {"&&", "||", ";", ";;", "|", "|&", "&", "(", ")"}
 REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
-WRAPPERS = {"sudo", "command", "exec", "time", "nohup", "env", "xargs", "npx", "bunx", "pipx"}
+WRAPPERS = {"sudo", "command", "exec", "time", "nohup", "env", "xargs", "npx", "bunx", "pipx", "uvx"}
 # A runner and its subcommand that run the program after them: `uv run x`, `poetry run x`, `npm exec x`.
 RUNNERS = {("uv", "run"), ("poetry", "run"), ("pipenv", "run"), ("bundle", "exec"), ("npm", "exec"),
            ("pnpm", "exec"), ("yarn", "dlx"), ("pnpm", "dlx"), ("pipx", "run"), ("hatch", "run"), ("pdm", "run")}
@@ -160,19 +163,27 @@ def segments(command: str):
 
 def unwrap(words: list[str]):
     while words:
-        if words[0] in WRAPPERS or re.match(r"[A-Za-z_]\w*=", words[0]):
+        if len(words) > 1 and (os.path.basename(words[0]), words[1]) in RUNNERS:  # before WRAPPERS: `pipx run x`
+            words = words[2:]
+        elif words[0] == "timeout":  # `timeout [-s SIG] [-k DUR] DUR cmd`
+            words = words[1:]
+            while words and words[0].startswith("-"):
+                words = words[2:] if words[0] in ("-s", "-k", "--signal", "--kill-after") else words[1:]
+            words = words[1:]  # the duration
+        elif words[0] in WRAPPERS or re.match(r"[A-Za-z_]\w*=", words[0]):
             words = words[1:]
             while words and words[0].startswith("-"):  # `npx -y x`, `env -i x`, `sudo -u u x` (its value stays)
                 words = words[1:]
-        elif len(words) > 1 and (os.path.basename(words[0]), words[1]) in RUNNERS:
-            words = words[2:]
         else:
             break
     if not words:
         return
     prog = os.path.basename(words[0])
-    if prog in ("bash", "sh", "zsh") and "-c" in words[:-1]:
-        yield from segments(words[words.index("-c") + 1])
+    # `-c` alone or in a cluster of short flags: `bash -c`, `bash -lc`, `sh -ec`
+    flag = next((i for i, w in enumerate(words[1:-1], 1) if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w)), None)
+    script = next((w for w in words[flag + 1:] if not w.startswith("-")), None) if flag is not None else None
+    if prog in ("bash", "sh", "zsh") and script is not None:  # the first word after the flags: `bash -c -l "…"`
+        yield from segments(script)
     else:
         yield words
 
@@ -202,8 +213,9 @@ def repo_path(path: str, cwd: str) -> str | None:
         return None
 
 
-def check_path(path: str, cwd: str) -> tuple[str, str] | None:
-    """Writing this path needs the person: the harness, a generated or a managed file."""
+def check_path(path: str, cwd: str, shell: bool = True) -> tuple[str, str] | None:
+    """Writing this path needs the person: the harness, a generated or a managed file. `shell` is a write whose
+    content cannot be read; the edit tools' content is judged before this, in decide()."""
     rel = repo_path(path, cwd)
     if rel is None:
         return None
@@ -212,6 +224,8 @@ def check_path(path: str, cwd: str) -> tuple[str, str] | None:
     folded = rel.casefold()  # a case-insensitive disk takes `.AGENTS/project.py` for `.agents/project.py`
     if UNIT_FOLDERS.match(folded):
         return "ask", f"Needs the person's yes to add to {rel}: a new skill's or agent's {SCOPE_QUESTION}."
+    if shell and not os.path.exists(ROOT / rel) and (why := needs_doc(rel, None)):  # content unread
+        return "ask", f"Needs the person's yes to create {rel}: {why} (HARNESS §2.2)."
     for prefix, why in HARNESS_PATHS:
         if folded == prefix or (prefix.endswith("/") and folded.startswith(prefix)):
             return "ask", f"Needs the person's yes to edit {rel}: {why}."
@@ -326,12 +340,62 @@ def check_rm(args: list[str], cwd: str) -> tuple[str, str] | None:
     return None
 
 
+def is_glob(word: str) -> bool:
+    return any(c in word for c in "*?[")
+
+
+def word_in(word, args: list[str]) -> bool:
+    """A project gate's word among the arguments: a tuple is any of its alternatives; a glob (`*`, `?`, `[`) is
+    matched whole against each argument, so `write[_-]flash` takes both spellings and never `write.bin`."""
+    alts = word if isinstance(word, tuple) else (word,)
+    return any(any(fnmatch.fnmatchcase(a, w) for a in args) if is_glob(w) else w in args for w in alts)
+
+
 def check_project(prog: str, args: list[str]) -> tuple[str, str] | None:
-    """The project's own gates, from .agents/project.py."""
+    """The project's own gates, from .agents/project.py. A program may be a glob (`esptool*`); a word may be a glob or
+    a tuple of alternatives, for a tool that spells one command several ways (`burn_efuse`, `burn-efuse`)."""
     for table, decide in ((project.DENY_COMMANDS, deny), (project.ASK_COMMANDS, ask)):
         for name, words, why in table:
-            if prog == name and all(w in args for w in words):
+            if (fnmatch.fnmatchcase(prog, name) if is_glob(name) else prog == name) and all(
+                    word_in(w, args) for w in words):
                 return decide(why)
+    return None
+
+
+def needs_doc(rel: str, content: str | None, root: Path | None = None) -> str | None:
+    """A file the project makes only once a doc exists (NEEDS_DOC in project.py), written while no doc in docs/
+    matches: what to ask. `content` None means it cannot be read — a shell write: a file whose rule looks at its
+    content is then not judged. A template's `<…>` placeholder never counts as the doc holding the pattern."""
+    root = root or ROOT
+    for rule in getattr(project, "NEEDS_DOC", []):
+        for path, pattern in rule["files"].items():
+            if rel.casefold() != path.casefold():
+                continue
+            if pattern and (content is None or not re.search(pattern, content)):
+                continue
+            names, holds = rule["doc"]
+            for doc in (root / "docs").rglob("*.md"):
+                if any(fnmatch.fnmatch(doc.name.lower(), n.lower()) for n in names):
+                    try:
+                        text = re.sub(r"<[^<>\n]*>", "", doc.read_text(errors="replace"))
+                    except OSError:
+                        continue
+                    if re.search(holds, text, re.I):
+                        return None
+            return rule["ask"]
+    return None
+
+
+def check_needs_doc(tool: str, args: dict, paths: list[str], cwd: str) -> tuple[str, str] | None:
+    """Writing a file NEEDS_DOC holds, with the edit tools: denied until the doc exists."""
+    bodies = patch_bodies(patch_text(args)) if tool == "apply_patch" else {}
+    for p in paths:
+        rel = repo_path(p, cwd)
+        if rel is None or os.path.exists(ROOT / rel):
+            continue
+        content = args.get("content") if tool == "Write" else bodies.get(p, "")
+        if why := needs_doc(rel, content if isinstance(content, str) else ""):
+            return "deny", f"Blocked by the harness guard: {why} (HARNESS §2.2)."
     return None
 
 
@@ -545,7 +609,9 @@ def decide(call: dict) -> tuple[str, str] | None:
         return None
     if unit := check_new_unit(tool, args, paths, cwd):
         return unit
-    return strongest(check_path(p, cwd) for p in paths)
+    if held := check_needs_doc(tool, args, paths, cwd):
+        return held
+    return strongest(check_path(p, cwd, shell=False) for p in paths)
 
 
 def answer(result: tuple[str, str] | None, agent: str) -> None:
@@ -690,6 +756,7 @@ PATH_CASES = [
 
 
 def self_test() -> int:
+    global ROOT  # the NEEDS_DOC cases point it at a repo of their own, and put it back
     bad = 0
     for command, want in CASES:
         got = check_command(command, str(ROOT))
@@ -780,7 +847,49 @@ def self_test() -> int:
         if (got and got[0]) != want:
             bad += 1
             print(f"FAIL  {call['tool_name']} {call['tool_input']}: want {want}, got {got and got[0]}")
-    total = len(CASES) + len(PATH_CASES) + len(tool_cases)
+    # a file NEEDS_DOC holds, against a docs/ of the test's own, so the repo's docs never change the result
+    doc_cases = []
+    if getattr(project, "NEEDS_DOC", None):
+        import tempfile
+        rule = project.NEEDS_DOC[0]
+        first, pattern = next(iter(rule["files"].items()))
+        names, holds = rule["doc"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            sample = re.sub(r"\\b|\\", "", holds)  # a literal the doc pattern accepts: `\bESP32` → `ESP32`
+            spec = root / "docs" / (names[0].replace("*", "X_") + ".md")
+            match = re.sub(r"\\(.)", r"\1", pattern) if pattern else ""
+            saved, ROOT = ROOT, root  # the whole decision, against the test's own repo
+
+            def held(call: dict):
+                got = decide({"cwd": str(root), **call})
+                return got and got[0]
+
+            def write(content):
+                return {"tool_name": "Write", "tool_input": {"file_path": first, "content": content}}
+
+            patch = {"tool_name": "apply_patch", "tool_input": {
+                "command": f"*** Begin Patch\n*** Add File: {first}\n+{match}\n*** End Patch"}}
+            try:
+                (root / "docs" / "NOTES.md").write_text(f"{sample} named, in a doc not named like the rule's\n")
+                spec.write_text(f"| Chip | `<{sample}>` |\n")  # the template, unfilled: a placeholder only
+                cases = [("Write, no doc", held(write(match)), "deny"), ("apply_patch, no doc", held(patch), "deny"),
+                         ("shell, no doc", (check_path(first, str(root)) or (None,))[0],
+                          "ask" if not pattern else None)]
+                if pattern:
+                    cases.append(("another kind of file", held(write("nothing the rule looks for")), None))
+                spec.write_text(f"| Chip | {sample} |\n")
+                cases += [("Write, the doc filled in", held(write(match)), None),
+                          ("apply_patch, the doc filled in", held(patch), None)]
+            finally:
+                ROOT = saved
+            for name, got, want in cases:
+                doc_cases.append(name)
+                if got != want:
+                    bad += 1
+                    print(f"FAIL  NEEDS_DOC {name}: want {want}, got {got}")
+    total = len(CASES) + len(PATH_CASES) + len(tool_cases) + len(doc_cases)
     print(f"guard self-test: {total - bad}/{total} cases pass")
     return 1 if bad else 0
 

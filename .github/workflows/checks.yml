@@ -33,3 +33,4 @@ jobs:
           python3 .agents/skills/accessibility/scripts/a11y_check.py --test
           python3 .agents/skills/motion/scripts/motion_check.py --test
           python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test
+          python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py --test

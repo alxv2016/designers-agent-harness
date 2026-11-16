@@ -66,6 +66,7 @@ Scope is `portable` or `project`
 | [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks | `portable` |
 | [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion | `portable` |
 | [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec and the device walk | `portable` |
+| [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
 | [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks | `portable` |
 | [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `project` |
@@ -93,10 +94,11 @@ Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.m
 person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
 in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
 then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
-secret files, even with a yes; it also denies a new skill or agent until it carries the person's choice of scope
-(rule 9); it **asks** before a commit, a push, discarding changes, deleting files, sending data
-off the machine, a fetch from a host outside the allow-list, publishing, editing generated files or the harness
-itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The injection
+secret files, and burning a chip's eFuses, even with a yes; it also denies a new skill or agent until it carries the
+person's choice of scope (rule 9), and a new ESP-IDF project until `docs/` holds its hardware spec; it **asks** before
+a commit, a push, discarding changes, deleting files, sending data off the machine, a fetch from a host outside the
+allow-list, publishing, flashing a board, editing generated files or the harness itself, and `<the project's own
+gates>`; it **allows** reading, building, testing and running the app. The injection
 flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the person,
 never reword the command. The person runs `git config core.hooksPath .agents/githooks` once. The project's settings:
 [`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS](.agents/HARNESS.md).
@@ -168,6 +170,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored, one item per rule — generic, any project; kept in the ui-designer skill so it travels with it |
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
+| [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF project is set up from the hardware spec and why it is shaped so — generic, any ESP-IDF project; kept in the esp-idf-setup skill so it travels with it |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |

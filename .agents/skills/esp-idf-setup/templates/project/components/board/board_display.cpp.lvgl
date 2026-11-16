@@ -1,0 +1,79 @@
+#include "board.h"
+
+#include "board_config.h"
+#include "driver/gpio.h"
+#include "driver/spi_master.h"
+#include "esp_check.h"
+#include "esp_lcd_io_spi.h"
+#include "esp_lcd_panel_dev.h"
+@@if st7789
+#include "esp_lcd_panel_st7789.h"
+@@endif
+
+namespace board {
+@@if st7789
+namespace {
+
+constexpr const char *kTag = "board";
+constexpr spi_host_device_t kLcdHost = SPI2_HOST;
+
+// The pixel clock the panel takes ({{spec_facts}}).
+constexpr unsigned kLcdPixelClockHz = {{display_pclk_hz}};
+
+}  // namespace
+
+esp_err_t InitDisplay(Display *out)
+{
+    spi_bus_config_t bus = {};
+    bus.sclk_io_num = board_config::kLcdSclk;
+    bus.mosi_io_num = board_config::kLcdMosi;
+    bus.miso_io_num = GPIO_NUM_NC;
+    bus.quadwp_io_num = GPIO_NUM_NC;
+    bus.quadhd_io_num = GPIO_NUM_NC;
+    // One draw buffer is the largest transfer the LVGL port sends; RGB565 is two bytes a pixel.
+    bus.max_transfer_sz = board_config::kLcdWidth * board_config::kLcdDrawLines * 2;
+    ESP_RETURN_ON_ERROR(spi_bus_initialize(kLcdHost, &bus, SPI_DMA_CH_AUTO), kTag, "the panel's SPI bus");
+
+    esp_lcd_panel_io_spi_config_t io = {};
+    io.cs_gpio_num = board_config::kLcdCs;
+    io.dc_gpio_num = board_config::kLcdDc;
+    io.spi_mode = 0;
+    io.pclk_hz = kLcdPixelClockHz;
+    io.trans_queue_depth = 10;
+    io.lcd_cmd_bits = 8;
+    io.lcd_param_bits = 8;
+    ESP_RETURN_ON_ERROR(esp_lcd_new_panel_io_spi(static_cast<esp_lcd_spi_bus_handle_t>(kLcdHost), &io, &out->io),
+                        kTag, "the panel's IO");
+
+    esp_lcd_panel_dev_config_t dev = {};
+    dev.reset_gpio_num = board_config::kLcdRst;
+    dev.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_{{display_order}};  // the panel's colour order ({{spec_facts}})
+    dev.bits_per_pixel = 16;
+    ESP_RETURN_ON_ERROR(esp_lcd_new_panel_st7789(out->io, &dev, &out->panel), kTag, "the ST7789");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(out->panel), kTag, "the panel's reset");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(out->panel), kTag, "the panel's init");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(out->panel, {{display_invert}}), kTag, "the panel's inversion");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(out->panel, true), kTag, "the panel on");
+
+    if (board_config::kLcdBl != GPIO_NUM_NC) {  // LCD_BL, the backlight's enable: an output, off until BacklightOn()
+        ESP_RETURN_ON_ERROR(gpio_reset_pin(board_config::kLcdBl), kTag, "the backlight pin");
+        ESP_RETURN_ON_ERROR(gpio_set_direction(board_config::kLcdBl, GPIO_MODE_OUTPUT), kTag, "the backlight pin");
+        ESP_RETURN_ON_ERROR(gpio_set_level(board_config::kLcdBl, 0), kTag, "the backlight off");
+    }
+    return ESP_OK;
+}
+
+esp_err_t BacklightOn()
+{
+    // Active high, as the template assumes; a board whose backlight enable is active low says so in the spec, and
+    // this level and the one above swap.
+    return board_config::kLcdBl == GPIO_NUM_NC ? ESP_OK : gpio_set_level(board_config::kLcdBl, 1);
+}
+@@else
+
+// The {{display_controller}} has no bring-up in the template: write it here from the spec and the controller's
+// esp_lcd component in the ESP Component Registry, then delete this line (ESP_IDF_SETUP §5).
+#error "board: bring up the {{display_controller}} panel in board_display.cpp"
+@@endif
+
+}  // namespace board

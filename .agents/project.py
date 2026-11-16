@@ -29,7 +29,8 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/motion/references/motion.md",
                      ".agents/skills/touch-and-gesture/references/touch.md",
                      ".agents/skills/ui-designer/references/gates.md",
-                     ".agents/skills/ui-designer/references/rubric.md")
+                     ".agents/skills/ui-designer/references/rubric.md",
+                     ".agents/skills/esp-idf-setup/references/esp-idf.md")
 
 # --- Where things are -------------------------------------------------------------------------------------------
 
@@ -58,12 +59,14 @@ TOKEN_FILES = ()
 
 # Files a build or a tool writes. Never committed — the pre-commit hook refuses them — and the guard asks before an
 # agent edits one. Keep these in .gitignore as well.
-GENERATED = ("build/", "dist/", "out/", "coverage/", ".cache/", "node_modules/", ".venv/", "__pycache__/")
+GENERATED = ("build/", "dist/", "out/", "coverage/", ".cache/", "node_modules/", ".venv/", "__pycache__/",
+             "managed_components/", "sdkconfig", "sdkconfig.old")  # the last three: ESP-IDF's
 
 # Files a tool manages that ARE committed: lock files, vendored dependencies. The guard asks before an agent edits
 # one by hand — change the manifest and let the tool regenerate it. Trim to your stack.
 MANAGED = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "uv.lock", "Pipfile.lock",
-           "Cargo.lock", "Gemfile.lock", "Podfile.lock", "pubspec.lock", "go.sum", "vendor/")
+           "Cargo.lock", "Gemfile.lock", "Podfile.lock", "pubspec.lock", "go.sum", "vendor/",
+           "dependencies.lock")  # ESP-IDF's component manager
 
 # Third-party or generated folders whose text the injection flag treats as outside content, like a web page.
 # GENERATED and MANAGED folders are included automatically.
@@ -91,8 +94,13 @@ ALLOWED_HOSTS = ("github.com", "githubusercontent.com")
 
 # Commands that need the person's yes: (program, words that must all appear in its arguments, why). The program is
 # matched by name, after wrappers (`sudo`, `env`, `npx`, `uv run`, `bash -c "…"`) are peeled. Words () matches
-# every call of the program. Publishing is gated by default; add deploys, migrations, paid API calls and anything
-# that loses data on the target.
+# every call of the program. A program or a word with `*`, `?` or `[` is a glob, matched whole (`esptool*`,
+# `write[_-]flash`); a word that is a tuple is any of its alternatives — for tools that spell a command several ways.
+# Name each real command rather than a loose glob: a word is matched against every argument, file names included.
+# Publishing and writing a board are gated by default; add deploys, migrations, paid API calls and anything that
+# loses data on the target.
+FLASH_TARGETS = ("flash", "app-flash", "bootloader-flash", "partition-table-flash", "encrypted-flash",
+                 "encrypted-app-flash", "dfu-flash", "erase-flash", "erase_flash", "erase-otadata", "erase_otadata")
 ASK_COMMANDS = [
     ("npm", ("publish",), "publishes a package to the registry"),
     ("pnpm", ("publish",), "publishes a package to the registry"),
@@ -100,6 +108,20 @@ ASK_COMMANDS = [
     ("twine", ("upload",), "publishes a package to the registry"),
     ("cargo", ("publish",), "publishes a crate to the registry"),
     ("gh", ("release", "create"), "publishes a release"),
+    # ESP-IDF: writing the board — through idf.py, the build tool under it, esptool and the partition tools — and
+    # installing ESP-IDF itself (gigabytes in the home folder)
+    ("idf.py", (FLASH_TARGETS,), "writes the board's flash"),
+    ("ninja", (FLASH_TARGETS,), "writes the board's flash"),
+    ("cmake", ("--build", FLASH_TARGETS), "writes the board's flash"),
+    ("esptool*", (("write[_-]flash", "write[_-]flash[_-]status", "write[_-]mem", "erase[_-]flash",
+                   "erase[_-]region"),), "writes or erases the board's flash"),
+    ("parttool*", (("write[_-]partition", "erase[_-]partition"),), "writes a partition on the board"),
+    ("otatool*", (("write[_-]ota[_-]partition", "erase[_-]ota[_-]partition", "erase[_-]otadata",
+                   "switch[_-]ota[_-]partition"),), "writes the board's OTA partitions"),
+    ("espota*", (), "uploads firmware to a board over the network"),
+    ("openocd", ("*program_esp*",), "writes the board's flash through JTAG"),
+    ("eim", (("install", "wizard"),), "installs ESP-IDF into the home folder"),
+    ("idf_tools*", ("install",), "installs ESP-IDF's tools into the home folder"),
     # ("vercel", ("--prod",), "deploys to production"),
     # ("firebase", ("deploy",), "deploys to production"),
     # ("terraform", ("apply",), "changes real infrastructure"),
@@ -107,10 +129,32 @@ ASK_COMMANDS = [
     # ("kill", (), "stops a process — the person's dev server may be the one"),
 ]
 
-# Commands denied even with a yes, because their output would put a secret into the chat: (program, words, why).
+# Commands denied even with a yes, because their output would put a secret into the chat, or they change a device
+# for good: (program, words, why). The person runs them themselves.
 #   ("kubectl", ("get", "secret"), "prints a cluster secret")
 #   ("vercel", ("env", "pull"), "writes the project's secrets to a local file the agent would read")
-DENY_COMMANDS = []
+DENY_COMMANDS = [
+    # ESP-IDF: an eFuse, once burnt or protected, cannot be changed again on that chip
+    ("idf.py", (("efuse[_-]burn", "efuse[_-]burn[_-]key", "efuse[_-]write[_-]protect", "efuse[_-]read[_-]protect"),),
+     "burns or protects an eFuse — permanent on the chip"),
+    ("espefuse*", (("burn[_-]efuse", "burn[_-]key", "burn[_-]key[_-]digest", "burn[_-]bit", "burn[_-]block[_-]data",
+                    "burn[_-]custom[_-]mac", "write[_-]protect[_-]efuse", "read[_-]protect[_-]efuse",
+                    "set[_-]flash[_-]voltage"),), "burns or protects an eFuse — permanent on the chip"),
+]
+
+# Files a project makes only once a doc exists. Writing one that does not exist yet, while no doc in docs/ matches,
+# is denied until corrected — the reason says what to ask the person and which doc to write (HARNESS §2.2). Each:
+#   "files": path → a pattern the new file's content must show for the rule to apply (None: any content; a file
+#            with a pattern is not judged from the shell, where its content cannot be read)
+#   "doc":   (globs on the doc's file name, a pattern it must hold outside `<…>` placeholders) — case-insensitive
+#   "ask":   what the agent asks the person, and where it writes the answers
+NEEDS_DOC = [
+    {"files": {"CMakeLists.txt": r"project\.cmake", "sdkconfig.defaults": None, "main/idf_component.yml": None},
+     "doc": (("*hardware*", "*board*spec*", "*hw*spec*"), r"\bESP32"),
+     "ask": "an ESP-IDF project is generated from the board's hardware spec, and docs/ has none — ask the person for "
+            "the chip or module, the flash, the PSRAM, the console, the display and its pins, and write their answers "
+            "to a hardware spec in docs/ from the esp-idf-setup skill's template first"},
+]
 
 # Lines that must never be committed: a temporary debug marker, a focused test, a debug flag left on. A regular
 # expression, matched in the code (CODE_PATHS) by the pre-commit hook and by `verify.py finish`. Mark every
@@ -161,7 +205,28 @@ TARGET = "<target>"
 # Extra guard self-test cases for the project's own gates: (command, "deny" | "ask" | None). Give each gate a case,
 # and a near-miss that must pass.
 #   ("vercel --prod", "ask"), ("vercel dev", None)
-GUARD_CASES = []
+GUARD_CASES = [
+    # ESP-IDF: writing the board asks, burning an eFuse is denied, reading either passes
+    ("idf.py -p /dev/cu.usbmodem1101 flash monitor", "ask"), ("idf.py app-flash", "ask"),
+    ("idf.py erase-flash", "ask"), ("idf.py build", None), ("idf.py monitor", None), ("idf.py size", None),
+    ("python -m esptool --port /dev/x write-flash 0x0 a.bin", "ask"), ("esptool.py erase_flash", "ask"),
+    ("esptool.py chip_id", None),
+    ("idf.py efuse-burn --do-not-confirm DIS_USB_JTAG 1", "deny"), ("idf.py efuse-write-protect X", "deny"),
+    ("espefuse.py burn_key BLOCK_KEY0 key.bin", "deny"), ("espefuse --port /dev/x burn-efuse X 1", "deny"),
+    ("espefuse.py write_protect_efuse X", "deny"), ("espefuse.py set_flash_voltage 3.3V", "deny"),
+    ("espefuse.py summary", None), ("idf.py efuse-summary", None),
+    ("eim install -i v6.1", "ask"), ("eim wizard", "ask"), ("eim list", None),
+    # the same writes, spelled through the build tool, a runner or a shell
+    ("ninja -C build flash", "ask"), ("cmake --build build --target app-flash", "ask"),
+    ("uvx --from esptool esptool write-flash 0x0 a.bin", "ask"), ("pipx run esptool erase-flash", "ask"),
+    ('bash -lc "idf.py flash"', "ask"), ('bash -c -l "idf.py flash"', "ask"), ("timeout 60 idf.py -p /dev/x flash", "ask"),
+    ("parttool.py write_partition --partition-name nvs --input n.bin", "ask"), ("otatool.py erase_otadata", "ask"),
+    ("python -m espefuse burn_efuse X 1", "deny"),
+    # near misses: a file or an option value that only looks like a write
+    ("esptool.py read_flash 0 0x1000 write.bin", None), ("idf.py -B build-flash build", None),
+    ("espefuse.py --port protect.log summary", None), ("espefuse.py execute_scripts burn.py", None),
+    ("espefuse.py summary > burn.txt", None), ("ninja -C build", None), ("cmake --build build", None),
+]
 
 
 # --- Helpers — the harness's scripts call these; leave them as they are -----------------------------------------

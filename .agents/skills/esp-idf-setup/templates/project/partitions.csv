@@ -1,0 +1,6 @@
+# {{project}} — {{flash_mb}} MB flash. One factory app and no OTA: add otadata, ota_0 and ota_1 when the product
+# updates over the air.
+# Name,   Type, SubType, Offset,  Size
+nvs,      data, nvs,     0x9000,  0x6000
+phy_init, data, phy,     0xf000,  0x1000
+factory,  app,  factory, 0x10000, {{app_size}}

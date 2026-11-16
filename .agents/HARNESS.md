@@ -84,18 +84,27 @@ stand behind it.
 
 ### 2.2 Denied
 
-**Denied even with a yes** — what would put a secret in the chat (AGENTS.md → Safety):
+**Denied even with a yes** — what would put a secret in the chat (AGENTS.md → Safety), or change a device for good;
+the person runs it themselves:
 
 | Denied | Why |
 | --- | --- |
 | `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/.codex/auth.json`, `~/.claude/.credentials.json`, the keychain | Credentials an injected instruction would go after |
 | `.env` files (not `.env.example`, `.sample`, `.template`); `*.pem`, `*.p12`, `*.pfx`, `*.key`; `id_rsa`-style keys — by any tool or command | Secrets kept beside the code |
 | `SECRET_FILES` in `project.py`: `<the project's secret files>` | `<why>` |
-| `DENY_COMMANDS` in `project.py`: `<commands that print a secret>` | `<why>` |
+| `DENY_COMMANDS` in `project.py`: burning or protecting an eFuse (`idf.py efuse-burn*`, `idf.py efuse-*-protect`, `espefuse* burn*`, `espefuse* *protect*`, `espefuse* set*flash*voltage`), `<commands that print a secret>` | An eFuse cannot be changed again on that chip; `<why>` |
 
-**Denied until corrected** — a call the agent mends itself, not a secret: a new skill or agent written with no
-`scope:` of `portable` or `project` in its frontmatter. The deny says to ask the person "portable or project?" and to
-write their answer; the corrected call is then asked (§2.4).
+**Denied until corrected** — a call the agent mends itself, not a secret; the deny says what to ask the person and
+what to write, and the corrected call goes on:
+
+- **A new skill or agent written with no `scope:` of `portable` or `project` in its frontmatter** — the person is
+  asked "portable or project?" and their answer written; the corrected call is then asked (§2.4).
+- **A file `NEEDS_DOC` in `project.py` holds** — a new ESP-IDF project's `CMakeLists.txt` (one that includes
+  `project.cmake`), `sdkconfig.defaults` or `main/idf_component.yml`, while no doc in `docs/` named like a hardware spec
+  names an ESP32 chip outside a template's `<…>` placeholders. The person is asked for the board's facts, which are
+  written to a spec from the `esp-idf-setup` skill's template; then the files can be written. Only a file that does not
+  exist yet is held; from the shell, where the content cannot be read, it asks instead — except `CMakeLists.txt`, which
+  is held only once its content shows it is ESP-IDF's.
 
 ### 2.3 Allowed, with no approval
 
@@ -115,6 +124,7 @@ write their answer; the corrected call is then asked (§2.4).
 | A fetch from any other host, or any upload — `curl -d`, `-F`, a non-GET method; `ssh`, `scp`, `nc`, a remote `rsync` | Data leaving the machine |
 | Writing `GENERATED` paths (`build/`, `dist/`, `node_modules/`, …) or `MANAGED` files (lock files, vendored code) | A tool writes them; change the source or the manifest |
 | `ASK_COMMANDS` in `project.py`: publishing (`npm publish`, `twine upload`, `cargo publish`, `gh release create`), `<deploys, migrations, paid calls>` | Outward-facing or irreversible |
+| `ASK_COMMANDS` for a board: flashing or erasing it (`idf.py *flash`, `idf.py erase*`, `esptool* write*`, `esptool* erase*`); installing ESP-IDF (`eim install`). A word or program with `*` is a glob | The board's firmware is lost; an install is gigabytes outside the repo |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
 | Creating a skill or agent — its prompt names the scope it carries, so the person confirms it was theirs; from the shell, where the content cannot be read — a new skill's file or folder, or a copy into the skills or agents folder — it asks the question. With no scope, it is denied first (§2.2) | Its scope, `portable` or `project`, is the person's choice ([AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) |
@@ -161,6 +171,7 @@ write their answer; the corrected call is then asked (§2.4).
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |

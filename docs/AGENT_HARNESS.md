@@ -413,7 +413,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships nine skills. Eight are generic and copy across almost unchanged; `build-run-test` is filled in from
+The template ships ten skills. Nine are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
@@ -435,6 +435,7 @@ or with a link to a file.
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
@@ -477,6 +478,9 @@ Each skill must hold the following:
 - **`touch-and-gesture`**: the principles of touch, gestures and mobile layout in `references/touch.md`, so the folder
   is portable; the gesture spec and a prototype on the device before the build; the device walk handed to the person;
   the touch check; values always from the project's own DESIGN.md.
+- **`esp-idf-setup`**: the principles of an ESP-IDF project in `references/esp-idf.md` and the project's templates, so
+  the folder is portable; ESP-IDF checked, never installed; the hardware spec written from the person's answers before
+  anything is generated; the person's yes or no to LVGL; a feature as one line; the layering check.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -784,6 +788,7 @@ file.
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
+| `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
@@ -866,8 +871,8 @@ in code instead of trusting the prompt.
 
 | Decision | When | Output |
 | --- | --- | --- |
-| **deny** | Never from an agent, even with a yes: anything that would put a credential in the chat | `permissionDecision: "deny"`, with a reason telling the agent to ask the person to run it themselves |
-| **deny until corrected** | A call the agent mends itself after asking the person — a new skill or agent with no scope | `permissionDecision: "deny"`, with the question to ask and what to write; the corrected call is then asked |
+| **deny** | Never from an agent, even with a yes: anything that would put a credential in the chat, or change a device for good | `permissionDecision: "deny"`, with a reason telling the agent to ask the person to run it themselves |
+| **deny until corrected** | A call the agent mends itself after asking the person — a new skill or agent with no scope, a file the project makes only once a doc exists | `permissionDecision: "deny"`, with the question to ask and what to write; the corrected call is then asked |
 | **ask** | Needs the person: destructive, irreversible or outward-facing, or rewrites the harness | `permissionDecision: "ask"`, with the reason. Under Codex this becomes `deny` plus "ask the person in the chat", because Codex does not act on `ask` `[?]` |
 | **allow** | Everything else | No output |
 
@@ -930,6 +935,8 @@ The guard judges each simple command by its program and arguments, so text that 
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
 | The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
 | A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
+| A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec; denied with what to ask the person; from the shell, asked (`NEEDS_DOC` in the settings file) |
+| Writing or fusing a device | ask; deny | Flashing or erasing a board (`idf.py flash`, `esptool write-flash`) asks; burning or protecting an eFuse — permanent on the chip — is denied |
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 
@@ -1100,7 +1107,7 @@ rules its judges score — almost all of it in one settings file.
 
 | Part | Copy as is | Fill in per project |
 | --- | --- | --- |
-| `.agents/project.py` | The helpers at its foot | Every list: `PROJECT_NAME`, `DOC_PREFIX`, `PROJECT_WIDE_DOCS`, `CODE_PATHS`, `UI_PATHS`, `DESIGN_FILE`, `TOKEN_FILES`, `GENERATED`, `MANAGED`, `VENDORED`, `SECRET_FILES`, `ALLOWED_HOSTS`, `ASK_COMMANDS`, `DENY_COMMANDS`, `DEBUG_MARKERS`, `INVARIANTS`, `CHECKS`, `JUDGES`, `GATES`, `TARGET`, `GUARD_CASES` |
+| `.agents/project.py` | The helpers at its foot | Every list: `PROJECT_NAME`, `DOC_PREFIX`, `PROJECT_WIDE_DOCS`, `CODE_PATHS`, `UI_PATHS`, `DESIGN_FILE`, `TOKEN_FILES`, `GENERATED`, `MANAGED`, `VENDORED`, `SECRET_FILES`, `ALLOWED_HOSTS`, `ASK_COMMANDS`, `DENY_COMMANDS`, `NEEDS_DOC`, `DEBUG_MARKERS`, `INVARIANTS`, `CHECKS`, `JUDGES`, `GATES`, `TARGET`, `GUARD_CASES` |
 | `AGENTS.md` | The section skeleton (§6), the Harness and Safety text | Project, environment, conventions, validation per change type, the doc table |
 | `DESIGN.md` | Its sections and table shapes (§23) | The principles and every value — the template's are a demo |
 | `.agents/HARNESS.md` | Its sections and the generic rows | The project's rows: its secrets, gates, hosts, checks and judges |

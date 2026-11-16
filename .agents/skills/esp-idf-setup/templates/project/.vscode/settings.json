@@ -1,0 +1,22 @@
+{
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build",
+    "--background-index",
+    "--query-driver=**/{{toolchain}}-*"
+  ],
+  "idf.adapterTargetName": "{{chip}}",
+  "files.associations": {
+    "sdkconfig": "properties",
+    "sdkconfig.defaults": "properties",
+    "*.def": "cpp"
+  },
+  "files.exclude": {
+    "build/": true
+  },
+  "search.exclude": {
+    "build/": true,
+    "managed_components/": true
+  },
+  "cmake.configureOnOpen": false
+}

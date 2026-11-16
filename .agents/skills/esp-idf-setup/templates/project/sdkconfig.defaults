@@ -1,0 +1,24 @@
+# {{project}} — the build settings that differ from ESP-IDF's defaults, each with its reason. Edit this file, never
+# sdkconfig: sdkconfig is generated from it, and after a change here `rm sdkconfig && idf.py reconfigure` applies it.
+
+# The chip and its flash ({{spec_facts}}).
+CONFIG_IDF_TARGET="{{chip}}"
+CONFIG_ESPTOOLPY_FLASHSIZE_{{flash_mb}}MB=y
+
+# The partition table, sized to the flash (partitions.csv).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+@@if psram
+
+# PSRAM, {{psram}} ({{spec_facts}}): on, and malloc may place a large allocation there.
+CONFIG_SPIRAM=y
+@@if psram_octal
+CONFIG_SPIRAM_MODE_OCT=y
+@@endif
+CONFIG_SPIRAM_USE_MALLOC=y
+@@endif
+@@if usb_serial_jtag
+
+# The console on the chip's own USB Serial/JTAG: the board has no USB-UART bridge ({{spec_facts}}).
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+@@endif

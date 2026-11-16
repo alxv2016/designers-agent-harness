@@ -61,7 +61,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 9 skills, each a `SKILL.md` with its `scripts/` |
+| [`skills/`](skills/) | The 10 skills, each a `SKILL.md` with its `scripts/` |
 | [`agents/`](agents/) | The 6 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
@@ -91,6 +91,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`design-system`](skills/design-system/SKILL.md) | DESIGN.md — principles, tokens by role, themes, surfaces, layers, components, exceptions; the design check (`design_check.py`) and the token check (`token_check.py`). Portable: it carries how a brief is written (`references/brief.md`) and a starter DESIGN.md, so its folder works in any repo | `ui-designer` | `portable` |
 | [`motion`](skills/motion/SKILL.md) | Whether and how things move, the motion brief before a study, the debugging loop, the review of motion, a glossary; the motion check (`motion_check.py`). Portable: it carries the principles (`references/motion.md`), and takes every value from the project's DESIGN.md | `ui-designer` | `portable` |
 | [`touch-and-gesture`](skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec, the prototype on the device and the device walk; the touch check (`touch_check.py`). Portable: it carries the principles (`references/touch.md`), and takes every value from the project's DESIGN.md | `ui-designer` | `portable` |
+| [`esp-idf-setup`](skills/esp-idf-setup/SKILL.md) | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF, the spec and the questions that fill it, the project generated from the templates (`main`, `app_shell`, `app_hooks`, the board, LVGL on request), the layering check (`esp_idf.py`). Portable: it carries the principles (`references/esp-idf.md`) and the templates, and takes every fact from the project's spec | — | `portable` |
 
 ## Agents
 
