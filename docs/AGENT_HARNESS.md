@@ -867,6 +867,7 @@ in code instead of trusting the prompt.
 | Decision | When | Output |
 | --- | --- | --- |
 | **deny** | Never from an agent, even with a yes: anything that would put a credential in the chat | `permissionDecision: "deny"`, with a reason telling the agent to ask the person to run it themselves |
+| **deny until corrected** | A call the agent mends itself after asking the person — a new skill or agent with no scope | `permissionDecision: "deny"`, with the question to ask and what to write; the corrected call is then asked |
 | **ask** | Needs the person: destructive, irreversible or outward-facing, or rewrites the harness | `permissionDecision: "ask"`, with the reason. Under Codex this becomes `deny` plus "ask the person in the chat", because Codex does not act on `ask` `[?]` |
 | **allow** | Everything else | No output |
 
@@ -928,6 +929,7 @@ The guard judges each simple command by its program and arguments, so text that 
 | Sending data off the machine | ask | `curl` or `wget` with a body or a non-GET method; `nc`, `ssh`, `scp`, `sftp`, `ftp`, `telnet`, `socat`; a remote `rsync`; a fetch from a host outside `ALLOWED_HOSTS` |
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
 | The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
+| A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 

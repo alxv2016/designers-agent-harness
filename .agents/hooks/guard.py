@@ -13,10 +13,13 @@ are peeled. It decides:
 
   deny  — never from an agent, even with a yes: what would put a credential in the chat (credential files and
           folders, the keychain, `.env` files, private keys, the project's SECRET_FILES and DENY_COMMANDS);
+  deny until corrected — a call the agent mends itself, after asking the person: a new skill or agent written with
+          no `scope:` of `portable` or `project` in its frontmatter; the corrected call is then asked;
   ask   — needs the person: a commit, a push, discarding changes, deleting files outside the temp directories,
           skipping or moving the git hooks, sending data off the machine or fetching from a host outside
           ALLOWED_HOSTS, writing generated or managed files, a branch switch or merge that rewrites the kit, editing
-          the harness itself, and the project's ASK_COMMANDS;
+          the harness itself, creating a skill or agent (its prompt names the scope it will carry, or asks for one),
+          and the project's ASK_COMMANDS;
   allow — everything else, with no output: reading, building, testing, running the app.
 
 For Codex an ask becomes a deny that says to ask the person: Codex parses "ask" but does not act on it.
@@ -25,10 +28,10 @@ Files are judged when written through the edit tools, apply_patch, a shell redir
 `cp`/`mv`/`ln`/`install`/`rsync` destination, `sed` or `perl` in place on the file, or an inline script (any
 interpreter by name, path or `$PY`) that names the file in quotes and makes a known write call — read as text, so a
 path built in the script, a script kept in a file, an unknown write call and a `cd` before the write are not
-followed; nor are `touch` and `dd`. A NUL ends a path, as for the shell. A heredoc's body is otherwise data,
-unless it is fed to bash, sh or zsh. A guard that crashes lets the call through (both agents treat a hook
-error as non-blocking) and says why on stderr; `verify.py doctor` runs the self-test. It catches accidents, not an
-agent set on getting round it; the pre-commit hook and the person's review stay behind it.
+followed; nor are `touch` and `dd`. A NUL ends a path, as for the shell; the harness paths match ignoring case. A
+heredoc's body is otherwise data, unless it is fed to bash, sh or zsh. A guard that crashes lets the call through
+(both agents treat a hook error as non-blocking) and says why on stderr; `verify.py doctor` runs the self-test. It
+catches accidents, not an agent set on getting round it; the pre-commit hook and the person's review stay behind it.
 
 The project's facts — secrets, hosts, gates, generated paths — come from .agents/project.py.
 """
@@ -204,8 +207,13 @@ def check_path(path: str, cwd: str) -> tuple[str, str] | None:
     rel = repo_path(path, cwd)
     if rel is None:
         return None
+    if unit := new_unit(path, cwd, folder=True):  # created from the shell, where the content cannot be read
+        return "ask", f"Needs the person's yes to create the {unit[0]} `{unit[1]}`: {SCOPE_QUESTION}."
+    folded = rel.casefold()  # a case-insensitive disk takes `.AGENTS/project.py` for `.agents/project.py`
+    if UNIT_FOLDERS.match(folded):
+        return "ask", f"Needs the person's yes to add to {rel}: a new skill's or agent's {SCOPE_QUESTION}."
     for prefix, why in HARNESS_PATHS:
-        if rel == prefix or (prefix.endswith("/") and rel.startswith(prefix)):
+        if folded == prefix or (prefix.endswith("/") and folded.startswith(prefix)):
             return "ask", f"Needs the person's yes to edit {rel}: {why}."
     if project.matches(rel, project.GENERATED):
         return "ask", f"Needs the person's yes to edit {rel}: a build or a tool writes it."
@@ -409,9 +417,112 @@ def check_command(command: str, cwd: str) -> tuple[str, str] | None:
                      + [check_script_writes(command, cwd)])
 
 
+# `(.+)` then strip, not `(.+?)\s*$`: the lazy form backtracks quadratically on a padded line, and a guard that
+# outlasts the hook's timeout lets the call through.
+PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$", re.M)
+
+
 def patch_paths(patch: str) -> list[str]:
     """The files a Codex apply_patch touches."""
-    return re.findall(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$", patch, re.M)
+    return [p.strip() for p in PATCH_FILE.findall(patch)]
+
+
+def patch_text(args: dict) -> str:
+    """An apply_patch's text; Codex may send it as a list of arguments. Anything else reads as empty."""
+    v = args.get("command") or args.get("patch") or ""
+    if isinstance(v, list):
+        v = "\n".join(x for x in v if isinstance(x, str))
+    return v if isinstance(v, str) else ""
+
+
+def patch_bodies(patch: str) -> dict[str, str]:
+    """Each file's added lines in an apply_patch, kept apart — one file's text never speaks for another's. A
+    `Move to:` takes the hunks that follow it."""
+    bodies: dict[str, list[str]] = {}
+    current = None
+    for line in patch.splitlines():
+        if m := PATCH_FILE.match(line):
+            current = m.group(1).strip()
+            bodies.setdefault(current, [])
+        elif current is not None and line.startswith("+"):
+            bodies[current].append(line[1:])
+    return {p: "\n".join(lines) for p, lines in bodies.items()}
+
+
+# Matched against the case-folded path: on a case-insensitive disk (macOS, Windows) `.AGENTS/agents/x.md` and
+# `skill.md` are the same files. A README beside the agents is not an agent.
+NEW_UNIT = re.compile(r"^(?:\.agents|\.claude)/"
+                      r"(?:skills/([^/]+)/skill\.md|agents/(?!readme\.md$)([^/]+)\.md)$")
+NEW_SKILL_FOLDER = re.compile(r"^(?:\.agents|\.claude)/skills/([^/]+)/?$")
+UNIT_FOLDERS = re.compile(r"^(?:\.agents|\.claude)/(?:skills|agents)/?$")  # `cp -r x .agents/skills/` names no unit
+SCOPE_QUESTION = ("its scope is the person's choice — portable (it works copied into any repo: a skill's folder on its "
+                  "own, an agent with the portable skills it names) or project (it belongs to this repo: it needs the "
+                  "harness kit, or is filled in for this project). Ask them; their answer is its `metadata: scope: "
+                  "<portable|project>` (AGENT_HARNESS §7.3)")
+SCOPE_HOW = "write it in the frontmatter and create the file with Write or apply_patch's Add File"
+
+
+def frontmatter_scope(text: str) -> tuple[str | None, str]:
+    """The scope in the first frontmatter block — top level or under `metadata:`, the value alone on its line — and,
+    when there is none, why: so a deny says what it could not read."""
+    if not isinstance(text, str):
+        return None, "its content could not be read"
+    text = text.lstrip("﻿").replace("\r\n", "\n")
+    fm = re.match(r"---\n(.*?\n)---[ \t]*$", text, re.S | re.M)
+    if not fm:
+        return None, "it has no frontmatter (a `---` block at the top)"
+    value = r"[ \t]*(['\"]?)([A-Za-z_-]+)\1[ \t]*(?:#.*)?$"
+    found = re.findall(r"^scope:" + value, fm.group(1), re.M)
+    if md := re.search(r"^metadata:[ \t]*\n((?:[ \t]+.*\n|[ \t]*\n)*)", fm.group(1), re.M):
+        found += re.findall(r"^[ \t]+scope:" + value, md.group(1), re.M)
+    scopes = {v for _, v in found}
+    if not scopes:
+        return None, "it has no scope yet"
+    if len(scopes) > 1:
+        return None, f"it names more than one scope ({', '.join(sorted(scopes))})"
+    scope = scopes.pop()
+    if scope not in ("portable", "project"):
+        return None, f"its scope `{scope}` is neither portable nor project"
+    return scope, ""
+
+
+def new_unit(path: str, cwd: str, folder: bool = False) -> tuple[str, str] | None:
+    """A skill or agent that does not exist yet: (kind, name). With `folder`, a new skill's folder too — a shell copy
+    of a whole skill."""
+    rel = repo_path(path, cwd)
+    # os.path.exists, not Path.exists: on Python 3.9 the latter raises on a name over 255 bytes, and a crash lets the
+    # call through; this one answers False, so the call is judged as new.
+    if rel is None or os.path.exists(ROOT / rel):
+        return None
+    folded = rel.casefold()
+    if m := NEW_UNIT.match(folded):
+        name = rel.split("/")[2] if m.group(1) else rel.rsplit("/", 1)[1][:-3]
+        return ("skill", name) if m.group(1) else ("agent", name)
+    if folder and NEW_SKILL_FOLDER.match(folded):
+        return "skill", rel.rstrip("/").rsplit("/", 1)[1]
+    return None
+
+
+def check_new_unit(tool: str, args: dict, paths: list[str], cwd: str) -> tuple[str, str] | None:
+    """Creating a skill or agent: denied until it carries the person's choice of scope, then asked with that scope
+    named, so the person confirms it. The guard reads the scope, not who chose it: the ask is where the person does.
+    Every new unit in the call is judged; a deny outweighs an ask."""
+    bodies = patch_bodies(patch_text(args)) if tool == "apply_patch" else {}
+    results = []
+    for p in paths:
+        unit = new_unit(p, cwd)
+        if not unit:
+            continue
+        kind, name = unit
+        text = args.get("content") if tool == "Write" else bodies.get(p, "")
+        scope, why = frontmatter_scope(text)
+        if scope is None:
+            results.append(("deny", f"Blocked by the harness guard: the new {kind} `{name}` — {why}; "
+                                    f"{SCOPE_QUESTION} — {SCOPE_HOW}."))
+        else:
+            results.append(("ask", f"Creating the {kind} `{name}` as `{scope}` — confirm the scope is the person's "
+                                   f"choice (AGENT_HARNESS §7.3)."))
+    return strongest(results)
 
 
 def decide(call: dict) -> tuple[str, str] | None:
@@ -424,7 +535,7 @@ def decide(call: dict) -> tuple[str, str] | None:
             command = shlex.join(command)
         return check_command(command, cwd)
     if tool == "apply_patch":
-        paths = patch_paths(args.get("command", "") or args.get("patch", ""))
+        paths = patch_paths(patch_text(args))
     else:  # Claude Code's Read, Grep, Glob, Edit, Write, MultiEdit, NotebookEdit
         paths = [p for p in (args.get("file_path"), args.get("notebook_path"), args.get("path"),
                              args.get("pattern") if tool == "Glob" else None) if p]
@@ -432,6 +543,8 @@ def decide(call: dict) -> tuple[str, str] | None:
         return gate("secret")
     if tool in ("Read", "Grep", "Glob"):
         return None
+    if unit := check_new_unit(tool, args, paths, cwd):
+        return unit
     return strongest(check_path(p, cwd) for p in paths)
 
 
@@ -490,6 +603,7 @@ CASES = [
     ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
     ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
     ("python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test", None),
+    ("cat > .agents/skills/zz-new/SKILL.md <<'EOF'\nx\nEOF", "ask"),  # a new skill from the shell: the scope question
     ("sed -Ei 's/a/b/' .agents/project.py", "ask"),
     ("sed -i.bak 's/a/b/' .agents/project.py", "ask"),
     ("sed --in-place=.bak 's/a/b/' .agents/project.py", "ask"),
@@ -597,6 +711,69 @@ def self_test() -> int:
         ({"tool_name": "Read", "tool_input": {"file_path": "build/index.html"}}, None),
         ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/hooks/guard.py"}}, "ask"),
         ({"tool_name": "Write", "tool_input": {"file_path": "src/app.ts"}}, None),
+        # a new skill or agent: denied without the person's scope, asked with it named
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/SKILL.md",
+                                               "content": "---\nname: zz-new\ndescription: x\n---\n# X\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/SKILL.md",
+                                               "content": "---\nname: zz-new\nmetadata:\n  scope: portable\n---\n"}},
+         "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".claude/agents/zz-new.md",
+                                               "content": "---\nname: zz-new\nscope: project\n---\n"}}, "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "# no frontmatter\nscope: portable\n"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-new.md"
+                                                                "\n+---\n+name: zz-new\n+---\n*** End Patch\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/references/x.md",
+                                               "content": "# X\n"}}, "ask"),  # the harness ask, not the scope one
+        # one file's scope never speaks for another's; every new unit is judged, a deny outweighs an ask
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-new.md"
+                                                                "\n+---\n+name: x\n+---\n*** Add File: src/x.md\n+---\n"
+                                                                "+scope: portable\n+---\n*** End Patch"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-a.md"
+                                                                "\n+---\n+scope: project\n+---\n*** Add File: "
+                                                                ".agents/agents/zz-b.md\n+---\n+name: b\n+---\n"
+                                                                "*** End Patch"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Update File: x.md\n*** Move to: "
+                                                                ".agents/agents/zz-new.md\n+---\n+scope: project\n+---\n"
+                                                                "*** End Patch"}}, "ask"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": ["apply_patch", "*** Begin Patch\n*** Add File: "
+                                                                 ".agents/agents/zz-new.md\n+x\n*** End Patch"]}},
+         "deny"),
+        # a case variant names the same file on a case-insensitive disk
+        ({"tool_name": "Write", "tool_input": {"file_path": ".AGENTS/agents/zz-new.md", "content": "x"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/skill.md", "content": "x"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".AGENTS/project.py", "content": "x"}}, "ask"),
+        # the frontmatter is read as frontmatter: CRLF and a BOM are fine; a scope in the description, the body, a
+        # value that runs on, or two scopes are not the person's one choice
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "﻿---\r\nname: n\r\nmetadata:\r\n  scope: project\r\n"
+                                                          "---\r\n"}}, "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nname: n\ndescription: |\n  scope: portable\n---\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nname: n\n---\n\n---\nscope: project\n---\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nscope: portable-ish\n---\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nscope: portable\nmetadata:\n  scope: project\n---\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md", "content": None}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md", "content": 123}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/README.md", "content": "# x"}}, "ask"),
+        # an existing skill or agent keeps the plain harness ask
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/motion/SKILL.md", "content": "x"}}, "ask"),
+        ({"tool_name": "Edit", "tool_input": {"file_path": ".claude/agents/doc-writer.md"}}, "ask"),
+        ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/agents/zz-new.md"}}, "deny"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp -r .agents/skills/motion .agents/skills/zz-new"}}, "ask"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp -r ../other/skills/motion .claude/skills/"}}, "ask"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp x.md .agents/agents"}}, "ask"),
+        # a name over 255 bytes never crashes the guard (Path.exists raises on Python 3.9)
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/" + "a" * 300 + ".md", "content": "x"}},
+         "deny"),
+        ({"tool_name": "Bash", "tool_input": {"command": "echo b > .agents/agents/" + "a" * 300 + ".md"}}, "ask"),
     ] + [({"tool_name": "Read", "tool_input": {"file_path": n}}, "deny") for n in project.SECRET_FILES]
     for call, want in tool_cases:
         got = decide({"cwd": str(ROOT), **call})

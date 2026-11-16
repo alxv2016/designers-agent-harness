@@ -77,12 +77,14 @@ stand behind it.
   writes another asks too. A path the script builds, a script kept in a file, a `cd` before the write, `touch` and
   `dd` are not followed.
 - **A NUL in a path ends it**, as it does for the shell, so a path can never crash the guard.
+- **The harness paths are matched ignoring case** — a case-insensitive disk (macOS, Windows) takes `.AGENTS/project.py`
+  for `.agents/project.py`.
 - **A guard that crashes lets the call through** — both agents treat a hook error as non-blocking — and says why on
   stderr; `verify.py doctor` runs its self-test.
 
-### 2.2 Denied, even with a yes
+### 2.2 Denied
 
-What would put a secret in the chat (AGENTS.md → Safety):
+**Denied even with a yes** — what would put a secret in the chat (AGENTS.md → Safety):
 
 | Denied | Why |
 | --- | --- |
@@ -90,6 +92,10 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | `.env` files (not `.env.example`, `.sample`, `.template`); `*.pem`, `*.p12`, `*.pfx`, `*.key`; `id_rsa`-style keys — by any tool or command | Secrets kept beside the code |
 | `SECRET_FILES` in `project.py`: `<the project's secret files>` | `<why>` |
 | `DENY_COMMANDS` in `project.py`: `<commands that print a secret>` | `<why>` |
+
+**Denied until corrected** — a call the agent mends itself, not a secret: a new skill or agent written with no
+`scope:` of `portable` or `project` in its frontmatter. The deny says to ask the person "portable or project?" and to
+write their answer; the corrected call is then asked (§2.4).
 
 ### 2.3 Allowed, with no approval
 
@@ -111,6 +117,7 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | `ASK_COMMANDS` in `project.py`: publishing (`npm publish`, `twine upload`, `cargo publish`, `gh release create`), `<deploys, migrations, paid calls>` | Outward-facing or irreversible |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
+| Creating a skill or agent — its prompt names the scope it carries, so the person confirms it was theirs; from the shell, where the content cannot be read — a new skill's file or folder, or a copy into the skills or agents folder — it asks the question. With no scope, it is denied first (§2.2) | Its scope, `portable` or `project`, is the person's choice ([AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) |
 
 - **For Codex an ask is a deny that says to ask the person** — Codex parses a hook's `ask` but does not act on it.
 

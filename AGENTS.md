@@ -45,7 +45,10 @@ and the code: find out which is intended before changing either
 7. **Commit only when the person asks**, in the repo's format ([`commit-message`](.agents/skills/commit-message/SKILL.md)).
 8. **Keep a lesson in the repo** — `verify.py finding`, routed to a check, a rubric, a guard rule, a skill or a doc;
    never only in an agent's own memory ([AGENT_HARNESS §19](docs/AGENT_HARNESS.md#19-memory)).
-9. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
+9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
+   as `metadata: scope:` — the guard holds the file until it has one
+   ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
+10. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
 
 ---
 
@@ -90,7 +93,8 @@ Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.m
 person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
 in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
 then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
-secret files, even with a yes; it **asks** before a commit, a push, discarding changes, deleting files, sending data
+secret files, even with a yes; it also denies a new skill or agent until it carries the person's choice of scope
+(rule 9); it **asks** before a commit, a push, discarding changes, deleting files, sending data
 off the machine, a fetch from a host outside the allow-list, publishing, editing generated files or the harness
 itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The injection
 flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the person,
@@ -161,11 +165,11 @@ not of the product: the target and the person's sign-off are what show it works.
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true — generic, any project; kept in the docs skill so it travels with it |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept: roles, themes, surfaces, layers, components, tokens in code — generic, any project; kept in the design-system skill so it travels with it |
+| [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored, one item per rule — generic, any project; kept in the ui-designer skill so it travels with it |
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
-| [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored, one item per rule — generic, any project; kept in the ui-designer skill so it travels with it |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
 
