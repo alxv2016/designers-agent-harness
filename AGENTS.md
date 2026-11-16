@@ -67,6 +67,8 @@ Scope is `portable` or `project`
 | [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion — on the web, phones and an LVGL panel's frame budget | `portable` |
 | [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and layout; an encoder and buttons on a device; the gesture spec and the device walk — web, phones and embedded LVGL | `portable` |
 | [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
+| [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
+| [`secrets-handling`](.agents/skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets; bench and CI credentials; after a leak; the secret scan | `portable` |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
 | [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks | `portable` |
 | [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `project` |
@@ -81,6 +83,7 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 | --- | --- | --- |
 | [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review | `portable` |
 | [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `portable` |
+| [`ux-content-writer`](.agents/agents/ux-content-writer.md) | Writes and reviews the words on screens from the ux-content skill; modes write, review and rewrite | `portable` |
 | [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
 | [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `project` |
 | [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `project` |
@@ -171,8 +174,12 @@ not of the product: the target and the person's sign-off are what show it works.
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF project is set up from the hardware spec and why it is shaped so — generic, any ESP-IDF project; kept in the esp-idf-setup skill so it travels with it |
+| [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written — voice, the four tests, mechanics, names, the pattern per element, accessible content — generic, any project; kept in the ux-content skill |
+| [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product handles its users' secrets, per platform, and what to do after a leak — generic, any project; kept in the secrets-handling skill |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
+| [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |
+| [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
 

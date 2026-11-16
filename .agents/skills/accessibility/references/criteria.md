@@ -15,8 +15,9 @@ an LVGL screen: a small LCD or AMOLED panel, touch and/or a rotary encoder or bu
 settings.
 
 **Where it lives.** In the `accessibility` skill, beside the steps and checks that apply it —
-[its SKILL.md](../SKILL.md). The skill folder is self-contained: copy it into any repo's `.agents/skills/` and this
-reference, the contrast script and the accessibility check come with it. A project that sets a floor above AA writes
+[its SKILL.md](../SKILL.md), and the focus model in [focus.md](focus.md) (FOCUS). The skill folder is
+self-contained: copy it into any repo's `.agents/skills/` and both references, the contrast script and the
+accessibility check come with it. A project that sets a floor above AA writes
 it in its own design brief (`DESIGN.md` in the agent-harness kit), and that floor wins over this one.
 
 **Stability.** Cite this doc as `ACCESSIBILITY §n`. Do not renumber; add new material under the next free number.
@@ -27,7 +28,7 @@ it in its own design brief (`DESIGN.md` in the agent-harness kit), and that floo
 | 2 | [Contrast and colour](#2-contrast-and-colour) | Text, non-text, the colour actually painted, states, themes, the only exemptions |
 | 3 | [Text size and reflow](#3-text-size-and-reflow) | Resizing, reflow, text spacing, zoom |
 | 4 | [Structure, names and labels](#4-structure-names-and-labels) | Semantics, names, roles, states, alternatives, titles, language |
-| 5 | [Keyboard and focus](#5-keyboard-and-focus) | Reaching everything, focus order and visibility, modals, hidden content, composite widgets, shortcuts |
+| 5 | [Keyboard and focus](#5-keyboard-and-focus) | The keyboard and focus floors: reaching everything, focus order and visibility, no trap, hidden content, shortcuts — the model is FOCUS |
 | 6 | [Pointer, touch and gesture](#6-pointer-touch-and-gesture) | Target size, alternatives to gestures and drags, acting on release, hover, orientation, device motion |
 | 7 | [Content on hover or focus](#7-content-on-hover-or-focus) | Tooltips and popovers that can be dismissed, hovered and kept |
 | 8 | [Time, motion and flashing](#8-time-motion-and-flashing) | Time limits, auto-moving content, flashing, reduced motion on each platform |
@@ -88,6 +89,10 @@ Measure the colours the screen paints, not the tokens' names.
   ratio.
 - **Only disabled and decorative things are exempt** (WCAG 1.4.3, 1.4.11), and logotypes. A placeholder, a hint, a
   caption, a timestamp and a secondary label all carry meaning and meet 4.5:1.
+- **Embedded: a status light never uses colour alone, and whatever it says is also on the screen.** An LED that turns
+  red for an error and green for success also differs by pattern — steady, blinking, off — and the screen says the
+  same thing in words: WCAG 1.4.1 carried from the screen to the device's lights. Its patterns are the
+  `touch-and-gesture` skill's FEEDBACK §6.
 - **Never make text secondary with opacity.** The painted colour then depends on what is behind it; use a colour whose
   painted value passes.
 - **An icon that carries meaning on its own meets 3:1 at least; a project may hold it to the text floor** — a brief that
@@ -154,17 +159,19 @@ Measure the colours the screen paints, not the tokens' names.
 ## 5. Keyboard and focus
 
 **Everything a pointer can do, a keyboard can do — or a device's keys or encoder — in the visual order, with focus
-always visible and never trapped.**
+always visible and never trapped.** This section holds the floors; the model that meets them — when the ring shows,
+where the next step starts, modals and overlays, the ring itself, what takes focus — is FOCUS, in this skill's
+[focus.md](focus.md).
 
 | Criterion | The floor | How to meet it |
 | --- | --- | --- |
 | WCAG 2.1.1 Keyboard | Every action works from a keyboard | Platform controls; a custom one takes focus and handles Enter and Space (and arrows where its pattern says). Embedded: every control sits in an `lv_group_t` (`lv_group_add_obj`) bound to the encoder or keypad with `lv_indev_set_group` — an encoder or keypad with no group reaches nothing |
-| WCAG 2.1.2 No Keyboard Trap | Focus can always leave, with Tab or a documented key | A modal keeps focus inside on purpose and closes with Escape. Embedded: an editable widget leaves LVGL's edit mode by the encoder's press or long press, and every screen has a way back by the same input (EN 301 549 5.1.6.2) |
+| WCAG 2.1.2 No Keyboard Trap | Focus can always leave, with Tab or a documented key | A modal keeps focus inside on purpose and closes with Escape. Embedded: focus can always leave by the input that moved it — out of an editable control's edit mode (how: FOCUS §2) and back from every screen (EN 301 549 5.1.6.2) |
 | WCAG 2.1.4 Character Key Shortcuts | A single-key shortcut can be turned off or remapped, or works only while its control has focus | Shortcuts take a modifier; single-key ones never fire while typing in a field |
 | WCAG 2.4.1 Bypass Blocks | Repeated navigation can be skipped | Web: a skip link as the first stop, landmarks; native: headings to jump by |
 | WCAG 2.4.3 Focus Order | Focus moves in an order that keeps meaning | The view order is the reading order; web: no positive `tabindex`; Embedded: an LVGL group focuses in the order objects were added, so add them in reading order |
-| WCAG 2.4.7 Focus Visible | The focused element shows it | Web: `:focus-visible` styles, never `outline: none` without a replacement; native: the system focus ring; Embedded: a style on both `LV_STATE_FOCUSED` and `LV_STATE_FOCUS_KEY` (below), never an outline or border set to 0 there without a replacement |
-| WCAG 2.4.11 Focus Not Obscured (Minimum) | The focused element is never wholly hidden by something the page put on top | Sticky headers, footers, toasts and cookie bars leave it visible; web: `scroll-padding`; Embedded: `LV_OBJ_FLAG_SCROLL_ON_FOCUS` scrolls the focused object into view, and an overlay on `lv_layer_top()` leaves it uncovered |
+| WCAG 2.4.7 Focus Visible | The focused element shows it | Web: `:focus-visible` styles, never `outline: none` without a replacement; native: the system focus ring; Embedded: a ring styled on both `LV_STATE_FOCUSED` and `LV_STATE_FOCUS_KEY`, never an outline or border set to 0 there without a replacement (FOCUS §3, §7) |
+| WCAG 2.4.11 Focus Not Obscured (Minimum) | The focused element is never wholly hidden by something the page put on top | Sticky headers, footers, toasts and cookie bars leave it visible; web: `scroll-padding`; Embedded: the view scrolls to a control the encoder or keys focus, clear of pinned bars, and an overlay on `lv_layer_top()` leaves it uncovered (FOCUS §6) |
 | WCAG 3.2.1 On Focus | Taking focus changes nothing on its own | No navigation, submit or popup on focus |
 
 - **Hidden means out of the focus order and the accessibility tree**, not just invisible. A closed drawer, an
@@ -175,26 +182,10 @@ always visible and never trapped.**
   `LV_OBJ_FLAG_HIDDEN` (on themselves or a parent) and `LV_STATE_DISABLED`, and nothing else — an object at opacity 0,
   moved off the panel, or on a screen not loaded is still walked, so it leaves the group (`lv_group_remove_obj`) or
   each screen has its own group.
-- **A modal takes focus in, keeps it, closes on Escape, and hands focus back to what opened it.** It also closes on
-  Android's back and iOS VoiceOver's escape gesture (a two-finger scrub). WAI-ARIA's dialog pattern sets the steps;
-  web's `<dialog>` with `showModal()` does most of them. **Embedded (ESP-IDF, LVGL):** the modal's controls form a
-  group bound to the input while it is open (`lv_indev_set_group`); closing it binds the opener's group again and
-  focuses the opener (`lv_group_focus_obj`); the device's back control closes it.
-- **When the focused thing goes away, focus moves to its neighbour** — a deleted row hands focus to the next row, not
-  to the top of the page (Embedded: `lv_group_set_refocus_policy`).
-- **A composite widget is one Tab stop with arrows inside** — tabs, menus, listboxes, radio groups, grids and
-  toolbars, with Home and End, and type-to-find in long lists (the WAI-ARIA Authoring Practices' keyboard patterns).
-  **Embedded (ESP-IDF, LVGL):** an editable widget (a slider, roller, dropdown or list) is one stop; pressing the
-  encoder enters edit mode (`LV_STATE_EDITED`), where turning changes the value, and is styled apart from focus.
-- **Embedded (ESP-IDF, LVGL): style focus on both `LV_STATE_FOCUSED` and `LV_STATE_FOCUS_KEY`.** LVGL adds
-  `LV_STATE_FOCUS_KEY` beside `LV_STATE_FOCUSED` when focus comes from an encoder or keypad, and a style's state with
-  the higher value wins (`FOCUS_KEY` outranks `FOCUSED`, `EDITED` outranks both), so a ring restyled on `FOCUSED`
-  alone loses to the theme's ring on `FOCUS_KEY`. A touch gives `FOCUSED` without `FOCUS_KEY`, so a ring kept to
-  `FOCUS_KEY` shows for the encoder and not for a tap.
-- **Embedded (ESP-IDF, LVGL): the encoder and the buttons register as LVGL input devices.** ESP-IDF's
-  `esp_lvgl_port` adds a rotary encoder (`lvgl_port_add_encoder`) and three navigation buttons
-  (`lvgl_port_add_navigation_buttons`) both as `LV_INDEV_TYPE_ENCODER`: turn or previous and next move focus, press
-  or enter acts. A keypad is `LV_INDEV_TYPE_KEYPAD` (`LV_KEY_NEXT`, `LV_KEY_PREV`, `LV_KEY_ENTER`, `LV_KEY_ESC`).
+- **A modal takes focus in, keeps it, closes by the same input that leaves anything, and hands focus back to what
+  opened it** (WCAG 2.1.2, 2.4.3) — how, per platform, and where focus goes when the opener is gone: FOCUS §5.
+- **A composite widget is one stop, moved within by its own keys** (WCAG 2.1.1) — the keyboard patterns and the
+  encoder's edit mode: FOCUS §8.
 - **Nothing fires while an input method is composing** — with a Japanese, Chinese or Korean keyboard, Enter confirms
   the word; it does not send.
 
@@ -268,7 +259,7 @@ follows the person's reduced-motion setting — the platform's, or the product's
 | --- | --- | --- |
 | WCAG 2.2.1 Timing Adjustable | A time limit can be turned off, adjusted or extended, unless it is real-time or essential | A session warns and offers more time. A toast that disappears carries nothing found only in it — the result shows in place too — stays long enough to read, and pauses while hovered, focused or pressed so it can be finished. Embedded: the screen sleeping is no time limit while nothing is lost; a timeout that discards an entry or leaves the screen is one, and its length is a setting |
 | WCAG 2.2.2 Pause, Stop, Hide | Content that moves, blinks, scrolls or auto-updates on its own for more than 5 s, beside other content, can be paused, stopped or hidden | A carousel has pause; a looping background video has a pause control; a ticker stops |
-| WCAG 2.3.1 Three Flashes or Below Threshold | Nothing flashes more than 3 times in any second | No strobing; a spinner's cycle stays far under 3 a second; Embedded: a backlight or panel brightness that pulses counts as the screen flashing |
+| WCAG 2.3.1 Three Flashes or Below Threshold | Nothing flashes more than 3 times in any second | No strobing; a spinner's cycle stays far under 3 a second; Embedded: a backlight or panel brightness that pulses counts as the screen flashing, and a status light — an LED beside the screen — blinks no more than 3 times a second too (its patterns: the `touch-and-gesture` skill's FEEDBACK §6) |
 | WCAG 2.3.3 Animation from Interactions (AAA) | Motion a person's action sets off can be turned off, unless it is essential | Follow the platform's reduced-motion setting, or the product's own where there is none (below) |
 
 - **On Android, check that a wait indicator still moves with Remove animations on** — an indicator driven by the
@@ -320,6 +311,9 @@ managers and paste do their work.**
 | WCAG 3.3.8 Accessible Authentication (Minimum) | Signing in never depends on remembering, transcribing or solving something, unless a helper is allowed | Paste and password managers work in every password and code field; a passkey or an emailed link is offered |
 | WCAG 3.2.2 On Input | Changing a field's value changes nothing large on its own | No navigation on selecting an option; a submit button |
 
+- **Check typed text when it is committed** — the field left, its keyboard closed, the form sent — never on every
+  keystroke; an error raised while the person is still typing interrupts them for a value they have not finished.
+  How the error is then shown is the WCAG 3.3.1 and 3.3.3 rows of this section's table.
 - **After a failed submit, focus goes to the first field in error**, or to an error summary that links to each field.
 - **Tapping a field's label focuses or toggles it**, and a checkbox or switch row is one target with no dead gap.
 - **A disabled control's reason is on screen** beside it, or the control stays enabled and explains on press.

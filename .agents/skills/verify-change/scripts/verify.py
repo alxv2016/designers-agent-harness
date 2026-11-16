@@ -387,8 +387,43 @@ def check_esp_idf(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+UX_SKILL = f"{SKILLS}/ux-content/"
+UX_LINT = f"{UX_SKILL}scripts/ux_lint.py"
+
+
+def ux_paths() -> tuple:
+    """The files the string check reads: UX_STRINGS' paths, else UI_PATHS."""
+    return tuple((getattr(project, "UX_STRINGS", None) or {}).get("paths") or ()) or tuple(project.UI_PATHS)
+
+
+def check_ux(run_dir: Path) -> dict:
+    """The string check's self-test; then the UI strings against the rules a script can see (UX_CONTENT §1–§6)."""
+    results = [sh([sys.executable, UX_LINT, "--test"], run_dir / "ux.selftest.log")]
+    ui = sh([sys.executable, UX_LINT], run_dir / "ux.strings.log") if ux_paths() else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the string check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+SECRETS_SKILL = f"{SKILLS}/secrets-handling/"
+SECRET_SCAN = f"{SECRETS_SKILL}scripts/secret_scan.py"
+
+
+def check_secrets(run_dir: Path) -> dict:
+    """The secret scan's self-test when its skill changes; then the change itself, for key-shaped strings — counted
+    by file and line, never printed (SECRETS §11). The pre-commit hook refuses the same at the commit."""
+    results = [sh([sys.executable, SECRET_SCAN, "--test"], run_dir / "secrets.selftest.log")] \
+        if any(f.startswith(SECRETS_SKILL) for f in changed_files()) else []
+    results.append(sh([sys.executable, SECRET_SCAN], run_dir / "secrets.scan.log"))
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": "no key-shaped string in the change" if ok else "a key-shaped string in the change",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
-           "motion": check_motion, "touch": check_touch, "esp-idf": check_esp_idf, "scope": check_scope}
+           "motion": check_motion, "touch": check_touch, "ux": check_ux, "esp-idf": check_esp_idf,
+           "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -412,6 +447,9 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         "esp-idf": (ROOT / ESP_SCRIPT).is_file()
         and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()
                                             and project.matches(f, ESP_PATHS)) for f in files),
+        "ux": (ROOT / UX_LINT).is_file()
+        and any(f.startswith(UX_SKILL) or project.matches(f, ux_paths()) for f in files),
+        "secrets": (ROOT / SECRET_SCAN).is_file() and bool(files),  # every change: cheap, and before the commit
         "scope": any(f.startswith((f"{SKILLS}/", ".agents/agents/")) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }

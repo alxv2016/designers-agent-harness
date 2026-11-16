@@ -25,6 +25,10 @@ DOC_PREFIX = ""
 # other (DOCUMENTATION_GUIDELINES §3.1).
 PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and-sync/references/guidelines.md",
                      ".agents/skills/accessibility/references/criteria.md",
+                     ".agents/skills/accessibility/references/focus.md",
+                     ".agents/skills/touch-and-gesture/references/feedback.md",
+                     ".agents/skills/secrets-handling/references/secrets.md",
+                     ".agents/skills/ux-content/references/ux-content.md",
                      ".agents/skills/design-system/references/brief.md",
                      ".agents/skills/motion/references/motion.md",
                      ".agents/skills/touch-and-gesture/references/touch.md",
@@ -52,6 +56,18 @@ UI_PATHS = ()
 # theme (DESIGN.md is the template's demo). The ui-designer and design-system skills read it first; the design check
 # proves its contrast pairs meet their floors and its tokens exist in TOKEN_FILES. Changing it calls the ui-designer.
 DESIGN_FILE = "DESIGN.md"
+
+# The UI strings the ux-content skill's string check reads (UX_CONTENT §1–§6):
+#   "paths":    the files that hold UI strings (patterns as above) — empty: UI_PATHS
+#   "calls":    regular expressions for the calls whose string literals at the call's own level are UI text (each
+#               argument, never one in a nested call); set, they REPLACE the check's defaults (web markup, SwiftUI
+#               and UIKit, Android resources and Compose, LVGL 8 and 9)
+#   "names":    proper nouns and product names that keep their capitals
+#   "case":     "title" for a product that follows Apple's title case, which turns the title-case rule off
+#   "baseline": the hits accepted today, each with its reason in a comment here
+#   Web:     {"paths": ("src/", "public/locales/")}
+#   ESP-IDF: {"paths": ("components/ui_*/", "main/"), "names": ("<Product>",)}
+UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0}
 
 # Where the design tokens live in code — the values DESIGN.md decides, in the platform's format. A screen takes its
 # values from these files, never from a literal (the design-system skill). Empty: the token check and the design
@@ -84,6 +100,15 @@ VENDORED = ("third_party/",)
 # checks it.
 #   ("service-account.json", "api_key.txt")
 SECRET_FILES = ()
+
+# The project's own token shapes, beyond the common ones (private keys, GitHub, AWS, Google, Slack, `sk-` keys), for
+# the secrets-handling skill's scan: (regular expression, what it is). The scan prints counts, never a match.
+#   (r"\bmyco_live_[A-Za-z0-9]{32}\b", "a MyCo live key")
+SECRET_PATTERNS = []
+
+# Repo paths that hold secret patterns on purpose — a scanner's own rules, a test of them; the scan skips them whole.
+# A single line is exempted in place instead, with `secret-exception` and its reason on that line.
+SECRET_PATTERN_HOMES = ()
 
 # --- The network ------------------------------------------------------------------------------------------------
 

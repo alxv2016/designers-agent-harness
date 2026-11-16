@@ -413,7 +413,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships ten skills. Nine are generic and copy across almost unchanged; `build-run-test` is filled in from
+The template ships twelve skills. Eleven are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
@@ -436,11 +436,13 @@ principle once, in platform-neutral words, and labels the guidance that differs 
 | `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | `portable` — the folder works in any repo |
 | `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | `project` — the convention is this repo's |
 | `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md`, `references/rubric.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
-| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
+| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `references/focus.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
-| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `references/feedback.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
+| `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
+| `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
@@ -486,6 +488,12 @@ Each skill must hold the following:
 - **`esp-idf-setup`**: the principles of an ESP-IDF project in `references/esp-idf.md` and the project's templates, so
   the folder is portable; ESP-IDF checked, never installed; the hardware spec written from the person's answers before
   anything is generated; the person's yes or no to LVGL; a feature as one line; the layering check.
+- **`ux-content`**: the rules for an interface's words in `references/ux-content.md`, so the folder is portable; the
+  four tests and editing passes; the pattern for each element; the string check; the voice, case convention and word
+  list always from the project's DESIGN.md.
+- **`secrets-handling`**: how a product handles its users' secrets in `references/secrets.md`, per platform; the leak
+  procedure; the secret scan, which counts and never prints. The agent's own safety stays the guard's and the
+  pre-commit hook's.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -557,8 +565,9 @@ You are the <role> for <project>.
 | --- | --- | --- | --- |
 | `code-reviewer` | Judge | The code changes | `project` — the rules it applies are the project's docs and rubrics |
 | `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `project` |
-| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `portable` — with its five skills; its rubric travels in the `ui-designer` skill |
+| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `portable` — with its six skills; its rubric travels in the `ui-designer` skill |
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
+| `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
 | Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
@@ -794,6 +803,8 @@ file.
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
+| The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
+| Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
@@ -1374,6 +1385,7 @@ reasons before it answers.
 | Search and exploration | `haiku` | `low` | Finds code and returns a conclusion |
 | Docs research | `haiku`; `sonnet` where sources conflict | `low` or `medium` | Fetches and condenses |
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
+| `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
 between the ends. Cached input costs a small fraction of fresh input. The provider's pricing page has the current

@@ -6,7 +6,7 @@ model: sonnet
 effort: high
 metadata:
   scope: portable
-  requires: [ui-designer, accessibility, design-system, motion, touch-and-gesture]
+  requires: [ui-designer, accessibility, design-system, motion, touch-and-gesture, ux-content]
 ---
 
 You are the UI designer for this project. Your steps are the skills'; this file says which to load, what each mode
@@ -40,7 +40,9 @@ Read in this order — accessibility is the priority:
 5. The `motion` skill — whenever anything moves: the brief, the study, the review of motion.
 6. The `touch-and-gesture` skill — whenever the screen takes a gesture or targets touch: the gesture spec, the
    prototype, the review of a gesture change, the device walk, mobile layout.
-7. As needed: the project's own skill for building and running it (in the kit, `build-run-test`), and its docs skill
+7. The `ux-content` skill — whenever the screen has words: the four tests, the pattern for each element, accessible
+   names and status messages; the `ux-content-writer` agent writes and reviews them in depth.
+8. As needed: the project's own skill for building and running it (in the kit, `build-run-test`), and its docs skill
    (in the kit, `docs-authoring-and-sync`) for any doc edit.
 
 The project's docs win over the skills; report a disagreement, never resolve it yourself.
@@ -81,7 +83,7 @@ person" (Gate 3, step 2), with the device walk for each gesture.
 ## Mode: review (read-only)
 
 Input: a diff, or the paths given. Edit nothing. First load the rubric — the `ui-designer` skill's
-`references/rubric.md` (UI_REVIEW_RUBRIC: the verdict, the evidence rules, R1–R17, the report's shape), and the
+`references/rubric.md` (UI_REVIEW_RUBRIC: the verdict, the evidence rules, R1–R18, the report's shape), and the
 project's learned items if it keeps any (in the kit, the Learned table in `.agents/rubrics/ui-designer.md`). Read the
 record of yeses — in the kit, `python3 .agents/skills/verify-change/scripts/verify.py status`; otherwise the change's
 record — each approval and decision settled: a note, never blocking. Read every changed UI file in full. Then follow

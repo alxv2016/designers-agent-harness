@@ -1,6 +1,6 @@
 ---
 name: accessibility
-description: The accessibility floors every screen meets, from WCAG 2.2 AA, carried in the skill (references/criteria.md) with how to meet and test each on the web, iOS, Android and embedded ESP-IDF devices with an LVGL screen — text contrast 4.5:1 and 3:1 for large text and non-text measured against the colour actually painted, with contrast.py; colour never the only signal; text that resizes and reflows, or a large-text mode where nothing scales it; names, roles and labels; keyboard, encoder and key access, focus order, visible focus, modals and hidden content (LVGL groups and focus states); target size, converted to panel pixels from the pixel density; a plain alternative to every gesture and drag, actions on release, hover never the only path; tooltips that can be dismissed and hovered; time limits, autoplay, flashing and reduced motion, as the platform's setting or the product's own; forms, errors and status messages; closed functionality under EN 301 549 (no screen reader: visible words, sound and haptics, speech where needed) and physical controls; the walks the person does on the target; and a11y_check.py for the patterns code can show, in web, native and C/C++ LVGL files. Portable — the folder works in any repo. Use when designing or reviewing a screen, picking a colour pair, putting text or an icon over a fill or an image, making a control, a form, a gesture, a tooltip or an animation, wiring an encoder or buttons to a screen, or asked "is this accessible?" or "does this pass contrast?".
+description: The accessibility floors every screen meets, from WCAG 2.2 AA, carried in the skill (references/criteria.md) with how to meet and test each on the web, iOS, Android and embedded ESP-IDF devices with an LVGL screen — text contrast 4.5:1 and 3:1 for large text and non-text measured against the colour actually painted, with contrast.py; colour never the only signal; text that resizes and reflows, or a large-text mode where nothing scales it; names, roles and labels; keyboard, encoder and key access, focus order, visible focus, modals and hidden content (LVGL groups and focus states); target size, converted to panel pixels from the pixel density; a plain alternative to every gesture and drag, actions on release, hover never the only path; tooltips that can be dismissed and hovered; time limits, autoplay, flashing and reduced motion, as the platform's setting or the product's own; forms, errors and status messages; closed functionality under EN 301 549 (no screen reader: visible words, sound and haptics, speech where needed) and physical controls; status lights that never rely on colour or flash; the focus model every input shares, carried in references/focus.md — the focus position apart from the ring, a tap shows no ring while a keyboard or encoder does, where the next step starts, screens and modals opening and closing and focus back to the opener, keeping focus in view, the ring's craft, what takes focus, who takes an input, the input mapping, building it once; the walks the person does on the target; and a11y_check.py for the patterns code can show, in web, native and C/C++ LVGL files. Portable — the folder works in any repo. Use when designing or reviewing a screen, picking a colour pair, putting text or an icon over a fill or an image, making a control, a form, a gesture, a tooltip or an animation, wiring an encoder or buttons to a screen, or asked "is this accessible?" or "does this pass contrast?".
 metadata:
   scope: portable
 ---
@@ -10,19 +10,24 @@ metadata:
 The floors every screen meets, and how to check each one. The floors and their reasons are WCAG 2.2 at level AA, with
 the platforms' own guidelines where they ask for more and EN 301 549 where a product has no accessibility API, kept in
 this skill at
-[references/criteria.md](references/criteria.md) (cited `ACCESSIBILITY §n`); this page indexes them — each rule is one
-line citing the § that holds it — and holds the steps: the Procedure and the Checks. The reference wins if this page
-and it disagree — fix this page. A project that sets a floor above AA writes it in its design brief (`DESIGN.md` in
+[references/criteria.md](references/criteria.md) (cited `ACCESSIBILITY §n`), with the focus model that meets the
+focus floors at [references/focus.md](references/focus.md) (cited `FOCUS §n`); this page indexes them — each rule is
+one line citing the § that holds it — and holds the steps: the Procedure and the Checks. A reference wins if this page
+and it disagree — fix this page.
+
+**Platforms.** Each rule is stated once for every platform; how to meet it on one is labelled in the references —
+**Web**, **iOS**, **Android**, **Embedded (ESP-IDF, LVGL)** — and a rule here names a platform only where its case
+differs. A project that sets a floor above AA writes it in its design brief (`DESIGN.md` in
 the agent-harness kit), and that floor wins over both.
 
 **Portable.** This folder is self-contained and links to nothing outside itself (it names the rest of a kit in
-backticks): the criteria, the contrast script and the accessibility check ([scripts/](scripts/)). Copy it into any
-repo's `.agents/skills/` (or `.claude/skills/`) and it works there: `a11y_check.py` reads `UI_PATHS` from
-`.agents/project.py` when the repo has one, and scans every tracked UI file — web, native, and C or C++ for an LVGL
-screen — when it does not, and says so when it read none; `contrast.py` needs nothing. They need git and Python
-3.9+. In the agent-harness kit, the `ui-designer` skill applies these floors at its three gates, `design-system` keeps
-the product's colour pairs, and `verify.py run` runs both scripts' self-tests and, once `UI_PATHS` is set, the
-accessibility check on the UI files.
+backticks): the criteria, the focus model, the contrast script and the accessibility check ([scripts/](scripts/)).
+Copy it into any repo's `.agents/skills/` (or `.claude/skills/`) and it works there: `a11y_check.py` reads
+`UI_PATHS` from `.agents/project.py` when the repo has one, and scans every tracked UI file — web, native, and C or
+C++ for an LVGL screen — when it does not, and says so when it read none; `contrast.py` needs nothing. They need git
+and Python 3.9+. In the agent-harness kit, the `ui-designer` skill applies these floors at its three gates,
+`design-system` keeps the product's colour pairs, and `verify.py run` runs both scripts' self-tests and, once
+`UI_PATHS` is set, the accessibility check on the UI files.
 
 ## When to use
 
@@ -49,7 +54,7 @@ accessibility check on the UI files.
    LVGL, every control in a group bound to the input (WCAG 2.1.1, 2.1.2; ACCESSIBILITY §5).
 5. **Keep focus in reading order, always visible, never hidden by a sticky header or a toast** — the view order is the
    visual order (web: no positive tabindex; LVGL: the order added to the group, the ring on both `LV_STATE_FOCUSED`
-   and `LV_STATE_FOCUS_KEY`) (WCAG 2.4.3, 2.4.7, 2.4.11; ACCESSIBILITY §5).
+   and `LV_STATE_FOCUS_KEY`) (WCAG 2.4.3, 2.4.7, 2.4.11; ACCESSIBILITY §5; FOCUS §7).
 6. **Give every control a name a screen reader says, containing its visible label** — an icon-only button named for
    its action; inputs keep a visible label, not only a placeholder; with no screen reader, the visible label is the
    name (WCAG 4.1.2, 2.5.3, 3.3.2; ACCESSIBILITY §4, §9, §14).
@@ -78,10 +83,10 @@ accessibility check on the UI files.
 16. **Make what appears on hover or focus dismissible with Escape, hoverable, and lasting** until the person leaves it
     (WCAG 1.4.13; ACCESSIBILITY §7).
 17. **Take hidden things out of the focus order and the accessibility tree**; a modal takes focus in, closes on
-    Escape and back, and returns focus to its opener (WCAG 2.4.3; ACCESSIBILITY §5).
+    Escape and back, and returns focus to its opener (WCAG 2.4.3; ACCESSIBILITY §5; FOCUS §5).
 18. **Make a composite widget one stop, moved within by its own keys** — web and keyboards: one Tab stop with arrows
     inside; LVGL with an encoder: one group stop, changed in edit mode — and keep single-key shortcuts off while
-    typing (WCAG 2.1.1, 2.1.4; ACCESSIBILITY §5).
+    typing (WCAG 2.1.1, 2.1.4; ACCESSIBILITY §5; FOCUS §8).
 19. **Announce a change that appears without moving focus** — a toast, "Saved", a result count — through a live
     region or the platform's announcement; with no screen reader, shown near focus with a sound or haptic (WCAG 4.1.3;
     ACCESSIBILITY §10).
@@ -101,6 +106,25 @@ accessibility check on the UI files.
 25. **Make physical controls work without sight, grasping, force or two at once** — every knob action also by touch or
     a press, keys told apart by touch, a toggle's state felt or heard, key repeat adjustable or off (EN 301 549
     5.5–5.9, 8.4.2; ACCESSIBILITY §14).
+26. **Keep the focus position apart from the ring** — a tap or click moves focus with no ring, a keyboard, encoder or
+    key shows it, and hiding the ring keeps the place (WCAG 2.4.7; FOCUS §1, §3).
+27. **Start the next step from where the person last was** — the control or point tapped, else what is in view; a
+    scroll or a drag leaves no starting point, and a drag drops the ring (FOCUS §4).
+28. **Open screens and sheets with no ring; move focus into a modal a key opened; close only the topmost overlay per
+    press of Escape or back; hand focus back to the opener, or on when it is gone** (WCAG 2.1.2, 2.4.3, 3.2.1;
+    FOCUS §5).
+29. **Scroll to focus only for the inputs that cannot see** — with a margin and clear of pinned bars; focus a touch
+    moved scrolls nothing (WCAG 2.4.11; FOCUS §6).
+30. **Draw the ring as an outline with room around it, apart from selection and from edit mode** (WCAG 2.4.7;
+    2.4.13 at AAA; FOCUS §7).
+31. **Make only controls stops, hand focus on before a focused control hides or goes, and never move focus on a change
+    of state; a message that asks nothing takes no focus** (WCAG 2.4.3, 3.2.1; FOCUS §8, §9).
+32. **Give each input one job on every screen, decided once in one input model** — owners in a fixed order; on a
+    device, the order wraps and a first press with no ring only shows it (FOCUS §2, §10, §11).
+33. **Check typed text when it is committed, never on every keystroke** — the error itself is Do 21's
+    (ACCESSIBILITY §9).
+34. **Give a status light more than colour, put what it says on the screen too, and blink it at most 3 times a
+    second** (WCAG 1.4.1, 2.3.1; ACCESSIBILITY §2, §8).
 
 ### Never
 
@@ -142,7 +166,7 @@ For each screen or component, settle and write down, beside the mock:
 
 1. **Contrast** — every text and non-text pair, in each state and theme (Do 1–3).
 2. **Focus order** — the list of stops in reading order; where focus goes when a modal opens and closes, and when the
-   focused thing goes away (Do 5, Do 17).
+   focused thing goes away; which inputs show the ring and where the first step starts (Do 5, Do 17, Do 26–31).
 3. **Names** — each control's accessible name, each image's alternative, what is decorative (Do 6, Do 11).
 4. **Targets** — each target's size with its hit area, and the gaps between them (Do 7).
 5. **Alternatives** — for each gesture, drag, long press and hover: the tap, the visible control and the
@@ -207,6 +231,16 @@ walks a change needs and hands them to the person for the target; it never claim
   text, reduced-motion and time settings, a spoken mode where the brief needs one (Do 24)
 - [ ] Physical controls: every knob action also by touch or press, keys told apart by touch, no two-at-once, repeat
   adjustable (Do 25)
+- [ ] A tap shows no ring, a key or detent does; hiding the ring keeps the place; the next step starts from the last
+  tap or from what is in view (Do 26, Do 27)
+- [ ] Screens open with no ring; modals take focus in, close one level per press and hand focus back (Do 28)
+- [ ] Focus scrolled into view for the blind inputs only, clear of pinned bars; the ring an outline with room, apart
+  from selection and edit mode (Do 29, Do 30)
+- [ ] Only controls are stops; focus handed on before a control goes; no focus moved by a state change; a toast
+  takes no focus (Do 31)
+- [ ] Each input one job everywhere, in one input model (Do 32)
+- [ ] Typed text checked when committed, never on every keystroke (Do 33)
+- [ ] Status lights: more than colour, said on the screen too, at most 3 blinks a second (Do 34)
 - [ ] The walks handed to the person for the target — never claimed from code
 
 ## Traps
@@ -243,6 +277,7 @@ walks a change needs and hands them to the person for the target; it never claim
 | The floors, with how to meet and test each per platform | [references/criteria.md](references/criteria.md) |
 | WCAG 2.2, the success criteria cited here | The W3C's WCAG 2.2 Recommendation and its Understanding documents |
 | Keyboard patterns for menus, dialogs, tabs, listboxes | The W3C's WAI-ARIA Authoring Practices Guide |
+| The focus model, for every input | [references/focus.md](references/focus.md); the WAI-ARIA Authoring Practices Guide (*Developing a Keyboard Interface*, *Dialog (Modal) Pattern*); the HTML Standard (sequential focus navigation starting point, `autofocus`); CSS Selectors Level 4 (`:focus-visible`) |
 | Target sizes, reduced motion and assistive tech on the platforms | Apple Human Interface Guidelines (Accessibility); Material Design and Android Developers (Accessibility); MDN (`prefers-reduced-motion`, ARIA live regions) |
 | Closed functionality, operable parts and mechanical controls | ETSI EN 301 549 V3.2.1, clauses 5, 8 and 11 |
 | Groups, input devices, focus states and style precedence on LVGL | LVGL's documentation (Input devices: Groups, Encoder, Keypad; Styles: States) and headers (`lv_group.h`, `lv_indev.h`, `lv_obj_style.h`, `lv_event.h`); Espressif's `esp_lvgl_port` README (encoder and navigation buttons) |

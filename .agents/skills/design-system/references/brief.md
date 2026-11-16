@@ -35,7 +35,7 @@ bold lead or a table row.
 | 10 | [Layers](#10-layers) | A named stacking order |
 | 11 | [Gradients and decoration](#11-gradients-and-decoration) | When a gradient, a fade or a glass material earns its place |
 | 12 | [Motion tokens](#12-motion-tokens) | Durations, easings and the feedback ladder as tokens |
-| 13 | [Components and states](#13-components-and-states) | Reuse, states, the four states of a data view |
+| 13 | [Components and states](#13-components-and-states) | Reuse, states, the four states of a data view; choosing a control by what it does; actions that cannot be undone |
 | 14 | [Exceptions](#14-exceptions) | A value off the scale, registered with its reason |
 | 15 | [Tokens in code](#15-tokens-in-code) | Carrying the brief to the web, iOS, Android and an embedded device (ESP-IDF, LVGL) |
 | 16 | [The checks](#16-the-checks) | What the scripts prove, and what is left to read |
@@ -302,7 +302,8 @@ levels; a line that carries meaning stays a border.**
 
 ## 13. Components and states
 
-**Reuse a component before making one; every component lists its states, and every data view its four.**
+**Reuse a component before making one, and choose it by what it does; every component lists its states, and every data
+view its four.**
 
 - **A component row says what it is for, its states, and what it is not for** — the last column stops the wrong reuse.
 - **A one-off moves into the shared components on its second caller**, both callers in the same change.
@@ -313,6 +314,39 @@ levels; a line that carries meaning stays a border.**
   messages).
 - **Loading keeps the shape of what is coming** — a placeholder in the loaded geometry, an action's wait inside its
   control, a refresh that keeps the old content (Nielsen Norman Group, "Skeleton Screens 101").
+- **Choose the control for a setting or an action by what it does, before laying out the rows.** A control promises
+  what happens when it is used: a list row reads as a place to go or a value to read, a field as text to edit, a
+  button as "do this". A control that breaks its promise — a row that opens a prompt for typed text, a row that
+  deletes — misleads before it is ever pressed.
+
+| What the person does | Control |
+| --- | --- |
+| Types a value and keeps it | A field that shows what it holds — not a list row that opens a prompt |
+| Turns one thing on or off, applied at once | A switch, the whole row its target |
+| Picks one of two to four short options | A segmented control or a radio set |
+| Picks one of more options than fit a row | A list or a picker — a dropdown, or a wheel where the options are a sequence |
+| Sets a number in a range, watching it change | A slider, applied as it moves |
+| Reads a value it cannot set | A reading: a label and its value, never drawn as a control |
+| Starts an action | A button, named for the action |
+
+- **When typed text is checked and where the problem is said is `ACCESSIBILITY §9`'s** (forms and errors); the
+  brief's field component carries the error state that rule needs.
+- **An action that cannot be undone is its own button in the brief's danger role, never a list row.** The danger
+  role is a `fill` with its `on-fill` pair (§4), a status hue kept apart from the accent; it says the action cannot be
+  taken back.
+- **It still asks first.** The colour warns; the confirmation is what stops a stray press. Where its first focus
+  lands is `FOCUS §5`'s, and the words on its buttons are `UX_CONTENT §5`'s.
+
+| Platform | The confirmation |
+| --- | --- |
+| Web | A `<dialog>` opened with `showModal()`, its choices `<button>`s; `autofocus` sets the first focus (which button: `FOCUS §5`) |
+| iOS | An alert, or an action sheet for a choice tied to what was tapped: `UIAlertController` with `UIAlertAction` styles `.destructive` and `.cancel`; in SwiftUI, `.alert` or `.confirmationDialog` with `Button(role: .destructive)` and `Button(role: .cancel)` |
+| Android | A Material dialog — `MaterialAlertDialogBuilder`, or Compose's `AlertDialog` — the action as its confirm button, Cancel as its dismiss button |
+| Embedded (ESP-IDF, LVGL) | A message box: `lv_msgbox_create(NULL)` draws it modal, over a backdrop on `lv_layer_top()`, with its choices from `lv_msgbox_add_footer_button`; with a keypad or an encoder, `lv_group_focus_obj` sets the first focus as it opens (which button: `FOCUS §5`) |
+
+- **The components are a closed set.** A setting takes one of the brief's components; one that seems to need a new
+  kind of control is a new component, decided in the brief before any code: the component it would replace, why that
+  one fails, then its row by the first rule of this section.
 - **Embedded (ESP-IDF, LVGL): a component is a set of shared styles and one function that builds the widget.** The
   styles (`lv_style_t`, initialised once from the tokens) carry the looks; the function creates the LVGL widget and
   adds them with `lv_obj_add_style(obj, &style, selector)`, one per state — `LV_STATE_PRESSED`, `LV_STATE_FOCUSED`,

@@ -96,8 +96,8 @@ The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
 | [.agents/project.py](.agents/project.py) | The one settings file: checks, UI paths, the design brief and token files, secrets, allowed hosts, commands that ask | Every list — commented examples for web, mobile and Python |
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |
-| [.agents/skills/](.agents/skills/) | 10 skills — the loop, docs, commits, UI design, accessibility, design tokens, motion, touch and gesture, ESP-IDF setup, build and run. The docs, accessibility, design-system, motion, touch-and-gesture, ui-designer and esp-idf-setup skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
-| [.agents/agents/](.agents/agents/) | 6 agents — `ui-designer`, `doc-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
+| [.agents/skills/](.agents/skills/) | 12 skills — the loop, docs, commits, UI design, accessibility, design tokens, motion, touch and gesture, UX content, secrets handling, ESP-IDF setup, build and run. The docs, accessibility, design-system, motion, touch-and-gesture, ui-designer, ux-content, secrets-handling and esp-idf-setup skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
+| [.agents/agents/](.agents/agents/) | 7 agents — `ui-designer`, `doc-writer`, `ux-content-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
 | `.agents/hooks/` | The guard and the injection flag, with self-tests | — |
 | `.agents/githooks/pre-commit` | Refuses a commit with a secret, a build file or a debug line | — |
@@ -121,7 +121,11 @@ Everything is plain files and Python's standard library: no package to install, 
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | How UI work reaches the person: a draft they approve, the build beside it, their sign-off on the target, and how each yes is recorded. Generic: any project, any stack |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and layout are specified, built and walked on a device, with an encoder and buttons on an embedded one. Generic: any project, any stack |
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF firmware project is set up from the board's hardware spec: the installed toolchain, the spec's facts, the app's structure and its layering rules, LVGL. Generic: any ESP-IDF project |
+| [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written, for the web, iOS, Android and an LVGL screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content. Generic: any project, any stack |
+| [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product takes, stores, shows, logs and rotates its users' secrets on the web, iOS, Android and ESP-IDF, and what to do after a leak. Generic: any project, any stack |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed, with a glossary. Generic: any project, any stack |
+| [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — touch, mouse, keyboard, an encoder and buttons — from WCAG 2.2, the WAI-ARIA Authoring Practices and the HTML Standard. Generic: any project, any stack |
+| [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Haptics, sound and a device's status lights as one small vocabulary, when feedback fires, and pending, done and failed. Generic: any project, any stack |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS, Android and an embedded device with an LVGL screen, with closed functionality under EN 301 549. Generic: any project, any stack |
 
 The kit's own pages: [.agents/README.md](.agents/README.md) (the skills and agents in plain words) and

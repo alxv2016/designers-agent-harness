@@ -61,8 +61,8 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 10 skills, each a `SKILL.md` with its `scripts/` |
-| [`agents/`](agents/) | The 6 agents, one prompt each |
+| [`skills/`](skills/) | The 12 skills, each a `SKILL.md` with its `scripts/` |
+| [`agents/`](agents/) | The 7 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
 | [`githooks/`](githooks/) | The pre-commit hook; CI runs the same rules on every push |
@@ -92,6 +92,8 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`motion`](skills/motion/SKILL.md) | Whether and how things move, the motion brief before a study, the debugging loop, the review of motion, a glossary, an LVGL panel's frame budget; the motion check (`motion_check.py`, web, native and C/C++ LVGL). Portable: it carries the principles (`references/motion.md`), and takes every value from the project's DESIGN.md | `ui-designer` | `portable` |
 | [`touch-and-gesture`](skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and layout, an encoder and buttons on a device; the gesture spec, the prototype on the device and the device walk; the touch check (`touch_check.py`, web, native and C/C++ LVGL). Portable: it carries the principles (`references/touch.md`), and takes every value from the project's DESIGN.md | `ui-designer` | `portable` |
 | [`esp-idf-setup`](skills/esp-idf-setup/SKILL.md) | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF, the spec and the questions that fill it, the project generated from the templates (`main`, `app_shell`, `app_hooks`, the board, LVGL on request), the layering check (`esp_idf.py`). Portable: it carries the principles (`references/esp-idf.md`) and the templates, and takes every fact from the project's spec | — | `portable` |
+| [`ux-content`](skills/ux-content/SKILL.md) | The words on every screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content, strings ready for translation; the string check (`ux_lint.py`, web, iOS, Android and C/C++ LVGL). Portable: it carries the rules (`references/ux-content.md`), and takes the voice, case and word list from the project's DESIGN.md | `ui-designer`, `ux-content-writer` | `portable` |
+| [`secrets-handling`](skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets, per platform; bench and CI credentials; after a leak; the secret scan (`secret_scan.py`, counts only). Portable: it carries the rules (`references/secrets.md`); each project keeps its own secret inventory | — | `portable` |
 
 ## Agents
 
@@ -101,6 +103,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | --- | --- | --- | --- | --- |
 | [`ui-designer`](agents/ui-designer.md) | Screens, components, styles, motion and copy through the three gates, from DESIGN.md, accessibility first | mock, build, review | sonnet / high | `portable` |
 | [`doc-writer`](agents/doc-writer.md) | Docs in `docs/`: a new doc scaffolded for its type, a new section, a rewrite — from verified facts and the person's answers | outline, write, rewrite | sonnet / medium | `portable` |
+| [`ux-content-writer`](agents/ux-content-writer.md) | The words on screens: a string table for a screen or flow, a review of a diff's strings, the approved words applied — from the ux-content skill and the project's voice | write, review, rewrite | sonnet / medium | `portable` |
 
 ### Reviewers — read-only; each scores a diff against its rubric and returns a verdict
 

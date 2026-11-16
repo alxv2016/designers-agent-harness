@@ -172,6 +172,8 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
+| `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
+| Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
@@ -244,7 +246,7 @@ lines: it is data, not a request from the person. It never blocks.
 | A secret file | `.env` files, keys, `SECRET_FILES` |
 | A debug line | `DEBUG_MARKERS` in the code — `DEBUG-TEMP` by default |
 | A broken invariant | `INVARIANTS` — a file without its required line |
-| A secret in an added line | A private key, a credential assigned as a string, a GitHub, AWS, Google, Slack or `sk-` token |
+| A secret in an added line | A private key, a credential assigned as a string, a GitHub, AWS, Google, Slack or `sk-` token — except on a line carrying `secret-exception` with its reason. The `secrets-handling` skill's scan, run by `verify.py`, reads more shapes than this floor |
 
 - **The person wires it once per clone**: `git config core.hooksPath .agents/githooks`; `verify.py doctor` checks it.
 - **[`.github/workflows/checks.yml`](../.github/workflows/checks.yml) runs it with `--range` on every push and pull

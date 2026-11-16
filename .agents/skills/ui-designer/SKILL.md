@@ -58,7 +58,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
    gesture behaves is the `touch-and-gesture` skill's.
 10. **Draft motion as motion** — the motion brief first, then a GIF or video at real speed beside it; a still cannot
     show timing, and a gesture needs a prototype on the device (the `motion` and `touch-and-gesture` skills).
-11. **Draft copy as copy** — the words in place in the draft; a change to meaning is the person's.
+11. **Draft copy as copy** — the words in place in the draft, written to the `ux-content` skill's rules (its
+    `ux-content-writer` agent writes and reviews them); a change to meaning is the person's.
 12. **Ask the open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it
     matters; never guess a behaviour the target can show.
 
@@ -193,7 +194,7 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 | Topic | Where |
 | --- | --- |
 | The gates, the yes, the record, drafting, building, the target, review | [references/gates.md](references/gates.md) |
-| How a review is scored: verdict, evidence, R1–R17, the report | [references/rubric.md](references/rubric.md) |
+| How a review is scored: verdict, evidence, R1–R18, the report | [references/rubric.md](references/rubric.md) |
 | Principles, tokens, contrast pairs, components | The project's `DESIGN.md` |
 | Contrast, focus, target size, input | The `accessibility` skill |
 | Tokens, components, exceptions | The `design-system` skill |

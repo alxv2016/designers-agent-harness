@@ -72,6 +72,10 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
     screen is not checked (DESIGN_BRIEF §4, §11).
 19. **Make every type role a font the product can draw** — on a device, a compiled font at that size and weight,
     holding every glyph the product's strings use (DESIGN_BRIEF §6).
+20. **Choose each control by what it does, from the brief's components** — a typed value is a field, a few choices a
+    switch, segmented control or radio set, many a list or picker, an action a button; an action that cannot be
+    undone is its own button in the danger role, never a list row, and asks first (DESIGN_BRIEF §13); the
+    confirmation's first focus is `FOCUS §5`'s and its words `UX_CONTENT §5`'s.
 
 ### Never
 
@@ -149,6 +153,8 @@ Each run prints how many files it read; a run that read none says so and proves 
 - [ ] A token change has the person's yes on its specimen (Do 11)
 - [ ] On a device: the change seen on the panel — gradients, near-black steps, the lowest brightness (Do 18); every
   type role a compiled font with the glyphs its strings use (Do 19)
+- [ ] Each control fits what it does; an irreversible action is a danger-role button, never a list row, that asks
+  first (Do 20)
 
 ## Traps
 

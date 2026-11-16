@@ -9,8 +9,9 @@ device. People read it to decide how a touch interaction should behave; coding a
 
 **Where it lives.** In the `touch-and-gesture` skill, beside the steps and checks that apply it —
 [its SKILL.md](../SKILL.md). The skill folder is self-contained: copy it into any repo's `.agents/skills/` and this
-reference and the touch check come with it. The product's own values — its target size, its spring, its hold length,
-which gestures it uses — live in its design brief (`DESIGN.md` in the agent-harness kit).
+reference and the touch check come with it. Haptics, sound and status lights are its neighbour `FEEDBACK`'s
+(`references/feedback.md`). The product's own values — its target size, its spring, its hold length, which gestures
+it uses — live in its design brief (`DESIGN.md` in the agent-harness kit).
 
 **What it builds on.** The floors for input are the `accessibility` skill's: a target size, a plain alternative to
 every gesture, drag, long press and hover, acting on release, hover never the only path, both orientations, time
@@ -31,15 +32,15 @@ values the product chooses for them live in its design brief, like every other v
 | --- | --- | --- |
 | 1 | [Direct manipulation](#1-direct-manipulation) | What follows the drag, catching a moving object, how often the input is read, the platform tools |
 | 2 | [Starting and claiming a gesture](#2-starting-and-claiming-a-gesture) | Movement tolerance, axis lock, sharing with scrolling, scroll chaining, the sheet hand-off |
-| 3 | [Deciding on release](#3-deciding-on-release) | Distance or speed, refusing a throw, resistance past a limit, which event acts, what cancels on touch |
-| 4 | [Gesture patterns](#4-gesture-patterns) | Sheets, swipe actions, long press, hold, reorder, pull to refresh, pinch, screen and bezel edges |
-| 5 | [Touch feedback](#5-touch-feedback) | The pressed state on touch, delays in scrolling lists, tap highlight, menus, selection, haptics |
+| 3 | [Deciding on release](#3-deciding-on-release) | Distance or speed, the throw's speed and a rested finger, refusing a throw, resistance past a limit, which event acts, what cancels on touch |
+| 4 | [Gesture patterns](#4-gesture-patterns) | Sheets, swipe actions, long press, hold, reorder, pull to refresh, pinch, screen and bezel edges, a scroll never an edge gesture, the open guard, decoration that takes no press |
+| 5 | [Touch feedback](#5-touch-feedback) | The pressed state on touch, delays in scrolling lists, tap highlight, menus, selection; haptics point to `FEEDBACK` |
 | 6 | [Scroll-linked motion](#6-scroll-linked-motion) | Triggered against driven, scroll events on a device, never taking over scrolling |
 | 7 | [Mobile layout](#7-mobile-layout) | The visible area, safe areas, round and small panels, the keyboard, field keyboards, back, bottom navigation |
 | 8 | [The gesture spec](#8-the-gesture-spec) | What to settle before building a gesture, and how to prototype it |
 | 9 | [The device walk](#9-the-device-walk) | What only a real device shows, and how to check it |
 | 10 | [Reviewing a gesture change](#10-reviewing-a-gesture-change) | What a review checks, and what it hands to the person |
-| 11 | [Encoder and buttons](#11-encoder-and-buttons) | What a turn, a press and a long press do, in and out of edit mode; back; lost presses |
+| 11 | [Encoder and buttons](#11-encoder-and-buttons) | How a press and a long press line up with a tap, the events LVGL sends, back, lost presses; the focus model is `FOCUS`'s |
 
 ---
 
@@ -117,6 +118,20 @@ axis.**
   tuned with (Material Design 3, Gestures; Compose `AnchoredDraggableState` takes both).
 - **A pull back from the furthest point, or a finger resting before lift, refuses the throw**, and a refused gesture
   returns quickly; how it settles is the `motion` skill's.
+- **The throw's speed is the finger's speed over a short window at the end of the drag** — never an average over the
+  whole drag, which reads several times lower. A finger that rested before lifting placed the object rather than threw
+  it: its speed is zero and distance alone decides. The window and the rest are values the project's design brief
+  holds, tuned on the device and recorded there.
+
+| Platform | The throw's speed comes from |
+| --- | --- |
+| Web | The recent `pointermove` events' positions and `timeStamp`s (with `getCoalescedEvents()` where the browser has it), kept for the brief's window |
+| iOS | The platform's velocity: `UIPanGestureRecognizer`'s `velocity(in:)` |
+| Android | The platform's velocity: `VelocityTracker`'s `computeCurrentVelocity` |
+| Embedded (ESP-IDF, LVGL) | The times of the reads that reported a new position (`lv_tick_get()`), never per read — a touch controller can repeat its last point on the reads between its reports, which reads as a finger stopping; whether yours does is measured on the device |
+
+- **Going, the object leaves from where the finger left it at the throw's speed; a settle from part way takes the time
+  the distance left needs** (`MOTION §6`, `MOTION §3`).
 - **Past a limit, the object follows with growing resistance and springs back** — never a dead stop (Apple HIG, scroll
   views).
 - **What cancels on touch**: the system taking the touch — a call, the notification shade or Control Center — and on
@@ -179,6 +194,24 @@ axis.**
   and the product's own edge swipes take their place. The bezel hides the panel's outermost pixels, and a finger that
   lands at the edge is first reported a few pixels in, so an edge swipe starts from a band whose width is measured on
   the device and kept in DESIGN.md.
+- **A scroll is never an edge gesture** — near an edge, a drag over content that scrolls stays a scroll unless it is
+  fast: a slow drag goes back to scrolling, and only a fast flick is the swipe. Swipes and slow drags look alike for
+  their first few millimetres, so the decision waits until they separate, a distance the design brief sets.
+  **Embedded (ESP-IDF, LVGL)**: LVGL sends no `LV_EVENT_GESTURE` once a scroller has taken the press (§2); a product
+  edge swipe that holds a direction in its band hands a slow drag back to the scroller, measuring speed between
+  position reports (§3).
+- **A surface that has just opened is dragged only by its handle for a moment** — a finger already moving as it
+  arrives taps or scrolls the content instead of grabbing the surface; the handle, the way out, is never held back.
+  The moment is a value the project's design brief holds, tuned on the device and recorded there, and outlasts the
+  surface's entrance.
+- **Decorative elements never take presses** — a caption, an icon, a divider or a handle's pill passes the press to
+  what lies beneath it, so it never swallows a tap or a drag meant for the page.
+  - **Web**: `pointer-events: none`.
+  - **iOS**: `isUserInteractionEnabled = false`.
+  - **Android**: not clickable and not focusable — `android:clickable="false"`, `android:focusable="false"`; in
+    Compose, no `clickable` modifier.
+  - **Embedded (ESP-IDF, LVGL)**: remove `LV_OBJ_FLAG_CLICKABLE` (`lv_obj_remove_flag`) — `lv_obj_create` makes
+    every object clickable; LVGL's label, image, line and spinner are not.
 - **Swipe directions mirror for right-to-left languages**, as navigation does.
 - **The `accessibility` skill's keyboard and screen-reader floors, on touch platforms**: a reordered item moves with
   the arrow keys; each gesture's action is a named action — iOS `accessibilityCustomActions`, Android
@@ -201,8 +234,9 @@ floor.**
   nothing.
 - **Control labels cannot be selected by a long press; content text always can** — turn selection off on the control,
   never on the page.
-- **Haptics are rare, short, caused by the person, never the only signal, and follow the system setting** (Apple HIG,
-  Playing haptics; Android haptics design principles).
+- **Haptics, sound and status lights are `FEEDBACK`'s** — which event gets which feel, when it fires, what to avoid,
+  and how a press, a wait and an outcome are answered (`FEEDBACK §2`, `FEEDBACK §3`, `FEEDBACK §5`); this section
+  keeps the pressed look.
 - **A clear, reveal or stepper button inside a field acts without taking focus from it**, so the keyboard stays open.
 
 **Embedded (ESP-IDF, LVGL)** (LVGL, `lv_indev_scroll.c`, `lv_theme_default.c`, `lv_style.h`):
@@ -214,10 +248,6 @@ floor.**
   begins, with no delay of its own. Give a row's pressed style a short transition delay (the `delay` of
   `lv_style_transition_dsc_init`), so a scroll that starts within it draws no flash; judge the delay on the device.
 - **Hover**: a touch panel has none; `LV_EVENT_HOVER_OVER` comes only from a pointer such as a mouse.
-- **Haptics**: through the product's own actuator driver, from the event that caused the moment — a click, a snap, a
-  detent — never from a draw or a scroll-step callback. A knob's detent tick is the one frequent haptic that earns its
-  place, because it is the knob's feel; a fast spin collapses to what the actuator can play. The product's settings
-  hold the on and off that a phone's system setting holds.
 
 ## 6. Scroll-linked motion
 
@@ -292,7 +322,7 @@ unless the product draws one.
 | Direction | Mirrored for right-to-left, or not, and why |
 | Discoverability | How a person learns the gesture exists — the visible control is the first answer |
 | Reduced motion | The drag still tracks; what the settle becomes |
-| Haptics | Which moments, if any, and their fallback |
+| Haptics and lights | Which moments, if any, from the vocabulary in `FEEDBACK §2`, and their fallback |
 | Input settings | **Embedded (ESP-IDF, LVGL)**: the read period, scroll limit, scroll throw, long-press time and gesture limit it relies on, each from DESIGN.md |
 
 - **A video approves timing; only a prototype on the device approves feel** — a drag is judged under the finger, on
@@ -354,26 +384,24 @@ the feel to the person.**
 **An encoder and buttons are an equal input beside touch: each gesture's task is done by turning, pressing and
 long-pressing, with the outcome a tap gives.**
 
-How the encoder and buttons are registered, the group that gives them focus, focus in reading order, kept in view and
-always visible, and LVGL's edit mode and its focus states are the `accessibility` skill's (`ACCESSIBILITY §5`). This
-section says only what a turn, a press and a long press do, and how LVGL decides it.
+The focus model these inputs drive is the `accessibility` skill's: what each input's job is, how edit mode is entered
+and left, and how LVGL registers the encoder and buttons (`FOCUS §2`); keeping focus in view and the ring
+(`FOCUS §6`, `FOCUS §7`); who takes an input when several could (`FOCUS §10`); the floors (`ACCESSIBILITY §5`). This
+section says only how the press and the long press line up with a tap, and how LVGL decides them.
 
-- **One detent moves one step** — focus to the next object, or a value by one increment while editing.
 - **A press acts on the focused object, on release** — the same outcome a tap gives it, never a different one.
 - **A long press does one documented thing, or nothing** — the long press's outcome on touch (§4), or the product's
   back; it never also does what the press does (§3).
-- **While a value is being edited, a turn changes the value and never moves focus.**
 - **A press shorter than one read still counts** — a press and its release that both land between two reads are
   latched by the driver until a read has reported them.
 
 | Concern | Embedded (ESP-IDF, LVGL) |
 | --- | --- |
-| Turn | Outside edit mode a detent moves focus one step; in edit mode it reaches the focused object as `LV_KEY_LEFT` or `LV_KEY_RIGHT`, which changes its value |
-| Press | On an object that is neither editable nor scrollable: `LV_EVENT_PRESSED` on press; on release `LV_EVENT_RELEASED`, `LV_EVENT_SHORT_CLICKED` (unless long-pressed) and `LV_EVENT_CLICKED` — the handlers a tap reaches, so §3's rule holds for both. On an editable widget or a scrollable container, a press and release enters edit mode instead |
-| Long press | After the long-press time (§4): on an editable or scrollable object it toggles edit mode when the group holds more than one object, and that object's `LV_EVENT_LONG_PRESSED` is not sent; on any other object it sends `LV_EVENT_LONG_PRESSED` |
+| Press | On an object that is neither editable nor scrollable: `LV_EVENT_PRESSED` on press; on release `LV_EVENT_RELEASED`, `LV_EVENT_SHORT_CLICKED` (unless long-pressed) and `LV_EVENT_CLICKED` — the handlers a tap reaches, so §3's rule holds for both. On an editable widget or a scrollable container, the press serves edit mode instead (`FOCUS §2`) |
+| Long press | After the long-press time (§4): on an editable or scrollable object it serves edit mode (`FOCUS §2`), and that object's own `LV_EVENT_LONG_PRESSED` is not sent; on any other object it sends `LV_EVENT_LONG_PRESSED` |
 | Back | `LV_KEY_ESC`, from an encoder device or a keypad, reaches the focused object as `LV_EVENT_CANCEL` |
 | Reads | LVGL reads a level at each read period (§1), not an event, which is why the driver latches a short press |
 
-- **A long press on a slider or a scrollable list is LVGL's edit toggle**, so a long-press action on one never fires
-  from the encoder; give that action another path in the spec (§8).
+- **A long press on a slider or a scrollable list serves edit mode** (`FOCUS §2`), so a long-press action on one
+  never fires from the encoder; give that action another path in the spec (§8).
 - **Steps: the gesture spec's Encoder and buttons field (§8) and the walk (§9).**

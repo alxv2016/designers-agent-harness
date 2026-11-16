@@ -1,25 +1,26 @@
 ---
 name: touch-and-gesture
-description: How touch input, gestures, scroll-linked motion and layout are specified, built, reviewed and checked so they feel direct and never fight the platform, carried in the skill (references/touch.md) — the principles for every platform, with guidance labelled for the web, iOS, Android and embedded ESP-IDF devices with an LVGL screen — what follows a drag, catching a moving object, how often the touch is read (the touch controller and LVGL's read period); the platform's movement tolerance, axis lock, claiming only one axis (touch-action, LVGL's scroll limit and scroll chaining), a sheet that hands off with its list; deciding on release by distance or speed, one outcome per press (LVGL's CLICKED, SHORT_CLICKED and long press), resistance past a limit, the throw, what cancels on touch; the platform's sheets, swipe actions, long press, hold to confirm, reorder, pull to refresh and pinch, screen and bezel edges; the pressed state on touch (LV_STATE_PRESSED), delays in scrolling lists, tap highlight, hover on hybrid devices, haptics; scroll-triggered against scroll-driven motion and never taking over scrolling; the visible area, safe areas, round and small panels, the on-screen keyboard, field keyboards, back closing the top layer, bottom navigation; a rotary encoder and buttons as an equal input (navigate and edit modes, what a turn, a press and a long press do); the gesture spec, the prototype on the device, the device walk and the review of a gesture change; plus touch_check.py for the patterns code can show, in web and C/C++ LVGL files. Builds on the accessibility skill's input floors and the motion skill's easing and interruption. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when designing, building or reviewing a drag, swipe, sheet, long press, reorder, pull to refresh or pinch, a pressed state, a scroll-linked effect, a full-height or keyboard-heavy mobile screen, a device screen's touch, encoder or buttons, or when a gesture lags, jumps, fights scrolling or closes by accident.
+description: How touch input, gestures, scroll-linked motion and layout are specified, built, reviewed and checked so they feel direct and never fight the platform, carried in the skill (references/touch.md) — the principles for every platform, with guidance labelled for the web, iOS, Android and embedded ESP-IDF devices with an LVGL screen — what follows a drag, catching a moving object, how often the touch is read (the touch controller and LVGL's read period); the platform's movement tolerance, axis lock, claiming only one axis (touch-action, LVGL's scroll limit and scroll chaining), a sheet that hands off with its list; deciding on release by distance or speed, one outcome per press (LVGL's CLICKED, SHORT_CLICKED and long press), resistance past a limit, the throw, what cancels on touch; the platform's sheets, swipe actions, long press, hold to confirm, reorder, pull to refresh and pinch, screen and bezel edges; the throw's speed from the last moments and a rested finger that places rather than throws; a scroll never an edge gesture, a just-opened surface dragged only by its handle, decoration that takes no press; the pressed state on touch (LV_STATE_PRESSED), delays in scrolling lists, tap highlight, hover on hybrid devices; feedback beyond the screen, carried in references/feedback.md — haptics, sound and a device's status lights as one small vocabulary of event types, fired after the input is accepted and within about 100 ms, success only once it happened, the haptics to avoid, a press answered, a wait shown and an outcome said in words, status lights in a priority order, and pairing haptics with lights, with each platform's haptic API (iOS feedback generators, Android HapticFeedbackConstants, the Web Vibration API's limits, a device's own actuator and LED drivers); scroll-triggered against scroll-driven motion and never taking over scrolling; the visible area, safe areas, round and small panels, the on-screen keyboard, field keyboards, back closing the top layer, bottom navigation; a rotary encoder and buttons as an equal input (how a press and a long press line up with a tap; the focus model is the accessibility skill's); the gesture spec, the prototype on the device, the device walk and the review of a gesture change; plus touch_check.py for the patterns code can show, in web and C/C++ LVGL files. Builds on the accessibility skill's input floors and the motion skill's easing and interruption. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when designing, building or reviewing a drag, swipe, sheet, long press, reorder, pull to refresh or pinch, a pressed state, a haptic, a status light or what a press, a wait and an outcome feel like, a scroll-linked effect, a full-height or keyboard-heavy mobile screen, a device screen's touch, encoder or buttons, or when a gesture lags, jumps, fights scrolling or closes by accident.
 metadata:
   scope: portable
 ---
 
 # Touch and gesture
 
-How touch, gestures, scroll-linked motion and layout are decided and checked. The principles and their
-reasons are kept in this skill at [references/touch.md](references/touch.md) (cited `TOUCH §n`); this page indexes
-them in one-line rules and holds the steps: the gesture spec, the prototype, the build, the review and the device
-walk. The skill takes its values — the product's target size, spring, hold length, which gestures it uses and, on a
-device, its read period, scroll limit, throw and long-press time — from the project's own `DESIGN.md`; that file wins
-over the reference, and the reference over this page.
+How touch, gestures, scroll-linked motion, layout and feedback are decided and checked. The principles and their
+reasons are kept in this skill at [references/touch.md](references/touch.md) (cited `TOUCH §n`) and
+[references/feedback.md](references/feedback.md) — haptics, sound, status lights, and answering a press, a wait and an
+outcome (cited `FEEDBACK §n`); this page indexes them in one-line rules and holds the steps: the gesture spec, the
+prototype, the build, the review and the device walk. The skill takes its values — the product's target size,
+spring, hold length, which gestures it uses and, on a device, its read period, scroll limit, throw and long-press time
+— from the project's own `DESIGN.md`; that file wins over the references, and the references over this page.
 
 **Platforms.** The rules below hold on every platform. The reference labels how each is built — **Web**, **iOS**,
 **Android**, **Embedded (ESP-IDF, LVGL)** — and an embedded device's encoder and buttons stand beside its touch as an
 equal input (TOUCH §11).
 
 **Portable.** This folder is self-contained and links to nothing outside itself (it names the rest of a kit in
-backticks): the reference and the touch check ([scripts/touch_check.py](scripts/touch_check.py)). Copy it into any
+backticks): the two references and the touch check ([scripts/touch_check.py](scripts/touch_check.py)). Copy it into any
 repo's `.agents/skills/` (or `.claude/skills/`) and it works there: the check reads `UI_PATHS` from
 `.agents/project.py` when the repo has one, and scans every tracked UI file — web, and C and C++ — when it does not.
 It needs git and Python 3.9+.
@@ -36,6 +37,7 @@ and agent apply it at their gates, and `verify.py run` runs the check.
 - Designing, building or reviewing a drag, a swipe, a sheet, a long press, hold to confirm, a reorder, pull to refresh
   or a pinch.
 - A pressed state, touch feedback, a hover that must also work on touch.
+- A haptic, a sound or a status light for an event; a press that starts work, a wait, a success or a failure.
 - A scroll-linked effect — a reveal on scroll, a scroll-driven progress, parallax.
 - A mobile screen that is full height, has fields and a keyboard, a bottom bar, or overlays that back should close.
 - A device screen on LVGL — its touch panel, a round or small layout, a rotary encoder or buttons.
@@ -60,7 +62,7 @@ and agent apply it at their gates, and `verify.py run` runs the check.
 9. **Never let hover stick after a tap — on the web, gate it with `any-hover`/`any-pointer`; turn selection off on
    controls, never the page** (TOUCH §5).
 10. **Keep haptics rare, caused by the person, never the only signal, and under the system's or the product's
-    setting** (TOUCH §5).
+    setting** (FEEDBACK §1, §4).
 11. **Make scroll motion either triggered once or driven by position, and never take scrolling over** (TOUCH §6).
 12. **Lay out in the visible area, clear of safe areas — on a device, its round or cut corners and the bezel's band —
     and the keyboard** (TOUCH §7).
@@ -73,10 +75,23 @@ and agent apply it at their gates, and `verify.py run` runs the check.
 17. **Give a press one outcome: a tap acts on release, a long press acts instead of the tap, never as well** — on LVGL,
     `LV_EVENT_CLICKED`, or `LV_EVENT_SHORT_CLICKED` beside a long press (TOUCH §3).
 18. **Make an encoder and buttons an equal input where the device has them: each gesture's task by turn, press and
-    long press, one step per detent, and a turn while editing changes the value, never focus** (TOUCH §11; their
-    registration, groups and focus are `ACCESSIBILITY §5`).
+    long press, a press giving a tap's outcome** (TOUCH §11; what each input does and the focus it moves are
+    `FOCUS §2`, its floors `ACCESSIBILITY §5`).
 19. **Take a device's input settings — read period, scroll limit, throw, long-press time, gesture limit — from
     DESIGN.md, and re-derive the throw when the read period changes** (TOUCH §1–§3).
+20. **Take the throw's speed from a short window at the end of the drag, measured between position reports; a finger
+    that rested before lifting places, never throws — the window and the rest from DESIGN.md** (TOUCH §3).
+21. **Never let a scroll become an edge gesture; drag a just-opened surface only by its handle for a moment, its
+    length from DESIGN.md; let decoration take no press** (TOUCH §4).
+22. **Make feedback confirm what the screen shows, from one small vocabulary — one event type, one feel everywhere; an
+    event with no chosen pattern stays silent** (FEEDBACK §1, §2).
+23. **Fire feedback only after the input is accepted, within about 100 ms, and signal success only once it
+    happened** (FEEDBACK §3).
+24. **Answer a press at once, show a wait, say the outcome in words, and give the controls back on every way out**
+    (FEEDBACK §5).
+25. **On a device with status lights, keep a small cue vocabulary in a priority order — nothing animated forever,
+    critical cues also on the display, and the floors of `ACCESSIBILITY §2` and `ACCESSIBILITY §8`** (FEEDBACK §6,
+    §7).
 
 ### Never
 
@@ -92,6 +107,8 @@ and agent apply it at their gates, and `verify.py run` runs the check.
   (TOUCH §6).
 - **On the web, put a full-height layout on the legacy viewport unit alone** (TOUCH §7).
 - **Stack a history entry per overlay so back becomes a trap** (TOUCH §7).
+- **Tell anything by vibration or a light alone, buzz while waiting, or signal success for a request** (FEEDBACK §1,
+  §3, §4).
 - **Claim a gesture feels right from a video, a simulator or code** — it is judged under the finger, on the device.
 
 ## Procedure
@@ -143,6 +160,11 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <file> …   # t
 - [ ] The `accessibility` skill's input floors met for every gesture
 - [ ] On a device with an encoder or buttons, each gesture's task done by them (Do 18)
 - [ ] The device walk handed to the person — never claimed from code (Do 16)
+- [ ] The throw's speed from the last moments; edge swipes that never take a slow scroll; decoration that takes no
+      press (Do 20, 21)
+- [ ] Every haptic, sound or light from the vocabulary, after acceptance, success only once it happened; a press, a
+      wait and an outcome answered (Do 22–24)
+- [ ] On a device with status lights, the cue order, nothing animated forever, the accessibility floors (Do 25)
 
 The check reads web files (CSS, Tailwind classes, markup, scripts) for T1–T5 and C and C++ files on LVGL 8 or 9 for
 T6–T10; iOS and Android code is not read. It reports how many web and C/C++ files it read, and says plainly when it
@@ -181,13 +203,23 @@ a press that only gives feedback while LVGL's own widget acts.
   edit mode → give the action another path (Do 18).
 - **A quick click of a hardware button does nothing** → the press and release both fell between two reads → latch
   the press in the driver until a read reports it (Do 18).
+- **A hard fling on a device lands like a slow drag** → the speed read per read, and the controller can repeat its
+  last point between reports → measure between position reports over the brief's window (Do 20).
+- **A tap on a sheet's content right after it opens drags or closes the sheet** → the finger, already moving, grabbed
+  the surface → for a moment only the handle drags it (Do 21).
+- **A tap on a caption does nothing** → a decorative object took the press → make it not clickable (Do 21).
+- **People turn haptics off** → a feel on every step, while waiting, or for background updates → the vocabulary, after
+  acceptance, the lightest feel for the most frequent event (Do 22, 23).
 
 ## Sources
 
 | Topic | Where |
 | --- | --- |
 | The principles, the gesture spec, the device walk, the review | [references/touch.md](references/touch.md) |
-| Gestures, sheets, haptics, layout | Apple Human Interface Guidelines (Gestures, Sheets, Playing haptics, Layout) |
+| Haptics, sound, status lights; a press, a wait and an outcome | [references/feedback.md](references/feedback.md) |
+| Haptic effects and their meaning on Android | Android Developers: haptics design principles, `HapticFeedbackConstants` |
+| Haptics on the web | MDN, `Navigator.vibrate`; caniuse, Vibration API (no Safari or iOS Safari) |
+| Response-time limits | Nielsen Norman Group, "Response Times: The 3 Important Limits" || Gestures, sheets, haptics, layout | Apple Human Interface Guidelines (Gestures, Sheets, Playing haptics, Layout) |
 | Gestures, states, bottom sheets, navigation | Material Design 3; Android Developers (gestures, nested scrolling, edge-to-edge, predictive back, IME) |
 | Fluid, interruptible gestures | Apple WWDC 2018, "Designing Fluid Interfaces" |
 | Pointer events, `touch-action`, viewport units, `<dialog>`, popovers, scroll snap | MDN Web Docs |

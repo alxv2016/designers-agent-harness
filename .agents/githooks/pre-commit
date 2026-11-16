@@ -73,11 +73,19 @@ def problems_in(base: str | None, head: str | None) -> list[str]:
         text = git("show", f":{path}" if staged else f"{head}:{path}").stdout
         if not re.search(pattern, text, re.M):
             problems.append(f"{path}: lacks /{pattern}/ — {why}")
-    current = None
-    for line in git("diff", *diff, "-U0", "--no-color", "--no-ext-diff").stdout.splitlines():
-        if line.startswith("+++ "):
+    # A file's header runs from `diff --git` to its first `@@`; only there does `+++ b/…` name the file. Inside a hunk
+    # every `+` line is an added line, even one whose text starts `++ ` and so reads `+++ …` — never a header.
+    # `--text`: a file marked `-diff` in .gitattributes is read too, not shown as "Binary files differ".
+    current, in_header = None, False
+    for line in git("diff", *diff, "-U0", "--no-color", "--no-ext-diff", "--text", "--no-textconv").stdout.splitlines():
+        if line.startswith("diff --git "):
+            current, in_header = None, True
+        elif in_header and line.startswith("+++ "):
             current = line[6:] if line.startswith("+++ b/") else None
-        elif line.startswith("+") and current and current not in PATTERN_HOMES:
+        elif line.startswith("@@"):
+            in_header = False
+        elif not in_header and line.startswith("+") and current and current not in PATTERN_HOMES \
+                and "secret-exception" not in line:  # a sanctioned test value, with its reason on the line
             for pattern, what in SECRETS:
                 if re.search(pattern, line):
                     problems.append(f"{current}: {what} — read it from the environment or a secret store; commit a "
