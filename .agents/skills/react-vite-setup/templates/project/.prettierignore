@@ -1,0 +1,14 @@
+# Written by tools, never by hand
+dist
+storybook-static
+playwright-report
+test-results
+coverage
+package-lock.json
+
+# The agent kit and the docs keep their own format
+.agents
+.claude
+.codex
+docs
+*.md

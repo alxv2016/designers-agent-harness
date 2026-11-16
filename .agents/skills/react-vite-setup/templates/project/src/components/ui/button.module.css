@@ -1,0 +1,35 @@
+/* DESIGN.md's `Button`: rest, hover, pressed, focus (global.css) and disabled — each state a role, its hit area at
+   least the brief's target size. */
+.button {
+  min-height: var(--size-target);
+  min-width: var(--size-target);
+  padding: var(--space-sm) var(--space-lg);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font: inherit;
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-line-height);
+  font-weight: var(--text-label-weight);
+  cursor: pointer;
+  transition: background-color var(--duration-fast)
+    var(--easing-hover, ease-out);
+}
+
+/* Hover only where a pointer hovers: on touch, a sticky hover would read as pressed */
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: var(--color-accent-pressed);
+  }
+}
+
+.button:active:not(:disabled) {
+  background: var(--color-accent-pressed);
+}
+
+.button:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}

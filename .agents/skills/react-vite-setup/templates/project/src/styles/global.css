@@ -1,0 +1,24 @@
+/* What every screen shares: the canvas, the text and the focus ring. Every value is a role from DESIGN.md, through
+   tokens.css; a value with a fallback is a role the starter brief may not have yet (REACT_VITE_SETUP §5). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  font-weight: var(--text-body-weight);
+}
+
+/* The focus ring: shown for the keyboard, never for a tap or a click, and never clipped — give a scrolling or
+   clipping parent room for it rather than removing it */
+:focus-visible {
+  outline: var(--border-width-focus, 2px) solid var(--color-focus);
+  outline-offset: var(--space-focus-offset, 2px);
+}

@@ -11,6 +11,8 @@
       "Read(~/.codex/auth.json)",
       "Read(~/.claude/.credentials.json)",
       "Read(~/Library/Keychains/**)",
+      "Read(~/.npmrc)",
+      "Read(~/.yarnrc.yml)",
       "Read(**/.env)",
       "Read(**/.env.*)"
     ]

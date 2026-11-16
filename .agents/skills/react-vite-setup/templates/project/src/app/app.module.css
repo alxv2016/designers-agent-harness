@@ -1,0 +1,7 @@
+/* The page's frame: a column of text never runs wider than the brief's content width, with the screen's edge
+   spacing on either side — every value a token from DESIGN.md (APP_ARCHITECTURE §2). */
+.main {
+  max-width: var(--size-content-max, 45rem);
+  margin-inline: auto;
+  padding: var(--space-xl) var(--space-lg);
+}

@@ -1,0 +1,12 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+
+<Meta title="Introduction" />
+
+# {{title}}
+
+The components in `src/components/ui/`, one story file each. Every story is also a test: `npm run test:stories`
+renders it in Chromium, runs its play function and fails on any accessibility violation the a11y addon finds.
+
+- **Values** come from `DESIGN.md` through `src/styles/tokens.css` — switch the theme in the toolbar to see each one.
+- **A new component** gets its story file in the same change, beside it: `<name>.stories.tsx`.
+- **Where the code goes** and why: `docs/{{arch_file}}`.

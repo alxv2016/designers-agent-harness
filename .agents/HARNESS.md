@@ -89,9 +89,10 @@ the person runs it themselves:
 
 | Denied | Why |
 | --- | --- |
-| `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/.codex/auth.json`, `~/.claude/.credentials.json`, the keychain | Credentials an injected instruction would go after |
+| `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/.codex/auth.json`, `~/.claude/.credentials.json`, `~/.npmrc`, `~/.yarnrc.yml`, the keychain | Credentials an injected instruction would go after |
 | `.env` files (not `.env.example`, `.sample`, `.template`); `*.pem`, `*.p12`, `*.pfx`, `*.key`; `id_rsa`-style keys — by any tool or command | Secrets kept beside the code |
 | `SECRET_FILES` in `project.py`: `<the project's secret files>` | `<why>` |
+| `DENY_COMMANDS` in `project.py`: printing a package registry's credentials (`npm token create`; `npm` or `pnpm` `config get`, `c get` or `get` of `…_authToken`, `…_auth` or `…_password`; `yarn config get npmAuthToken` or `npmAuthIdent`); `~/.npmrc` and `~/.yarnrc.yml`, which hold them, are credential paths | The registry's token publishes as the person |
 | `DENY_COMMANDS` in `project.py`: burning or protecting an eFuse (`idf.py efuse-burn*`, `idf.py efuse-*-protect`, `espefuse* burn*`, `espefuse* *protect*`, `espefuse* set*flash*voltage`), `<commands that print a secret>` | An eFuse cannot be changed again on that chip; `<why>` |
 
 **Denied until corrected** — a call the agent mends itself, not a secret; the deny says what to ask the person and
@@ -105,6 +106,11 @@ what to write, and the corrected call goes on:
   written to a spec from the `esp-idf-setup` skill's template; then the files can be written. Only a file that does not
   exist yet is held; from the shell, where the content cannot be read, it asks instead — except `CMakeLists.txt`, which
   is held only once its content shows it is ESP-IDF's.
+- **The second rule in `NEEDS_DOC`** — a new React and Vite app's `vite.config.ts` (`.mts`, `.js`) that uses the React
+  plugin, `playwright.config.ts` or `.storybook/main.ts`, while no doc in `docs/` named like a web app spec names a
+  browser engine. The agent runs the `react-vite-setup` skill's `spec --init`, which writes the spec with the
+  defaults, and tells the person each one; then the files can be written. A shell write is not judged: each file's
+  rule looks at its content.
 
 ### 2.3 Allowed, with no approval
 
@@ -125,6 +131,7 @@ what to write, and the corrected call goes on:
 | Writing `GENERATED` paths (`build/`, `dist/`, `node_modules/`, …) or `MANAGED` files (lock files, vendored code) | A tool writes them; change the source or the manifest |
 | `ASK_COMMANDS` in `project.py`: publishing (`npm publish`, `twine upload`, `cargo publish`, `gh release create`), `<deploys, migrations, paid calls>` | Outward-facing or irreversible |
 | `ASK_COMMANDS` for a board: flashing or erasing it (`idf.py *flash`, `idf.py erase*`, `esptool* write*`, `esptool* erase*`); installing ESP-IDF (`eim install`). A word or program with `*` is a glob | The board's firmware is lost; an install is gigabytes outside the repo |
+| `ASK_COMMANDS` for a web app (`WEB_PMS`: npm, pnpm, yarn, bun): updating snapshots or visual baselines (`playwright* --update-snapshots` or `-u`; a package manager's `--update-snapshots`, `-u` or `--update`; `vitest* -u`); installing Playwright's browsers or their system packages (`playwright* install`, `install-deps`); a scaffolder (`npm create` or `init`, `pnpm`, `yarn` or `bun create`, `create-vite*`, `storybook* init`, `add`, `upgrade` or `automigrate`); `--host` on `vite`, `storybook*` or a package manager; a global install (`-g` alone or in a cluster, `--global`, `--location global`, `yarn global`); a deploy (`netlify* deploy`, every `vercel*` call — it deploys when called bare — `wrangler* deploy` or `publish`, `firebase* deploy`, `gh-pages*`, `chromatic*`). A program with `*` takes npx's `@version` and package names; a word is matched anywhere, so `npm run init` asks too | A baseline is a new look, the person's to accept; browsers are hundreds of megabytes outside the repo; a scaffolder writes over files; the rest reach past the machine |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
 | Creating a skill or agent — its prompt names the scope it carries, so the person confirms it was theirs; from the shell, where the content cannot be read — a new skill's file or folder, or a copy into the skills or agents folder — it asks the question. With no scope, it is denied first (§2.2) | Its scope, `portable` or `project`, is the person's choice ([AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) |
@@ -172,6 +179,7 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
+| `src/`, the `react-vite-setup` skill | `react-vite` (the setup script's self-test; the layering rules W1–W5 in a React and Vite app — a `package.json` with React beside a `vite.config`) | `code-reviewer` for code |
 | `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
@@ -211,7 +219,7 @@ what to write, and the corrected call goes on:
 - Target: <build> on <where>; health check exit <n> — <what was read>
 - Decided by the person: <text>
 - Signed off on the target by the person: <their words>
-- Screens: <view> → <screenshot>, checked: <what> (or "no screen changed")
+- Screens: <view> → [<screenshot>](<path>), checked: <what> (or "no screen changed")
 - Not done: <step and why>
 - Left running: <dev server, simulator, deploy — or nothing>
 ## Judge on the target
