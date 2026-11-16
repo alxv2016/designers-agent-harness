@@ -1,0 +1,41 @@
+# The web app's checks on every pull request and every push to main: the types, lint, format, the unit tests, every
+# story as a test, the end-to-end tests in the spec's browsers against the production build, and the Storybook build.
+# None needs a secret.
+name: web
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    # A named release, not ubuntu-latest, which moves to a new release under the job
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Playwright's browsers and the system libraries they need
+        run: npx playwright install --with-deps {{ci_browsers}}
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:stories
+      - run: npm run test:e2e
+      - run: npm run build-storybook
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

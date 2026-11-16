@@ -34,12 +34,15 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/touch-and-gesture/references/touch.md",
                      ".agents/skills/ui-designer/references/gates.md",
                      ".agents/skills/ui-designer/references/rubric.md",
-                     ".agents/skills/esp-idf-setup/references/esp-idf.md")
+                     ".agents/skills/esp-idf-setup/references/esp-idf.md",
+                     ".agents/skills/react-vite-setup/references/react-vite.md")
 
 # --- Where things are -------------------------------------------------------------------------------------------
 
 # The source code. Empty means "every file outside docs/, the harness, the root's Markdown and GENERATED".
 #   Web:     ("src/", "app/", "public/", "package.json")
+#   React and Vite (the react-vite-setup skill prints the list to paste): ("src/", "e2e/", ".storybook/", "public/",
+#            "index.html", "package.json", "vite.config.ts", "vitest.config.ts", "playwright.config.ts")
 #   Mobile:  ("ios/", "android/", "lib/", "pubspec.yaml")
 #   Python:  ("src/", "tests/", "pyproject.toml")
 #   ESP-IDF: ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
@@ -79,13 +82,15 @@ TOKEN_FILES = ()
 # Files a build or a tool writes. Never committed — the pre-commit hook refuses them — and the guard asks before an
 # agent edits one. Keep these in .gitignore as well.
 GENERATED = ("build/", "dist/", "out/", "coverage/", ".cache/", "node_modules/", ".venv/", "__pycache__/",
-             "managed_components/", "sdkconfig", "sdkconfig.old")  # the last three: ESP-IDF's
+             "managed_components/", "sdkconfig", "sdkconfig.old",  # these three: ESP-IDF's
+             "storybook-static/", "playwright-report/", "test-results/", "blob-report/", "*.tsbuildinfo")  # the web's
 
 # Files a tool manages that ARE committed: lock files, vendored dependencies. The guard asks before an agent edits
 # one by hand — change the manifest and let the tool regenerate it. Trim to your stack.
 MANAGED = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock", "uv.lock", "Pipfile.lock",
            "Cargo.lock", "Gemfile.lock", "Podfile.lock", "pubspec.lock", "go.sum", "vendor/",
-           "dependencies.lock")  # ESP-IDF's component manager
+           "dependencies.lock",  # ESP-IDF's component manager
+           "*.spec.ts-snapshots/")  # Playwright's visual baselines: updated by `--update-snapshots`, which asks
 
 # Third-party or generated folders whose text the injection flag treats as outside content, like a web page.
 # GENERATED and MANAGED folders are included automatically.
@@ -129,6 +134,8 @@ ALLOWED_HOSTS = ("github.com", "githubusercontent.com")
 # loses data on the target.
 FLASH_TARGETS = ("flash", "app-flash", "bootloader-flash", "partition-table-flash", "encrypted-flash",
                  "encrypted-app-flash", "dfu-flash", "erase-flash", "erase_flash", "erase-otadata", "erase_otadata")
+WEB_PMS = ("npm", "pnpm", "yarn", "bun")  # the package managers a web app's scripts run through
+NPM_AUTH = ("*_authToken*", "*_auth", "*_password*")  # the registry credentials in an npm or pnpm config
 ASK_COMMANDS = [
     ("npm", ("publish",), "publishes a package to the registry"),
     ("pnpm", ("publish",), "publishes a package to the registry"),
@@ -150,8 +157,35 @@ ASK_COMMANDS = [
     ("openocd", ("*program_esp*",), "writes the board's flash through JTAG"),
     ("eim", (("install", "wizard"),), "installs ESP-IDF into the home folder"),
     ("idf_tools*", ("install",), "installs ESP-IDF's tools into the home folder"),
-    # ("vercel", ("--prod",), "deploys to production"),
-    # ("firebase", ("deploy",), "deploys to production"),
+    # A web app: a visual baseline accepts a new look, so it is the person's yes; Playwright's browsers are hundreds
+    # of megabytes in the home folder; a scaffolder writes over the repo (the react-vite-setup skill never
+    # overwrites); `--host` serves the source to the local network; a global install changes every project; a
+    # deploy publishes. A program is globbed where npx runs it by version or package name (`vitest@latest`,
+    # `netlify-cli`). A word is matched anywhere in the arguments, so `npm run create` asks too.
+    ("playwright*", (("--update-snapshots", "--update-snapshots=*", "-u"),),
+     "rewrites the visual baselines — a new look, which is the person's to accept"),
+    *[(pm, (("--update-snapshots", "--update-snapshots=*", "-u", "--update"),),
+       "rewrites the snapshots or visual baselines — a new look, which is the person's to accept") for pm in WEB_PMS],
+    ("vitest*", (("-u", "--update", "--update=*"),), "rewrites the test snapshots"),
+    ("playwright*", (("install", "install-deps"),),
+     "downloads browsers into the home folder, or installs system packages"),
+    ("npm", (("create", "init"),), "a scaffolder writes files over the repo"),
+    *[(pm, ("create",), "a scaffolder writes files over the repo") for pm in ("pnpm", "yarn", "bun")],
+    ("create-vite*", (), "a scaffolder writes files over the repo"),
+    ("storybook*", (("init", "add", "upgrade", "automigrate"),), "rewrites Storybook's config and package.json"),
+    ("sb", ("init",), "rewrites Storybook's config and package.json"),
+    *[(prog, (("--host", "--host=*"),), "serves the source to the local network")
+      for prog in ("vite", "vite@*", "storybook*") + WEB_PMS],
+    *[(pm, (("install", "i", "add"), ("--global", "--location=global", "-g*", "-[!-]*g*")),
+       "installs a package for every project on the machine") for pm in ("npm", "pnpm", "bun")],
+    ("npm", (("install", "i", "add"), "--location", "global"), "installs a package for every project on the machine"),
+    ("yarn", ("global",), "installs a package for every project on the machine"),
+    ("netlify*", ("deploy",), "publishes the site"),
+    ("vercel*", (), "publishes the site — the Vercel CLI deploys when called bare, so every call asks"),
+    ("wrangler*", (("deploy", "publish"),), "publishes the site"),
+    ("firebase*", ("deploy",), "publishes the site"),
+    ("gh-pages*", (), "publishes the site"),
+    ("chromatic*", (), "publishes the Storybook"),
     # ("terraform", ("apply",), "changes real infrastructure"),
     # ("prisma", ("migrate", "deploy"), "migrates a shared database"),
     # ("kill", (), "stops a process — the person's dev server may be the one"),
@@ -162,6 +196,11 @@ ASK_COMMANDS = [
 #   ("kubectl", ("get", "secret"), "prints a cluster secret")
 #   ("vercel", ("env", "pull"), "writes the project's secrets to a local file the agent would read")
 DENY_COMMANDS = [
+    # The package registry's credentials, printed: npm's and pnpm's `_authToken`, `_auth` and `_password`, yarn's token
+    ("npm", ("token", "create"), "prints a new npm auth token"),
+    *[(pm, (("config", "c"), "get", NPM_AUTH), "prints the registry's auth token") for pm in ("npm", "pnpm")],
+    *[(pm, ("get", NPM_AUTH), "prints the registry's auth token") for pm in ("npm", "pnpm")],
+    ("yarn", ("config", "get", ("*npmAuthToken*", "*npmAuthIdent*")), "prints the registry's auth token"),
     # ESP-IDF: an eFuse, once burnt or protected, cannot be changed again on that chip
     ("idf.py", (("efuse[_-]burn", "efuse[_-]burn[_-]key", "efuse[_-]write[_-]protect", "efuse[_-]read[_-]protect"),),
      "burns or protects an eFuse — permanent on the chip"),
@@ -176,12 +215,20 @@ DENY_COMMANDS = [
 #            with a pattern is not judged from the shell, where its content cannot be read)
 #   "doc":   (globs on the doc's file name, a pattern it must hold outside `<…>` placeholders) — case-insensitive
 #   "ask":   what the agent asks the person, and where it writes the answers
+#   "example": optional — a word the doc pattern accepts, for the guard's self-test when the pattern is no plain word
 NEEDS_DOC = [
     {"files": {"CMakeLists.txt": r"project\.cmake", "sdkconfig.defaults": None, "main/idf_component.yml": None},
      "doc": (("*hardware*", "*board*spec*", "*hw*spec*"), r"\bESP32"),
      "ask": "an ESP-IDF project is generated from the board's hardware spec, and docs/ has none — ask the person for "
             "the chip or module, the flash, the PSRAM, the console, the display and its pins, and write their answers "
             "to a hardware spec in docs/ from the esp-idf-setup skill's template first"},
+    {"files": {"vite.config.ts": r"plugin-react", "vite.config.mts": r"plugin-react", "vite.config.js": r"plugin-react",
+               "playwright.config.ts": r"@playwright/test", ".storybook/main.ts": r"storybook"},
+     "doc": (("*web*app*spec*", "*web*spec*", "*app*spec*"), r"\b(?:chromium|webkit|firefox|chrome|safari)\b"),
+     "example": "chromium",
+     "ask": "a React and Vite app's configs come from the web app spec, and docs/ has none — run the react-vite-setup "
+            "skill's `react_vite.py spec --init`, which writes it with the defaults, tell the person each [DEFAULT] "
+            "fact, and pass any they name"},
 ]
 
 # Lines that must never be committed: a temporary debug marker, a focused test, a debug flag left on. A regular
@@ -255,6 +302,34 @@ GUARD_CASES = [
     ("esptool.py read_flash 0 0x1000 write.bin", None), ("idf.py -B build-flash build", None),
     ("espefuse.py --port protect.log summary", None), ("espefuse.py execute_scripts burn.py", None),
     ("espefuse.py summary > burn.txt", None), ("ninja -C build", None), ("cmake --build build", None),
+    # A web app: a new look, a download, a scaffold, the network, a global install or a deploy asks; npm's token is
+    # denied; the everyday loop passes
+    ("npx playwright test --update-snapshots", "ask"), ("npx playwright test -u", "ask"),
+    ("npm run test:e2e -- --update-snapshots", "ask"), ("npx vitest run -u", "ask"),
+    ("npx playwright install chromium webkit", "ask"), ("npx -y playwright@1.65.1 install --with-deps", "ask"),
+    ("npm create vite@latest my-app", "ask"), ("npx create-vite my-app", "ask"), ("npx storybook@latest init", "ask"),
+    ("npx netlify deploy --prod", "ask"), ("vercel --prod", "ask"), ("npx wrangler pages deploy dist", "ask"),
+    ("npm run dev -- --host", "ask"), ("npx vite preview --host=0.0.0.0", "ask"), ("npm install -g pnpm", "ask"),
+    ("npx vitest@latest run -u", "ask"), ("npx netlify-cli deploy", "ask"), ("npx firebase-tools deploy", "ask"),
+    ("npx vercel@latest deploy", "ask"), ("npx wrangler@latest deploy", "ask"), ("wrangler publish", "ask"),
+    ("npx wrangler pages publish dist", "ask"), ("npx wrangler dev", None), ("vercel", "ask"),
+    ("vercel --prebuilt", "ask"), ("npx playwright install-deps", "ask"), ("sudo npx playwright install-deps", "ask"),
+    ("npm test -- -u", "ask"), ("npm run test:unit -- --update", "ask"), ("pnpm test:e2e --update-snapshots", "ask"),
+    ("pnpm run test:e2e -- -u", "ask"), ("yarn test:e2e --update-snapshots", "ask"), ("pnpm dev --host", "ask"),
+    ("yarn dev --host", "ask"), ("bun run dev --host", "ask"), ("npx storybook dev --host 0.0.0.0", "ask"),
+    ("pnpm install -g x", "ask"), ("yarn global add x", "ask"), ("bun add -g x", "ask"), ("npm i -gD x", "ask"),
+    ("npm install --location global x", "ask"), ("bun create vite my-app", "ask"),
+    ("npm token create", "deny"), ("npm config get //registry.npmjs.org/:_authToken", "deny"),
+    ("npm get //registry.npmjs.org/:_authToken", "deny"), ("npm c get //registry.npmjs.org/:_authToken", "deny"),
+    ("npm config get _auth", "deny"), ("pnpm config get //registry.npmjs.org/:_authToken", "deny"),
+    ("yarn config get npmAuthToken", "deny"), ("cat ~/.npmrc", "deny"), ("cat ~/.yarnrc.yml", "deny"),
+    ("npm i -D vitest", None), ("pnpm add -D vitest", None), ("npm run lint -- --ignore-pattern x", None),
+    ("npm ci", None), ("npm install", None), ("npm install -D vitest", None), ("npm run dev", None),
+    ("npx playwright test", None), ("npx playwright test e2e/update-snapshots.spec.ts", None),
+    ("npx playwright show-report", None), ("npx vitest run --project unit", None), ("npx storybook dev -p 6006", None),
+    ("npm run build-storybook", None), ("npm ls -g", None), ("npm config get registry", None), ("vitest run", None),
+    ("npx vite build", None), ("pnpm dev", None), ("npx playwright test --project chromium-390x844", None),
+    ("cat .npmrc", None),
 ]
 
 

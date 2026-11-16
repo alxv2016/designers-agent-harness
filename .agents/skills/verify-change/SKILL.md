@@ -106,7 +106,8 @@ flowchart TD
 7. The person judges it on the target. Their yes: `V signoff "<what they judged>"`, in their words; what they report
    wrong, and what you learned, routed (Recording what was learned).
 8. `V finish` — the Verified block's draft; exit 1 lists what is still open. On exit 0, fill in the `<…>` lines and
-   hand over.
+   hand over, every file, screenshot, doc section and URL a link the person can click
+   ([AGENT_HARNESS §10.4](../../../docs/AGENT_HARNESS.md#104-the-hand-over)).
 
 ### The target
 

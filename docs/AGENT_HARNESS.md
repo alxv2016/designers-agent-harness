@@ -334,7 +334,7 @@ nothing else.
 | Section | Holds |
 | --- | --- |
 | Project | What the repo is, its state, what comes next; a table of top-level paths; the layering an edit must keep |
-| Rules for every change | One line each, with a link: the loop, `DESIGN.md` and drafts before building, the accessibility floors, tokens, docs with code, commits only when asked |
+| Rules for every change | One line each, with a link: the loop, `DESIGN.md` and drafts before building, the accessibility floors, tokens, docs with code, commits only when asked, links the person can click |
 | Skills; Agents | One table each: skill → "Use when", agent → "Role". The first column links the file |
 | Harness | The loop in one paragraph, and the guard's policy in words: what is denied, what asks, what runs freely |
 | Environment | Toolchain versions, how to run commands, the target, the MCP servers |
@@ -413,8 +413,8 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships twelve skills. Eleven are generic and copy across almost unchanged; `build-run-test` is filled in from
-the project. A project adds its own domain skills as the code grows.
+The template ships thirteen skills. Twelve are generic and copy across almost unchanged; `build-run-test` is filled
+in from the project. A project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
 folder on its own, taking every value from that project's files and linking nothing outside itself; an agent's file
@@ -441,6 +441,7 @@ principle once, in platform-neutral words, and labels the guidance that differs 
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `references/feedback.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
+| `react-vite-setup` | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app from the templates — the shell, features, components with their stories, `tokens.css` from `DESIGN.md`, three layers of tests — and the layering rules — carried in the skill | `references/react-vite.md`, the templates, `react_vite.py` | `portable` — the folder works in any repo; the facts are the project's spec, the values its `DESIGN.md` |
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
@@ -488,6 +489,10 @@ Each skill must hold the following:
 - **`esp-idf-setup`**: the principles of an ESP-IDF project in `references/esp-idf.md` and the project's templates, so
   the folder is portable; ESP-IDF checked, never installed; the hardware spec written from the person's answers before
   anything is generated; the person's yes or no to LVGL; a feature as one line; the layering check.
+- **`react-vite-setup`**: the principles of a React and Vite app in `references/react-vite.md` and the app's templates,
+  so the folder is portable; Node and Playwright's browsers checked, never installed without the person; the web app
+  spec written with defaults the person sees before anything is generated; the design tokens written from
+  `DESIGN.md`; a story file per component; the layering check.
 - **`ux-content`**: the rules for an interface's words in `references/ux-content.md`, so the folder is portable; the
   four tests and editing passes; the pattern for each element; the string check; the voice, case convention and word
   list always from the project's DESIGN.md.
@@ -803,6 +808,7 @@ file.
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
+| `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
@@ -857,6 +863,12 @@ of these holds:
 On exit `0` the draft is ready for the agent to fill in. The filled-in block goes into the hand-over message and the
 commit message's verification line.
 
+Every file, folder, screenshot, doc section and URL the hand-over names is a Markdown link the person can click, and
+so is every one in any other message to the person: a path from the repo root, with `#L<n>` or `#L<a>-L<b>` for lines;
+a doc section by its heading's anchor; an absolute path for a file outside the repo, such as a scratch folder; a URL
+in full, behind the words that say what it is. A path or URL in backticks is text: the person has to copy it, find
+the file and open it, and a screenshot named that way often goes unlooked at.
+
 ```markdown
 ## Verified
 - Base: <commit> + working tree, <n> changed file(s)
@@ -866,7 +878,7 @@ commit message's verification line.
 - Decided by the person: <text>
 - Target: <build> on <where>; health check exit <n> — <what was read>
 - Signed off on the target by the person: <their words>
-- Screens: <view> → <screenshot>, checked: <what> (or "no screen changed")
+- Screens: <view> → [<screenshot>](<path>), checked: <what> (or "no screen changed")
 - Not done: <step and why>
 - Left running: <dev server, simulator, deploy — or nothing>
 ## Judge on the target
@@ -941,7 +953,7 @@ The guard judges each simple command by its program and arguments, so text that 
 
 | Category | Decision | Examples across project types |
 | --- | --- | --- |
-| Credential files | deny | `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, the agents' auth files, the OS keychain, `.env` files (not `.env.example`, `.sample` or `.template`), `*.pem`, `*.p12`, `*.pfx`, `id_rsa`-style keys, the project's own secret files — by path or bare name, from any tool |
+| Credential files | deny | `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/.npmrc`, `~/.yarnrc.yml`, the agents' auth files, the OS keychain, `.env` files (not `.env.example`, `.sample` or `.template`), `*.pem`, `*.p12`, `*.pfx`, `id_rsa`-style keys, the project's own secret files — by path or bare name, from any tool |
 | Reading secrets back from a system | deny | `kubectl get secret -o yaml`; a hosting platform's `env pull`; a secret manager's read; a device's stored credentials read back |
 | Losing data on the target | ask | A production database migration; `terraform apply` or `destroy`; erasing a device; clearing a shared store |
 | Publishing | ask | `git push`; `npm publish`; `twine upload`; a release tag; a production deploy |
@@ -951,7 +963,8 @@ The guard judges each simple command by its program and arguments, so text that 
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
 | The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
 | A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
-| A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec; denied with what to ask the person; from the shell, asked (`NEEDS_DOC` in the settings file) |
+| A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec, or a new React and Vite app's `vite.config.ts`, `playwright.config.ts` or `.storybook/main.ts` while it holds no web app spec; denied with what to ask the person. From the shell, where the content cannot be read, a file the rule matches by name alone is asked and one it matches by content is not judged (`NEEDS_DOC` in the settings file) |
+| A web app's tools | ask; deny | Updating visual baselines (`playwright test --update-snapshots`), installing Playwright's browsers, a scaffolder that writes over the repo (`npm create`, `storybook init`), serving on the network (`vite --host`), a global install and a deploy (`netlify deploy`, any `vercel` call) ask, through npm, pnpm, yarn or bun; printing a package registry's token is denied |
 | Writing or fusing a device | ask; deny | Flashing or erasing a board (`idf.py flash`, `esptool write-flash`) asks; burning or protecting an eFuse — permanent on the chip — is denied |
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
@@ -1040,7 +1053,8 @@ points at the kit, and it holds no content of its own.
   "permissions": {
     "deny": ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.gnupg/**)", "Read(~/.netrc)", "Read(~/.git-credentials)",
              "Read(~/.docker/config.json)", "Read(~/.config/gh/**)", "Read(~/.codex/auth.json)",
-             "Read(~/.claude/.credentials.json)", "Read(~/Library/Keychains/**)", "Read(**/.env)", "Read(**/.env.*)"]
+             "Read(~/.claude/.credentials.json)", "Read(~/Library/Keychains/**)", "Read(~/.npmrc)",
+             "Read(~/.yarnrc.yml)", "Read(**/.env)", "Read(**/.env.*)"]
   },
   "hooks": {
     "PreToolUse": [{"matcher": "Bash|Read|Grep|Glob|Edit|Write|MultiEdit|NotebookEdit", "hooks": [

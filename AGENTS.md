@@ -48,7 +48,10 @@ and the code: find out which is intended before changing either
 9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
    as `metadata: scope:` — the guard holds the file until it has one
    ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
-10. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
+10. **Make every file, doc section and URL you show the person a link they can click** — `[name](path#L42)` from the
+    repo root, `[DOC §n](docs/DOC.md#n-heading)`, `[what it is](https://…)`; never a bare path or URL in backticks
+    ([AGENT_HARNESS §10.4](docs/AGENT_HARNESS.md#104-the-hand-over)).
+11. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
 
 ---
 
@@ -67,6 +70,7 @@ Scope is `portable` or `project`
 | [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion — on the web, phones and an LVGL panel's frame budget | `portable` |
 | [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and layout; an encoder and buttons on a device; the gesture spec and the device walk — web, phones and embedded LVGL | `portable` |
 | [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
+| [`react-vite-setup`](.agents/skills/react-vite-setup/SKILL.md) | Setting up a React, Vite and TypeScript web app from the web app spec in `docs/` — the shell, features, components with their stories, tokens from DESIGN.md, Vitest, Storybook and Playwright tests — and adding a feature or a component to one | `portable` |
 | [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
 | [`secrets-handling`](.agents/skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets; bench and CI credentials; after a leak; the secret scan | `portable` |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
@@ -97,14 +101,15 @@ Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.m
 person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
 in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
 then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
-secret files, and burning a chip's eFuses, even with a yes; it also denies a new skill or agent until it carries the
-person's choice of scope (rule 9), and a new ESP-IDF project until `docs/` holds its hardware spec; it **asks** before
-a commit, a push, discarding changes, deleting files, sending data off the machine, a fetch from a host outside the
-allow-list, publishing, flashing a board, editing generated files or the harness itself, and `<the project's own
-gates>`; it **allows** reading, building, testing and running the app. The injection
-flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the person,
-never reword the command. The person runs `git config core.hooksPath .agents/githooks` once. The project's settings:
-[`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS](.agents/HARNESS.md).
+secret files, burning a chip's eFuses and printing a registry token, even with a yes; it also denies a new skill or
+agent until it carries the person's choice of scope (rule 9), a new ESP-IDF project until `docs/` holds its hardware
+spec, and a new React and Vite app's configs until it holds a web app spec; it **asks** before a commit, a push,
+discarding changes, deleting files, sending data off the machine, a fetch from a host outside the allow-list,
+publishing or deploying, flashing a board, installing browsers, updating visual baselines, editing generated files or
+the harness itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The
+injection flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the
+person, never reword the command. The person runs `git config core.hooksPath .agents/githooks` once. The project's
+settings: [`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS](.agents/HARNESS.md).
 
 ---
 
@@ -174,6 +179,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF project is set up from the hardware spec and why it is shaped so — generic, any ESP-IDF project; kept in the esp-idf-setup skill so it travels with it |
+| [REACT_VITE_SETUP](.agents/skills/react-vite-setup/references/react-vite.md) | How a React and Vite web app is set up with Playwright and Storybook, from the web app spec, and why it is shaped so — generic, any React and Vite app; kept in the react-vite-setup skill so it travels with it |
 | [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written — voice, the four tests, mechanics, names, the pattern per element, accessible content — generic, any project; kept in the ux-content skill |
 | [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product handles its users' secrets, per platform, and what to do after a leak — generic, any project; kept in the secrets-handling skill |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |

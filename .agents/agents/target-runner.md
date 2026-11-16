@@ -44,7 +44,7 @@ screens, a flow).
 ## Target
 - Built: <command> — <PASS | FAIL: first error lines>
 - Ran on: <where>, <which build>; health check exit <n>
-- Screens: <screen> → <png path> — <what it shows>
+- Screens: <screen> → [<png name>](<png path>) — <what it shows>
 - Console: <errors and warnings, or "none">
 - Not done: <step and why>
 - Left running: <what>

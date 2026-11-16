@@ -421,9 +421,36 @@ def check_secrets(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+WEB_SKILL = f"{SKILLS}/react-vite-setup/"
+WEB_SCRIPT = f"{WEB_SKILL}scripts/react_vite.py"
+WEB_PATHS = ("src/",)
+
+
+def is_react_vite_app() -> bool:
+    """A package.json that depends on react, beside a vite.config — the repo the layering rules W1–W5 are for."""
+    pkg = ROOT / "package.json"
+    if not pkg.is_file() or not any((ROOT / f"vite.config.{e}").is_file() for e in ("ts", "mts", "js", "mjs")):
+        return False
+    try:
+        data = json.loads(pkg.read_text())
+    except ValueError:
+        return False
+    return isinstance(data, dict) and "react" in {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+
+
+def check_react_vite(run_dir: Path) -> dict:
+    """The react-vite-setup script's self-test; then the app's layering, W1–W5, when the repo is a React and Vite
+    app."""
+    results = [sh([sys.executable, WEB_SCRIPT, "--test"], run_dir / "react-vite.selftest.log"),
+               sh([sys.executable, WEB_SCRIPT, "check"], run_dir / "react-vite.layering.log")]
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the react-vite-setup script and the app's layering {'clean' if ok else 'failing'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
            "motion": check_motion, "touch": check_touch, "ux": check_ux, "esp-idf": check_esp_idf,
-           "secrets": check_secrets, "scope": check_scope}
+           "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -447,6 +474,9 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         "esp-idf": (ROOT / ESP_SCRIPT).is_file()
         and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()
                                             and project.matches(f, ESP_PATHS)) for f in files),
+        # the app's paths only in a React and Vite app: another project's `src/` is not one
+        "react-vite": (ROOT / WEB_SCRIPT).is_file()
+        and any(f.startswith(WEB_SKILL) or (project.matches(f, WEB_PATHS) and is_react_vite_app()) for f in files),
         "ux": (ROOT / UX_LINT).is_file()
         and any(f.startswith(UX_SKILL) or project.matches(f, ux_paths()) for f in files),
         "secrets": (ROOT / SECRET_SCAN).is_file() and bool(files),  # every change: cheap, and before the commit
@@ -772,7 +802,7 @@ def cmd_finish(_: argparse.Namespace) -> int:
         print(f"- Target ({project.TARGET}): not run — <why: nothing it shows changed, not asked, not available>")
     for s in task.get("signoffs", []):
         print(f"- Signed off on the target by the person: {s['text']}{signoff_state(s)}")
-    print("- Screens: <view> → <screenshot>, checked: <what> (or \"no screen changed\")")
+    print("- Screens: <view> → [<screenshot>](<path>), checked: <what> (or \"no screen changed\")")
     print("- Not done: <step and why>")
     print("- Left running: <dev server, simulator, deploy — or nothing>")
     print("## Judge on the target")

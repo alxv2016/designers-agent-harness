@@ -16,12 +16,14 @@ are peeled. It decides:
           DENY_COMMANDS — those, and commands that change a device for good, such as burning an eFuse;
   deny until corrected — a call the agent mends itself, after asking the person: a new skill or agent written with
           no `scope:` of `portable` or `project` in its frontmatter (the corrected call is then asked), and a file
-          the project's NEEDS_DOC holds until a doc exists — a new ESP-IDF project while docs/ has no hardware spec;
+          the project's NEEDS_DOC holds until a doc exists — a new ESP-IDF project while docs/ has no hardware spec,
+          a new React and Vite app's configs while it has no web app spec;
   ask   — needs the person: a commit, a push, discarding changes, deleting files outside the temp directories,
           skipping or moving the git hooks, sending data off the machine or fetching from a host outside
           ALLOWED_HOSTS, writing generated or managed files, a branch switch or merge that rewrites the kit, editing
           the harness itself, creating a skill or agent (its prompt names the scope it will carry, or asks for one),
-          a NEEDS_DOC file written from the shell, and the project's ASK_COMMANDS — flashing a board among them;
+          a NEEDS_DOC file written from the shell when its rule needs no look at the content, and the project's
+          ASK_COMMANDS — flashing a board, installing browsers and updating visual baselines among them;
   allow — everything else, with no output: reading, building, testing, running the app.
 
 For Codex an ask becomes a deny that says to ask the person: Codex parses "ask" but does not act on it.
@@ -67,7 +69,8 @@ PROTECTED_TREES = (".agents/skills", ".agents/agents", ".claude")
 
 # Credentials an injected instruction would go after; read or written, by any tool or command.
 SECRET_PATHS = ("~/.ssh", "~/.aws", "~/.gnupg", "~/.netrc", "~/.git-credentials", "~/.docker/config.json",
-                "~/.config/gh", "~/.codex/auth.json", "~/.claude/.credentials.json", "~/Library/Keychains")
+                "~/.config/gh", "~/.codex/auth.json", "~/.claude/.credentials.json", "~/Library/Keychains",
+                "~/.npmrc", "~/.yarnrc.yml")  # the last two: the package registry's auth token
 SECRET_NAME = re.compile(
     r"(^|/)\.env(\.(?!example$|sample$|template$)[\w.-]+)?$|\.(pem|p12|pfx|key)$"
     r"|(^|/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$"
@@ -849,15 +852,16 @@ def self_test() -> int:
             print(f"FAIL  {call['tool_name']} {call['tool_input']}: want {want}, got {got and got[0]}")
     # a file NEEDS_DOC holds, against a docs/ of the test's own, so the repo's docs never change the result
     doc_cases = []
-    if getattr(project, "NEEDS_DOC", None):
-        import tempfile
-        rule = project.NEEDS_DOC[0]
-        first, pattern = next(iter(rule["files"].items()))
+    import tempfile
+    every = [(n, rule, f, pat) for n, rule in enumerate(getattr(project, "NEEDS_DOC", []), 1)
+             for f, pat in rule["files"].items()]
+    for n, rule, first, pattern in every:  # every file of every rule
         names, holds = rule["doc"]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "docs").mkdir()
-            sample = re.sub(r"\\b|\\", "", holds)  # a literal the doc pattern accepts: `\bESP32` → `ESP32`
+            # a literal the doc pattern accepts: the rule's `example`, or `\bESP32` → `ESP32`
+            sample = rule.get("example") or re.sub(r"\\b|\\", "", holds)
             spec = root / "docs" / (names[0].replace("*", "X_") + ".md")
             match = re.sub(r"\\(.)", r"\1", pattern) if pattern else ""
             saved, ROOT = ROOT, root  # the whole decision, against the test's own repo
@@ -888,7 +892,7 @@ def self_test() -> int:
                 doc_cases.append(name)
                 if got != want:
                     bad += 1
-                    print(f"FAIL  NEEDS_DOC {name}: want {want}, got {got}")
+                    print(f"FAIL  NEEDS_DOC rule {n} ({first}) {name}: want {want}, got {got}")
     total = len(CASES) + len(PATH_CASES) + len(tool_cases) + len(doc_cases)
     print(f"guard self-test: {total - bad}/{total} cases pass")
     return 1 if bad else 0

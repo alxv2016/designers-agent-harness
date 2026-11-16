@@ -1,0 +1,8 @@
+{
+  // Prettier formats on save, as `npm run format` does; oxlint's extension shows `npm run lint`'s findings in place.
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[markdown]": {
+    "editor.formatOnSave": false
+  }
+}
