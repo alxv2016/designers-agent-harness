@@ -45,23 +45,33 @@ and the code: find out which is intended before changing either
 7. **Commit only when the person asks**, in the repo's format ([`commit-message`](.agents/skills/commit-message/SKILL.md)).
 8. **Keep a lesson in the repo** — `verify.py finding`, routed to a check, a rubric, a guard rule, a skill or a doc;
    never only in an agent's own memory ([AGENT_HARNESS §19](docs/AGENT_HARNESS.md#19-memory)).
-9. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
+9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
+   as `metadata: scope:` — the guard holds the file until it has one
+   ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
+10. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
 
 ---
 
 ## Skills
 
 A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. Read the one the task matches first.
+Scope is `portable` or `project`
+([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
 
-| Skill | Use when |
-| --- | --- |
-| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block |
-| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a mock, the built screen beside it, the target — and the review of a UI diff |
-| [`accessibility`](.agents/skills/accessibility/SKILL.md) | Contrast against what is painted, focus and keyboard, names, target size, reduced motion |
-| [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, components, exceptions; the design and token checks |
-| [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start |
-| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks |
-| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit |
+| Skill | Use when | Scope |
+| --- | --- | --- |
+| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block | `project` |
+| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a draft, the built screen beside it, the target — and the review of a UI change | `portable` |
+| [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard (or an encoder and keys), names, target size, alternatives to gestures and hover, reduced motion, announcements; closed functionality on a device without a screen reader — web, phones and embedded LVGL | `portable` |
+| [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks — tokens in CSS, native or a C/C++ header for LVGL | `portable` |
+| [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion — on the web, phones and an LVGL panel's frame budget | `portable` |
+| [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and layout; an encoder and buttons on a device; the gesture spec and the device walk — web, phones and embedded LVGL | `portable` |
+| [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
+| [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
+| [`secrets-handling`](.agents/skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets; bench and CI credentials; after a leak; the secret scan | `portable` |
+| [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
+| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks | `portable` |
+| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `project` |
 
 ---
 
@@ -69,14 +79,15 @@ A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. 
 
 An agent is a focused role with its own prompt in [.agents/agents/](.agents/agents/); reviewers are read-only.
 
-| Agent | Role |
-| --- | --- |
-| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review |
-| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite |
-| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules |
-| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) |
-| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw |
-| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer |
+| Agent | Role | Scope |
+| --- | --- | --- |
+| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review | `portable` |
+| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `portable` |
+| [`ux-content-writer`](.agents/agents/ux-content-writer.md) | Writes and reviews the words on screens from the ux-content skill; modes write, review and rewrite | `portable` |
+| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
+| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `project` |
+| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `project` |
+| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer | `project` |
 
 ---
 
@@ -86,9 +97,11 @@ Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.m
 person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
 in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
 then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
-secret files, even with a yes; it **asks** before a commit, a push, discarding changes, deleting files, sending data
-off the machine, a fetch from a host outside the allow-list, publishing, editing generated files or the harness
-itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The injection
+secret files, and burning a chip's eFuses, even with a yes; it also denies a new skill or agent until it carries the
+person's choice of scope (rule 9), and a new ESP-IDF project until `docs/` holds its hardware spec; it **asks** before
+a commit, a push, discarding changes, deleting files, sending data off the machine, a fetch from a host outside the
+allow-list, publishing, flashing a board, editing generated files or the harness itself, and `<the project's own
+gates>`; it **allows** reading, building, testing and running the app. The injection
 flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the person,
 never reword the command. The person runs `git config core.hooksPath .agents/githooks` once. The project's settings:
 [`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS](.agents/HARNESS.md).
@@ -108,7 +121,9 @@ never reword the command. The person runs `git config core.hooksPath .agents/git
 ## Conventions
 
 - `<Naming: files, components, tokens.>`
-- **Code comments cite docs as `DOC §n`**, never by line number.
+- **Code comments explain local mechanics in place, and cite `DOC §n` for a decision, a value's provenance or a rule
+  shared across files** — never a bare `§` or a line number in code; the anchor check fails a stale one
+  ([GUIDELINES §4.8](.agents/skills/docs-authoring-and-sync/references/guidelines.md#48-code-comments-and-citations)).
 - **Mark a temporary debug line with `DEBUG-TEMP`** — the pre-commit hook refuses it.
 
 ---
@@ -154,6 +169,17 @@ not of the product: the target and the person's sign-off are what show it works.
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true — generic, any project; kept in the docs skill so it travels with it |
+| [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept: roles, themes, surfaces, layers, components, tokens in code — generic, any project; kept in the design-system skill so it travels with it |
+| [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored, one item per rule — generic, any project; kept in the ui-designer skill so it travels with it |
+| [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | The three design gates and how each yes is recorded — generic, any project; kept in the ui-designer skill so it travels with it |
+| [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
+| [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF project is set up from the hardware spec and why it is shaped so — generic, any ESP-IDF project; kept in the esp-idf-setup skill so it travels with it |
+| [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written — voice, the four tests, mechanics, names, the pattern per element, accessible content — generic, any project; kept in the ux-content skill |
+| [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product handles its users' secrets, per platform, and what to do after a leak — generic, any project; kept in the secrets-handling skill |
+| [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
+| [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
+| [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |
+| [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
 

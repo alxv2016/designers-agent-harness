@@ -1,0 +1,18 @@
+#include "screen_home.h"
+
+#include "app_hooks.h"
+#include "lvgl.h"
+
+namespace screen_home {
+
+void Show()
+{
+    lv_obj_t *home = lv_obj_create(nullptr);  // a screen: no parent
+
+    // The shell's own content on home goes here; then each feature's, in registration order.
+    app_hooks::BuildHome(home);
+
+    lv_screen_load(home);
+}
+
+}  // namespace screen_home

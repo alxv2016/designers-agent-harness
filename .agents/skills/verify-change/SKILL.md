@@ -1,6 +1,8 @@
 ---
 name: verify-change
-description: Runs a change through the harness loop from first edit to hand-over — verify.py start, run (it picks the checks the touched files need — the project's build, tests and lint, the doc lint and links, the design check of DESIGN.md and the token files, the guard's self-tests — runs them in parallel, and stops after 3 failed attempts in a row), the judges it names recorded with review, the person's yes to a mock, a motion study or the built screen recorded with approve and the file's hash, the target recorded with target and the person's sign-off on it, every lesson routed with finding, and finish, the hand-over gate that drafts the Verified block. Use when starting a code, design, doc or kit change, before handing one over or committing, when a check keeps failing, when the person approves a draft or reports what they saw on the target, or when the agent learns something worth keeping.
+description: Runs a change through the harness loop from first edit to hand-over — verify.py start, run (it picks the checks the touched files need — the project's build, tests and lint, the doc lint and links, the design check of DESIGN.md and the token files, the accessibility, motion and touch checks of the UI files, the layering check of an ESP-IDF app, the guard's self-tests — runs them in parallel, and stops after 3 failed attempts in a row), the judges it names recorded with review, the person's yes to a mock, a motion study or the built screen recorded with approve and the file's hash, the target recorded with target and the person's sign-off on it, every lesson routed with finding, and finish, the hand-over gate that drafts the Verified block. Use when starting a code, design, doc or kit change, before handing one over or committing, when a check keeps failing, when the person approves a draft or reports what they saw on the target, or when the agent learns something worth keeping.
+metadata:
+  scope: project
 ---
 
 # Verify a change
@@ -52,7 +54,8 @@ flowchart TD
    (AGENT_HARNESS §1, Do 6).
 4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
    verdict is a failed attempt; a pass stands until that judge's own files change — ask again only the judges
-   `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` and opens its report with
+   `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its
+   skill's `references/rubric.md`, its learned ones in that file) and opens its report with
    `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    mock|motion|copy` the moment they give it, naming the file.** After the build, their yes on the built screen beside
@@ -107,8 +110,8 @@ flowchart TD
 
 ### The target
 
-Where the change finally runs — `TARGET` in `.agents/project.py`: a browser on the dev server, a simulator, a device,
-a preview deploy. The steps are the project's: [`build-run-test`](../build-run-test/SKILL.md) holds them, and the
+Where the change finally runs — `TARGET` in `.agents/project.py`: a browser on the dev server, a simulator, a phone,
+a board over USB, a preview deploy. The steps are the project's: [`build-run-test`](../build-run-test/SKILL.md) holds them, and the
 [`target-runner`](../../agents/target-runner.md) agent runs them.
 
 1. **Build** through the quiet wrapper — no warning the change introduced.
@@ -177,7 +180,8 @@ instead of searching the chat for where the task stands.
 - **`V status`: "the file changed since the yes"** → the approved mock was redrawn → show the person the new file; the
   old yes does not cover it.
 - **`V finish`: "came after the first run that built it"** → the mock was approved once the code was already built →
-  the draft comes first: show it, take the yes, and rebuild from its values.
+  the draft comes first: show it, take the yes, and rebuild from its values. Only runs whose gated files differ from
+  what they held at `start` count, so a gated change an earlier task left uncommitted does not trip it.
 - **`V finish`: "the code changed after the person's yes"** → an edit to a screen after they approved it built → show
   them again.
 - **`V finish`: "no sign-off from the person on the target"** → it ran there and they have not judged it, or the code
@@ -187,6 +191,11 @@ instead of searching the chat for where the task stands.
   step, and grep that it landed before saying it is fixed.
 - **The guard blocks a command the task needs** → it is a rule from AGENTS.md → ask the person to run or approve it;
   never rephrase the command to get past it.
+- **A harness file was edited and the guard never asked** → a script built the path, a script kept in a file wrote it,
+  or a `cd` came first — the guard follows `sed`/`perl` in place and inline scripts that name the file in quotes and
+  make a known write call, nothing else → edit
+  `.agents/hooks/`, `project.py`, `verify-change` and the other harness files with the editor's edit tool, so the
+  guard asks the person.
 - **`V run` names no checks** → nothing differs from `HEAD`, or only files no check covers → the change is committed
   or not saved, or needs its own check in `.agents/project.py`.
 - **A project check fails with "not found"** → its program is not installed on this machine → install it, or ask the

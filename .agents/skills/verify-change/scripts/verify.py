@@ -54,7 +54,9 @@ SKILLS = ".agents/skills"
 DOC_SCRIPTS = f"{SKILLS}/docs-authoring-and-sync/scripts"
 TOKEN_CHECK = f"{SKILLS}/design-system/scripts/token_check.py"
 DESIGN_CHECK = f"{SKILLS}/design-system/scripts/design_check.py"
-HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py")
+A11Y_SKILL = f"{SKILLS}/accessibility/"
+A11Y_SCRIPTS = f"{A11Y_SKILL}scripts"
+HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py", ".agents/skills/verify-change/scripts/verify.py")
 ROUTES = ["test", "rubric", "guard", "skill", "doc", "open-item", "none"]
 KINDS_BEFORE = ("mock", "motion", "copy")  # a draft, approved before the build
 KINDS_AFTER = ("built",)                   # the built thing beside its draft, approved after
@@ -135,6 +137,30 @@ def file_hash(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16] if path.is_file() else None
 
 
+def gated_contents(files: list[str] | None = None) -> dict:
+    """Each changed file a gate covers, with its content hash — what the gated files held at a start or a run, so a
+    change left uncommitted by an earlier task is not taken for this task's build."""
+    paths = tuple(p for _, ps, _ in project.GATES for p in ps)
+    return {f: file_hash(ROOT / f) for f in (files if files is not None else changed_files())
+            if project.matches(f, paths)}
+
+
+def first_build(task: dict, paths) -> str | None:
+    """When the first run built a change in these paths: the first run whose gated files differ from what they held
+    when the task started. A task or run recorded before `gated` was kept falls back to the first run that touched
+    them."""
+    start = task.get("gated_at_start")
+    for r in task["runs"]:
+        if start is None or "gated" not in r:
+            if any(project.matches(f, paths) for f in r["files"]):
+                return r["at"]
+            continue
+        held = {f: h for f, h in r["gated"].items() if project.matches(f, paths)}
+        if held != {f: h for f, h in start.items() if project.matches(f, paths)}:
+            return r["at"]
+    return None
+
+
 def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -154,7 +180,7 @@ def save(task: dict) -> None:
 def new_task(name: str) -> dict:
     return {"task": name, "started": now(), "commit": git("rev-parse", "--short", "HEAD").strip(), "failures": 0,
             "runs": [], "reviews": {}, "approvals": [], "decisions": [], "target": None, "signoffs": [],
-            "findings": []}
+            "findings": [], "gated_at_start": gated_contents()}
 
 
 # --- The checks --------------------------------------------------------------------------------------------------
@@ -189,6 +215,72 @@ def scripts_check(name: str, scripts: list[list[str]], run_dir: Path, what: str)
             "tail": [] if ok else [line for code, out in results if code != 0 for line in failing(out) or tail(out, 4)]}
 
 
+SCOPES = ("portable", "project")  # a skill's or agent's metadata.scope (AGENT_HARNESS §7.3)
+LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+
+def scope_of(text: str) -> str | None:
+    """`metadata: scope:` (or a top-level `scope:`) from a SKILL.md's or an agent's frontmatter."""
+    m = re.match(r"---\n(.*?)\n---", text, re.S)
+    if not m:
+        return None
+    s = re.search(r"^(?:metadata:\s*\n(?:[ \t]+\S.*\n)*?[ \t]+|)scope:\s*(\S+)", m.group(1) + "\n", re.M)
+    return s.group(1).strip("'\"") if s else None
+
+
+def requires_of(text: str) -> list[str]:
+    """`metadata: requires: [a, b]` from an agent's frontmatter — the skills a portable agent needs."""
+    m = re.match(r"---\n(.*?)\n---", text, re.S)
+    r = re.search(r"^[ \t]+requires:\s*\[([^\]]*)\]", m.group(1), re.M) if m else None
+    return [s.strip().strip("'\"") for s in r.group(1).split(",") if s.strip()] if r else []
+
+
+def scope_problems() -> list[str]:
+    """Every skill and agent carries its scope; a portable skill links nothing outside its own folder; a portable
+    agent names the skills it needs, and each is present and portable."""
+    problems = []
+    files = sorted(ROOT.glob(f"{SKILLS}/*/SKILL.md")) + sorted(ROOT.glob(".agents/agents/*.md"))
+    scopes = {f.parent.name: scope_of(f.read_text(errors="replace")) for f in ROOT.glob(f"{SKILLS}/*/SKILL.md")}
+    for f in files:
+        rel = f.relative_to(ROOT).as_posix()
+        text = f.read_text(errors="replace")
+        scope = scope_of(text)
+        if scope not in SCOPES:
+            problems.append(f"{rel}: metadata.scope is {scope or 'missing'} — one of {', '.join(SCOPES)}")
+            continue
+        if scope == "portable" and f.name != "SKILL.md":
+            needs = requires_of(text)
+            if not needs:
+                problems.append(f"{rel}: a portable agent names the skills it needs in metadata.requires")
+            for skill in needs:
+                if scopes.get(skill) != "portable":
+                    problems.append(f"{rel}: requires {skill}, which is "
+                                    f"{'missing' if skill not in scopes else 'not portable'}")
+            for target in LINK.findall(re.sub(r"`[^`]*`", "", text)):
+                if not re.match(r"[a-z]+:|#", target):
+                    problems.append(f"{rel}: a portable agent links to a file ({target}) — name it in backticks")
+        if scope == "portable" and f.name == "SKILL.md":
+            folder = f.parent.resolve()
+            for doc in [f] + sorted(f.parent.glob("references/**/*.md")):
+                text = re.sub(r"```.*?```", "", doc.read_text(errors="replace"), flags=re.S)
+                for target in LINK.findall(re.sub(r"`[^`]*`", "", text)):
+                    if re.match(r"[a-z]+:|#", target):
+                        continue
+                    dest = (doc.parent / target.split("#")[0]).resolve()
+                    if folder not in dest.parents and dest != folder:
+                        problems.append(f"{doc.relative_to(ROOT).as_posix()}: a portable skill links out of its "
+                                        f"folder ({target}) — name the file in backticks instead")
+    return problems
+
+
+def check_scope(run_dir: Path) -> dict:
+    """The scope labels on every skill and agent, and portable skills' links."""
+    problems = scope_problems()
+    (run_dir / "scope.log").write_text("\n".join(problems) + "\n")
+    return {"ok": not problems, "detail": f"{len(problems)} scope problem(s) in the skills and agents",
+            "tail": problems[:12]}
+
+
 def check_docs(run_dir: Path) -> dict:
     """Every doc and kit-link check, each exiting 1 over its baseline."""
     return scripts_check("docs", [["bash", f"{DOC_SCRIPTS}/doc_checks.sh"],
@@ -211,11 +303,12 @@ def check_harness(run_dir: Path) -> dict:
 def check_design(run_dir: Path) -> dict:
     """DESIGN.md against its contrast floors and the token files; then no colour literal in a UI file."""
     results = [sh([sys.executable, DESIGN_CHECK], run_dir / "design.brief.log"),
-               sh([sys.executable, DESIGN_CHECK, "--test"], run_dir / "design.selftest.log")]
-    if project.TOKEN_FILES:
-        results.append(sh([sys.executable, TOKEN_CHECK], run_dir / "design.tokens.log"))
+               sh([sys.executable, DESIGN_CHECK, "--test"], run_dir / "design.selftest.log"),
+               sh([sys.executable, TOKEN_CHECK, "--test"], run_dir / "design.tokens.selftest.log")]
+    ui = sh([sys.executable, TOKEN_CHECK], run_dir / "design.tokens.log") if project.TOKEN_FILES else None
+    results += [ui] if ui else []
     ok = all(code == 0 for code, _ in results)
-    return {"ok": ok, "detail": f"{project.DESIGN_FILE} and the tokens {'at baseline' if ok else 'over a baseline'}",
+    return {"ok": ok, "detail": ui_detail(f"{project.DESIGN_FILE}, the tokens", ok, ui and ui[1]),
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
@@ -229,7 +322,108 @@ def project_check(name: str):
     return run
 
 
-BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design}
+READ_NOTHING = re.compile(r"NOTHING CHECKED|nothing was checked|read no (?:UI )?files?", re.I)
+
+
+def ui_detail(what: str, ok: bool, out: str | None) -> str:
+    """A UI check's line in the run: a pass over no files says so, rather than "at baseline" — the paths may name
+    nothing the check reads (a firmware project's UI_PATHS before its C/C++ folders are listed)."""
+    said = next((ln.strip() for ln in (out or "").splitlines() if READ_NOTHING.search(ln)), None)
+    if ok and said:
+        return f"{what}: self-tests pass, but the UI run read no file — {said}"
+    return f"{what} and the UI {'at baseline' if ok else 'over a baseline'}"
+
+
+def check_a11y(run_dir: Path) -> dict:
+    """The accessibility scripts' self-tests; then the UI files against the accessibility patterns."""
+    results = [sh([sys.executable, f"{A11Y_SCRIPTS}/contrast.py", "--test"], run_dir / "a11y.contrast.log"),
+               sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py", "--test"], run_dir / "a11y.selftest.log")]
+    ui = sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py"], run_dir / "a11y.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the accessibility scripts", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+MOTION_SKILL = f"{SKILLS}/motion/"
+MOTION_CHECK = f"{MOTION_SKILL}scripts/motion_check.py"
+
+
+def check_motion(run_dir: Path) -> dict:
+    """The motion check's self-test; then the UI files against the motion patterns."""
+    results = [sh([sys.executable, MOTION_CHECK, "--test"], run_dir / "motion.selftest.log")]
+    ui = sh([sys.executable, MOTION_CHECK], run_dir / "motion.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the motion check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+TOUCH_SKILL = f"{SKILLS}/touch-and-gesture/"
+TOUCH_CHECK = f"{TOUCH_SKILL}scripts/touch_check.py"
+
+
+def check_touch(run_dir: Path) -> dict:
+    """The touch check's self-test; then the UI files against the touch patterns."""
+    results = [sh([sys.executable, TOUCH_CHECK, "--test"], run_dir / "touch.selftest.log")]
+    ui = sh([sys.executable, TOUCH_CHECK], run_dir / "touch.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the touch check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+ESP_SKILL = f"{SKILLS}/esp-idf-setup/"
+ESP_SCRIPT = f"{ESP_SKILL}scripts/esp_idf.py"
+ESP_PATHS = ("main/", "components/", "CMakeLists.txt")
+
+
+def check_esp_idf(run_dir: Path) -> dict:
+    """The esp-idf-setup script's self-test; then the app's layering, E1–E5, when the repo is an ESP-IDF app."""
+    results = [sh([sys.executable, ESP_SCRIPT, "--test"], run_dir / "esp-idf.selftest.log"),
+               sh([sys.executable, ESP_SCRIPT, "check"], run_dir / "esp-idf.layering.log")]
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the esp-idf-setup script and the app's layering {'clean' if ok else 'failing'}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+UX_SKILL = f"{SKILLS}/ux-content/"
+UX_LINT = f"{UX_SKILL}scripts/ux_lint.py"
+
+
+def ux_paths() -> tuple:
+    """The files the string check reads: UX_STRINGS' paths, else UI_PATHS."""
+    return tuple((getattr(project, "UX_STRINGS", None) or {}).get("paths") or ()) or tuple(project.UI_PATHS)
+
+
+def check_ux(run_dir: Path) -> dict:
+    """The string check's self-test; then the UI strings against the rules a script can see (UX_CONTENT §1–§6)."""
+    results = [sh([sys.executable, UX_LINT, "--test"], run_dir / "ux.selftest.log")]
+    ui = sh([sys.executable, UX_LINT], run_dir / "ux.strings.log") if ux_paths() else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the string check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+SECRETS_SKILL = f"{SKILLS}/secrets-handling/"
+SECRET_SCAN = f"{SECRETS_SKILL}scripts/secret_scan.py"
+
+
+def check_secrets(run_dir: Path) -> dict:
+    """The secret scan's self-test when its skill changes; then the change itself, for key-shaped strings — counted
+    by file and line, never printed (SECRETS §11). The pre-commit hook refuses the same at the commit."""
+    results = [sh([sys.executable, SECRET_SCAN, "--test"], run_dir / "secrets.selftest.log")] \
+        if any(f.startswith(SECRETS_SKILL) for f in changed_files()) else []
+    results.append(sh([sys.executable, SECRET_SCAN], run_dir / "secrets.scan.log"))
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": "no key-shaped string in the change" if ok else "a key-shaped string in the change",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
+           "motion": check_motion, "touch": check_touch, "ux": check_ux, "esp-idf": check_esp_idf,
+           "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -241,7 +435,22 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
     wants = {
         "docs": any(is_kit_or_doc(f) or project.is_code(f) for f in files),
         "harness": any(f.startswith(HARNESS) for f in files),
-        "design": (ROOT / DESIGN_CHECK).is_file() and any(is_design(f) for f in files),
+        "design": (ROOT / DESIGN_CHECK).is_file()
+        and any(is_design(f) or f.startswith(f"{SKILLS}/design-system/") for f in files),
+        "a11y": (ROOT / A11Y_SCRIPTS / "a11y_check.py").is_file()
+        and any(f.startswith(A11Y_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "motion": (ROOT / MOTION_CHECK).is_file()
+        and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "touch": (ROOT / TOUCH_CHECK).is_file()
+        and any(f.startswith(TOUCH_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
+        "esp-idf": (ROOT / ESP_SCRIPT).is_file()
+        and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()
+                                            and project.matches(f, ESP_PATHS)) for f in files),
+        "ux": (ROOT / UX_LINT).is_file()
+        and any(f.startswith(UX_SKILL) or project.matches(f, ux_paths()) for f in files),
+        "secrets": (ROOT / SECRET_SCAN).is_file() and bool(files),  # every change: cheap, and before the commit
+        "scope": any(f.startswith((f"{SKILLS}/", ".agents/agents/")) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }
     return [c for c in CHECKS if wants[c]]
@@ -308,7 +517,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     task["failures"] = 0 if ok else task["failures"] + 1
     task["runs"].append({"n": n, "at": now(), "ok": ok,
                          "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
-                         "files": files, "fingerprint": tree_fingerprint(), "debug": bool(hits),
+                         "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
+                         "debug": bool(hits),
                          "seconds": round(time.time() - t0)})
     save(task)
     print(f"run {n}: {'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f} s — logs in {run_dir.relative_to(ROOT)}")
@@ -454,7 +664,7 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
         if no_visible or not paths or not any(project.matches(f, paths) for f in files):
             continue
         touched = True
-        first = next((r["at"] for r in task["runs"] if any(project.matches(f, paths) for f in r["files"])), None)
+        first = first_build(task, paths)
         for kind in kinds:
             if kind in KINDS_BEFORE and design_given:
                 continue
@@ -725,7 +935,53 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def self_test() -> int:
+    """The gate's own cases: which run first built a gated change (first_build)."""
+    def run(at, gated, files=("DESIGN.md",)):
+        return {"at": at, "files": list(files), "gated": gated}
+    cases = [
+        ("a change left by an earlier task, edited after the yes",
+         {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {"DESIGN.md": "a"}), run("3", {"DESIGN.md": "b"})]},
+         "3"),
+        ("a clean start, built at run 1", {"gated_at_start": {}, "runs": [run("1", {"DESIGN.md": "b"})]}, "1"),
+        ("never changed in this task", {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {"DESIGN.md": "a"})]},
+         None),
+        ("reverted to HEAD is a change", {"gated_at_start": {"DESIGN.md": "a"}, "runs": [run("1", {})]}, "1"),
+        ("a task recorded before gated_at_start", {"runs": [{"at": "1", "files": ["DESIGN.md"]}]}, "1"),
+        ("a run recorded before gated", {"gated_at_start": {"DESIGN.md": "a"},
+                                         "runs": [{"at": "1", "files": ["DESIGN.md"]}, run("2", {"DESIGN.md": "a"})]},
+         "1"),
+        ("other paths ignored", {"gated_at_start": {}, "runs": [run("1", {"src/x.css": "z"}, ("src/x.css",))]}, None),
+    ]
+    bad = 0
+    for name, task, want in cases:
+        got = first_build(task, ("DESIGN.md",))
+        if got != want:
+            bad += 1
+            print(f"FAIL {name}: want {want}, got {got}")
+    scopes = [
+        ("a metadata scope", "---\nname: x\ndescription: y\nmetadata:\n  scope: portable\n---\n# X\n", "portable"),
+        ("a top-level scope", "---\nname: x\nscope: project\n---\n", "project"),
+        ("no scope", "---\nname: x\ndescription: scope: in prose\n---\n", None),
+        ("no frontmatter", "# X\nscope: kit\n", None),
+    ]
+    for name, text, want in scopes:
+        got = scope_of(text)
+        if got != want:
+            bad += 1
+            print(f"FAIL scope, {name}: want {want}, got {got}")
+    needs = requires_of("---\nname: a\nmetadata:\n  scope: portable\n  requires: [ui-designer, 'motion']\n---\n")
+    if needs != ["ui-designer", "motion"]:
+        bad += 1
+        print(f"FAIL requires: want ['ui-designer', 'motion'], got {needs}")
+    cases = cases + scopes + [("requires", "", "")]
+    print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
+    return 1 if bad else 0
+
+
 def main() -> int:
+    if sys.argv[1:] == ["--test"]:
+        return self_test()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     s = sub.add_parser("start")

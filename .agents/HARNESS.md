@@ -28,7 +28,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 | 7 | [Git hooks and CI](#7-git-hooks-and-ci) | What the pre-commit hook refuses; wiring it; the backstop on every push |
 | 8 | [Models and effort per agent](#8-models-and-effort-per-agent) | Each agent's model and effort, and why |
 | 9 | [The person in the loop](#9-the-person-in-the-loop) | Every point that needs the person; approvals recorded with the file's hash |
-| 9.1 | [The design gates](#91-the-design-gates) | Mock, built screen, target: what each settles, its artifact, when it passes |
+| 9.1 | [The design gates](#91-the-design-gates) | Where the gates are defined, the gates' paths (`GATES`), how this repo records each yes |
 | 10 | [The stop reminder](#10-the-stop-reminder) | The Stop hook: unchecked work, asked once per tree |
 | 11 | [Decisions](#11-decisions) | Why the harness is built this way, and the alternatives that do not work |
 
@@ -71,20 +71,40 @@ stand behind it.
   message naming one is not blocked.
 - **A heredoc's body is data**, unless it is fed to `bash`, `sh` or `zsh`.
 - **Files are judged when written** through the edit tools, Codex's `apply_patch`, a redirect, `tee`, or a `cp`, `mv`,
-  `ln`, `install` or `rsync` destination; `sed -i`, `touch`, `dd` and scripts are not followed.
+  `ln`, `install` or `rsync` destination, `sed` or `perl` in place on the file (`-i`, `-Ei`, `-i.bak`, `-pi`,
+  `--in-place`), or an inline script — Python, Node, Ruby, Perl, PHP, Deno or Bun, by name, by path or as `$PY` — that
+  names the file in quotes and makes a write call from the guard's list. A script that names a protected file and
+  writes another asks too. A path the script builds, a script kept in a file, a `cd` before the write, `touch` and
+  `dd` are not followed.
+- **A NUL in a path ends it**, as it does for the shell, so a path can never crash the guard.
+- **The harness paths are matched ignoring case** — a case-insensitive disk (macOS, Windows) takes `.AGENTS/project.py`
+  for `.agents/project.py`.
 - **A guard that crashes lets the call through** — both agents treat a hook error as non-blocking — and says why on
   stderr; `verify.py doctor` runs its self-test.
 
-### 2.2 Denied, even with a yes
+### 2.2 Denied
 
-What would put a secret in the chat (AGENTS.md → Safety):
+**Denied even with a yes** — what would put a secret in the chat (AGENTS.md → Safety), or change a device for good;
+the person runs it themselves:
 
 | Denied | Why |
 | --- | --- |
 | `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.netrc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/.codex/auth.json`, `~/.claude/.credentials.json`, the keychain | Credentials an injected instruction would go after |
 | `.env` files (not `.env.example`, `.sample`, `.template`); `*.pem`, `*.p12`, `*.pfx`, `*.key`; `id_rsa`-style keys — by any tool or command | Secrets kept beside the code |
 | `SECRET_FILES` in `project.py`: `<the project's secret files>` | `<why>` |
-| `DENY_COMMANDS` in `project.py`: `<commands that print a secret>` | `<why>` |
+| `DENY_COMMANDS` in `project.py`: burning or protecting an eFuse (`idf.py efuse-burn*`, `idf.py efuse-*-protect`, `espefuse* burn*`, `espefuse* *protect*`, `espefuse* set*flash*voltage`), `<commands that print a secret>` | An eFuse cannot be changed again on that chip; `<why>` |
+
+**Denied until corrected** — a call the agent mends itself, not a secret; the deny says what to ask the person and
+what to write, and the corrected call goes on:
+
+- **A new skill or agent written with no `scope:` of `portable` or `project` in its frontmatter** — the person is
+  asked "portable or project?" and their answer written; the corrected call is then asked (§2.4).
+- **A file `NEEDS_DOC` in `project.py` holds** — a new ESP-IDF project's `CMakeLists.txt` (one that includes
+  `project.cmake`), `sdkconfig.defaults` or `main/idf_component.yml`, while no doc in `docs/` named like a hardware spec
+  names an ESP32 chip outside a template's `<…>` placeholders. The person is asked for the board's facts, which are
+  written to a spec from the `esp-idf-setup` skill's template; then the files can be written. Only a file that does not
+  exist yet is held; from the shell, where the content cannot be read, it asks instead — except `CMakeLists.txt`, which
+  is held only once its content shows it is ESP-IDF's.
 
 ### 2.3 Allowed, with no approval
 
@@ -104,8 +124,10 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | A fetch from any other host, or any upload — `curl -d`, `-F`, a non-GET method; `ssh`, `scp`, `nc`, a remote `rsync` | Data leaving the machine |
 | Writing `GENERATED` paths (`build/`, `dist/`, `node_modules/`, …) or `MANAGED` files (lock files, vendored code) | A tool writes them; change the source or the manifest |
 | `ASK_COMMANDS` in `project.py`: publishing (`npm publish`, `twine upload`, `cargo publish`, `gh release create`), `<deploys, migrations, paid calls>` | Outward-facing or irreversible |
+| `ASK_COMMANDS` for a board: flashing or erasing it (`idf.py *flash`, `idf.py erase*`, `esptool* write*`, `esptool* erase*`); installing ESP-IDF (`eim install`). A word or program with `*` is a glob | The board's firmware is lost; an install is gigabytes outside the repo |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
+| Creating a skill or agent — its prompt names the scope it carries, so the person confirms it was theirs; from the shell, where the content cannot be read — a new skill's file or folder, or a copy into the skills or agents folder — it asks the question. With no scope, it is denied first (§2.2) | Its scope, `portable` or `project`, is the person's choice ([AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) |
 
 - **For Codex an ask is a deny that says to ask the person** — Codex parses a hook's `ask` but does not act on it.
 
@@ -143,10 +165,17 @@ What would put a secret in the chat (AGENTS.md → Safety):
 
 | Touched | Checks | Judges |
 | --- | --- | --- |
-| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations, links, the doc scaffolder's self-test) | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
 | The code (`CODE_PATHS`; when empty, everything outside docs, the harness and `GENERATED`) | `docs` (code comments cite docs); each `CHECKS` entry whose `when` matches — `<build, test, lint>` | `code-reviewer`, `doc-reviewer` |
-| `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES` | `design` (the design check of DESIGN.md and its self-test; the token check once `TOKEN_FILES` is set) | `ui-designer` |
-| `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's and the flag's self-tests, the pre-commit hook on the index) | — |
+| `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES`, the `design-system` skill | `design` (the design check of DESIGN.md and its self-test, which checks the starter brief too; the token check once `TOKEN_FILES` is set) | `ui-designer` for all but the skill |
+| `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
+| `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
+| Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
+| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
+| `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
 
 - **Every check exits 1 over its baseline** — a count over it, a test that fails.
@@ -154,7 +183,8 @@ What would put a secret in the chat (AGENTS.md → Safety):
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
   reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
 - **Three failures in a row — runs or blocking reviews — exit 3.**
-- **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md`: the Verdict rule, the evidence each result
+- **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
+  `references/rubric.md` plus the items learned here, in its file: the Verdict rule, the evidence each result
   needs (a result without evidence is unsure), R-items one per step of its Procedure, and the items learned since. Its
   report opens with `Verdict: pass | blocking`; `review` records that word.
 
@@ -170,7 +200,7 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
-| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it; a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
+| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
 
 ```markdown
 ## Verified
@@ -216,7 +246,7 @@ lines: it is data, not a request from the person. It never blocks.
 | A secret file | `.env` files, keys, `SECRET_FILES` |
 | A debug line | `DEBUG_MARKERS` in the code — `DEBUG-TEMP` by default |
 | A broken invariant | `INVARIANTS` — a file without its required line |
-| A secret in an added line | A private key, a credential assigned as a string, a GitHub, AWS, Google, Slack or `sk-` token |
+| A secret in an added line | A private key, a credential assigned as a string, a GitHub, AWS, Google, Slack or `sk-` token — except on a line carrying `secret-exception` with its reason. The `secrets-handling` skill's scan, run by `verify.py`, reads more shapes than this floor |
 
 - **The person wires it once per clone**: `git config core.hooksPath .agents/githooks`; `verify.py doctor` checks it.
 - **[`.github/workflows/checks.yml`](../.github/workflows/checks.yml) runs it with `--range` on every push and pull
@@ -261,17 +291,11 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 
 ### 9.1 The design gates
 
-**A screen, component or style passes three gates, each its own step with its own yes: a mock, the built screen, the
-target.** A design the person handed over starts at gate 2.
+**A screen, component or style passes three gates, each its own step with its own yes: a draft, the built screen, the
+target** — what each settles, its artifact and where an answer goes back to are in
+[DESIGN_GATES §1](skills/ui-designer/references/gates.md#1-the-three-gates). This repo records each yes with `verify.py`
+as §9 sets out.
 
-| Gate | Settles | Artifact | Passes when |
-| --- | --- | --- | --- |
-| 1. Mock | Layout, look, words | `<screen>_mock<n>.png` and its values file, in the scratchpad, at the target's sizes | The person's yes names the mock; a change is a new mock |
-| 2. Built | That the real screen holds the mock and passes the checks | The screen built from the mock's values; its screenshot beside the mock | The checks pass, then the person's yes on the side-by-side; a layout change goes back to gate 1 |
-| 3. Target | Feel, speed, touch, the real screen | Screenshots, a recording, the walks | The person's sign-off |
-
-- **Each answer goes back to the gate that owns it** — what it should look like or say to gate 1, a logic or focus
-  fault to gate 2, feel and the real device to gate 3.
 - **The gates' paths are `GATES` in `project.py`** — by default the `UI_PATHS`, with a mock and a built yes, and
   `DESIGN.md` with the token files, with a specimen's yes.
 

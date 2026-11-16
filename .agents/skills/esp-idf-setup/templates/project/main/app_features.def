@@ -1,0 +1,9 @@
+// The app's features — one line each: FEATURE(<component>), whose namespace of the same name defines Install().
+//
+// This line is the feature's whole wiring. main/CMakeLists.txt makes the component a requirement of main, and
+// main.cpp calls <component>::Install() after app_shell::Install() and before app_shell::Run(). Install() registers
+// what the feature does with app_hooks; the shell names no feature. Deleting the line removes the feature, and
+// MINIMAL_BUILD then builds nothing only it required (APP_ARCHITECTURE §1, §4).
+//
+// Only lines starting FEATURE( are read, by the preprocessor and by CMake alike.
+FEATURE(hello)

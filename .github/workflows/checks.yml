@@ -15,7 +15,7 @@ jobs:
     # Python 3.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5 # v5 runs on Node.js 24; v4's Node.js 20 is deprecated on the runners
         with:
           fetch-depth: 0 # the pushed range's first commit, to diff against
       - name: The pre-commit hook on what was pushed
@@ -26,6 +26,14 @@ jobs:
         run: |
           python3 .agents/hooks/guard.py --test
           python3 .agents/hooks/untrusted.py --test
+          python3 .agents/skills/verify-change/scripts/verify.py --test
           python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test
           python3 .agents/skills/design-system/scripts/design_check.py --test
+          python3 .agents/skills/design-system/scripts/token_check.py --test
           python3 .agents/skills/accessibility/scripts/contrast.py --test
+          python3 .agents/skills/accessibility/scripts/a11y_check.py --test
+          python3 .agents/skills/motion/scripts/motion_check.py --test
+          python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test
+          python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py --test
+          python3 .agents/skills/secrets-handling/scripts/secret_scan.py --test
+          python3 .agents/skills/ux-content/scripts/ux_lint.py --test

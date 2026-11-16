@@ -99,8 +99,8 @@ def create(root: Path, kind: str, topic: str, title: str | None, purpose: str, s
     rel = path.relative_to(root).as_posix()
     listed = list_in_readme(root, rel, topic, summary.strip() or purpose.strip() or f"`<what {topic_title} holds>`")
     return 0, (f"created {rel} ({TYPES[kind]}) — {listed}.\n"
-               "next: fill every `<…>` from the code and the person, drop the blocks that stay empty (GUIDELINES "
-               "§3.3), then run the doc checks (docs-authoring-and-sync → Checks).")
+               "next: fill every `<…>` from the code and the person, drop the blocks that stay empty "
+               "(GUIDELINES §3.3), then run the doc checks (docs-authoring-and-sync → Checks).")
 
 
 def self_test() -> int:

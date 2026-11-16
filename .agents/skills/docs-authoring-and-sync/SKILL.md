@@ -1,6 +1,8 @@
 ---
 name: docs-authoring-and-sync
 description: Creates, writes, restructures and keeps true the docs in docs/, carrying the documentation guidelines with it (references/guidelines.md) so the folder works in any repo — a new doc scaffolded from the template for its type (new_doc.py: rules, interface, system, config, notes, requirements) and listed in README, a new section, rule, trap or open item, a value, token or symbol that changed in code, a heading renamed or renumbered, a doc rewritten without loss — and runs the doc checks before committing (title, contents table, numbering, anchors, § citations, fences, bold headings, history and filler words, tag legend, ASCII art, Mermaid colours, line numbers, README listing, long sections, links). Use when creating a doc, adding or editing anything in docs/, documenting a feature, a system or a decision, changing code or a design token a doc describes, closing an open item, splitting a long doc, or asked "write docs for", "document this", "update the docs", "rewrite this doc" or "check the docs".
+metadata:
+  scope: portable
 ---
 
 # Docs authoring and sync
@@ -59,6 +61,8 @@ fall back to their defaults when it does not ([scripts/_config.py](scripts/_conf
 16. **Write in the §5 style and the §6 mechanics; draw every flow in Mermaid** (GUIDELINES §5, §6, §6.1).
 17. **Change docs in the same commit as the code; grep the symbol and the behaviour first** (GUIDELINES §7).
 18. **List every doc in README.md's Documentation section** (GUIDELINES §7).
+19. **Explain local mechanics in a code comment; cite `DOC §n` for a decision, a value's provenance or a shared rule;
+    never a bare `§` or a line number in code** (GUIDELINES §4.8).
 
 ### Never
 
@@ -185,7 +189,8 @@ script.
 - [ ] (script) **S2 Contents table** on every doc over 150 lines (§3.5) — 0 hits.
 - [ ] (script) **S3 Numbering** gaps, duplicates, `###` under the wrong `##` (§3.4) — 0 hits.
 - [ ] (script) **S4 Contents rows, anchors, `§n` citations** — every `##` in the contents table, every `#anchor`
-  resolves, every `<DOC> §n` in docs, README, the kit and code names a real heading (§3.5, §7) — 0 hits.
+  resolves, every `<DOC> §n` in docs, README, the kit and code names a real heading (§3.5, §7); in code and the kit's
+  scripts, no `§` without its doc name and no line-number reference (§4.8) — 0 hits.
 - [ ] (script) **S5 Fence without a language**, MD040 (§6) — 0 hits.
 - [ ] (script) **S6 Bold paragraph as a heading**, MD036 (§6) — 0 hits.
 - [ ] (script) **S7 History words** (§4.3) — 0 hits. Plain *was* is too common to grep; read for it.
@@ -202,6 +207,9 @@ script.
 
 ## Traps
 
+- **Half a table is left behind as stray text after an edit by script** → the section was cut at the next `---`,
+  which a table's separator row also matches, and no doc check sees a table with no header → cut a section between its
+  own heading and the next heading, and read the result before running the checks.
 - **A new doc duplicates a section another doc owns** → the topic was not grepped first → make it a section there,
   and link from where readers look (GUIDELINES §5; Creating a doc, step 1).
 - **A scaffolded doc is committed with `<…>` left in it** → the template's blocks were kept, not filled → fill or drop

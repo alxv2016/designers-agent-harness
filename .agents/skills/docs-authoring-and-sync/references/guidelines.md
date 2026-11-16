@@ -23,7 +23,7 @@ material under the next free number.
 | 1 | [Principles](#1-principles) | What docs are for; knowledge in docs, workflow in the kit; what counts as documentation |
 | 2 | [Doc types](#2-doc-types) | Which kind of doc you're writing and what it opens with |
 | 3 | [Structure](#3-structure) | Naming, opening block, section building blocks, numbering, contents table, writing a section |
-| 4 | [Content](#4-content) | What to capture; rationale, history, values, sources and tags; what may be removed; the facts every project records |
+| 4 | [Content](#4-content) | What to capture; rationale, history, values, sources and tags; what may be removed; the facts every project records; code comments and citations |
 | 5 | [Writing style](#5-writing-style) | Bullets, prose, terminology |
 | 6 | [Markdown mechanics](#6-markdown-mechanics) | Tables, code blocks, links, banners, tags, lint, Mermaid diagrams |
 | 7 | [Keeping docs true](#7-keeping-docs-true) | Verifying against code, tokens and config, inbound links, README |
@@ -314,6 +314,23 @@ apply to the product is skipped; one that does is never left only in code or a d
 | Data: what is stored, where, for how long, and what clearing it loses | System explanation |
 | External services: what is called, its limits, and what happens when it fails | System explanation |
 | Startup order and what each step waits for | System explanation |
+
+### 4.8 Code comments and citations
+
+These rules are for comments in code and the kit's scripts. Inside a Markdown doc, a bare `§n` means that doc's own
+section; a citation to another doc names it.
+
+- **Explain local mechanics in the comment itself, briefly** — what this line does and why here, when the code alone
+  does not say it. That needs no doc.
+- **Cite the doc, by name and section, for anything that is a decision, a measured value's provenance, or a rule
+  shared across files** — `# the 300 ms ceiling: DESIGN §6`, `// GUIDELINES §4.5`. The reason lives in the doc once;
+  every file that follows it points there. A comment may also carry the full argument at the declaration (§4.2), as
+  long as it cites the doc that holds the decision.
+- **Never give a citation without its doc name, and never cite a line number** — a bare `§4` in code is ambiguous the
+  moment a second doc exists, and a line number drifts with the next edit. Cite file and symbol for code, `DOC §n` for
+  a doc.
+- **Keep the anchor check in the loop** (`check_anchors.py`, run by the docs check), so a citation to a heading that
+  moved, a `§` with no doc name, or a line number fails the run instead of waiting to be noticed.
 
 ---
 

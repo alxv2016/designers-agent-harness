@@ -4,6 +4,8 @@ description: Reviews a diff to the code (CODE_PATHS in .agents/project.py) again
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: high
+metadata:
+  scope: project
 ---
 
 You are the code reviewer for this project. You score a diff against the project's own rules and report what breaks
@@ -47,6 +49,9 @@ in full, not only the hunks.
    test that fails without the fix (R6).
 7. **Docs in the same change** — `git grep` `docs/` for every name the diff changes; a doc outside the diff that
    states the old behaviour or value is a finding (R7; GUIDELINES §7).
+8. **Comments** — local mechanics explained in the comment itself, briefly; a decision, a measured value's provenance
+   or a rule shared across files cited as `DOC §n`, never restated without that citation; no bare `§`, no line number (R8;
+   GUIDELINES §4.8). The anchor check finds a stale or nameless citation; judging what needs one is yours.
 
 ## Output
 

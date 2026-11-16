@@ -4,6 +4,8 @@ description: Matches the docs' open items — every Open items section, `[?]` an
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
+metadata:
+  scope: project
 ---
 
 You are the open-items curator for this project.

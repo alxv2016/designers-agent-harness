@@ -188,8 +188,9 @@ Each trap is written as symptom → cause → fix.
   `[TD]` → print the error on stderr, and run the self-test from `doctor`.
 - **The guard lets everything through after an edit to the settings file** → a syntax error in `project.py`, which the
   guard imports, crashes it → `doctor` runs the self-test; the guard asks before an agent edits the file.
-- **A file the guard should ask about gets written** → `sed -i`, `touch`, `dd` or a script wrote it, and the guard does
-  not follow those → the pre-commit hook and the person's review stand behind the guard (§13).
+- **A file the guard should ask about gets written** → `touch`, `dd`, a script kept in a file, a script that builds
+  the path, a write call outside the guard's list, or a `cd` before the write — the guard does not follow those → the
+  pre-commit hook and the person's review stand behind the guard (§13).
 - **The injection flag warns about the repo's own files** → the command mixed a reader with a program not on the
   reader list (`echo`, `printf`) → the warning is harmless; widen the list only with programs that cannot read from
   outside the repo (§12).
@@ -312,7 +313,7 @@ The whole harness lives in a handful of paths. Only the task state is left out o
 | `.claude/skills`, `.claude/agents` | Symlinks to `../.agents/skills` and `../.agents/agents` | Yes |
 | `.codex/hooks.json`, `.codex/config.toml` | Codex's hooks and sandbox (§14.2) | Yes |
 | `.codex/agents/<name>.toml` | Codex's definition of each kit agent, pointing at its Markdown | Yes |
-| `.github/workflows/checks.yml` | CI: the pre-commit hook's rules on every push, the hooks' self-tests (§13) | Yes |
+| `.github/workflows/checks.yml` | CI: the pre-commit hook's rules on every push, the hooks' and the loop's self-tests (§13) | Yes |
 | `.mcp.json` | MCP servers the agents use: platform docs, package registries, design files | Yes |
 | `.cache/harness/` | The task's state, run logs, history (§10.3) | No — git-ignored |
 
@@ -412,21 +413,40 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships seven skills. Six are generic and copy across almost unchanged; `build-run-test` is filled in from
+The template ships twelve skills. Eleven are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
-| Skill | Role | Owns | Generic |
+**Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
+folder on its own, taking every value from that project's files and linking nothing outside itself; an agent's file
+in the project's agents folder (`.claude/agents/`) with the portable skills it names in `metadata.requires`, using
+`verify.py` when the kit is there and recording by hand when it is not. `project` — it belongs to this repo: it needs
+the kit around it (`verify.py`, the rubrics, the settings file) or is filled in for this project. `verify.py run`
+fails a skill or agent with no scope or an unknown one; a portable skill whose `SKILL.md` or references link out of
+its folder; and a portable agent with no `metadata.requires`, with a required skill that is missing or not portable,
+or with a link to a file.
+
+**Platforms.** The design skills — `ui-designer`, `accessibility`, `design-system`, `motion`,
+`touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen. Each states a
+principle once, in platform-neutral words, and labels the guidance that differs **Web**, **iOS**, **Android** or
+**Embedded (ESP-IDF, LVGL)**; their checks read web, native and C/C++ files, and say so when a run read no UI file.
+
+| Skill | Role | Owns | Scope |
 | --- | --- | --- | --- |
-| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | Yes — the project's lists are in `project.py` |
-| `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | Yes — and portable: the folder works in any repo |
-| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
-| `ui-designer` | The three design gates — mock, built, target — and the review of a UI diff | — | Yes, for any project with an interface |
-| `accessibility` | The accessibility floors (WCAG 2.2 AA), and how to check each | `contrast.py` | Yes |
-| `design-system` | `DESIGN.md`: principles, tokens by role, themes, components, exceptions | `design_check.py`, `token_check.py` | Yes — `DESIGN.md` and the token files are the project's |
-| `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | No — filled in per project |
-| `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | No — added when needed |
-| `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | No — added when needed |
-| `config-rules` | Build and runtime settings: defaults against generated files, coupled settings, debug switches | Grep checks | No — added when needed |
+| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | `project` — needs the kit; the project's lists are in `project.py` |
+| `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | `portable` — the folder works in any repo |
+| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | `project` — the convention is this repo's |
+| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md`, `references/rubric.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
+| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `references/focus.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
+| `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
+| `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `references/feedback.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
+| `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
+| `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
+| `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
+| `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
+| `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
+| `config-rules` | Build and runtime settings: defaults against generated files, coupled settings, debug switches | Grep checks | `project` — added when needed |
 
 Each skill must hold the following:
 
@@ -441,17 +461,39 @@ Each skill must hold the following:
   in README; the guidelines' rules, each citing its §; the procedures for creating a doc, for keeping docs true (grep
   the name first, update every restatement in the same commit) and for rewriting a doc (inventory, verify, map,
   rewrite, check the map, report what moved); and the lint list with baselines. The lint checks title, contents table,
-  numbering, anchors and § citations, fence language, bold-as-heading, history words, filler, tag legend, ASCII art,
+  numbering, anchors and § citations (in code, no nameless `§` or line number), fence language, bold-as-heading, history words, filler, tag legend, ASCII art,
   diagram colours, line-number references, README listing, long sections and links.
 - **`commit-message`**: the subject shape, per-area bullets, a `Docs:` bullet naming each doc § changed, a
   verification line that claims only what ran and what the person approved, the coding tool's trailer, and "commit
   only when asked".
-- **`ui-designer`**: `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; the mock's
-  values file and "build from it unchanged"; the review of a UI diff, accessibility first.
-- **`accessibility`**: the floors with their source; "measure against the colour painted"; the walks the person does on
-  the target.
-- **`design-system`**: `DESIGN.md` as the place a token is decided; roles over values; themes as values for the
-  same roles; registered exceptions; the design check and the token check.
+- **`ui-designer`**: the gates themselves, in `references/gates.md`, and the review rubric, in `references/rubric.md`,
+  so the folder is portable; the project's
+  `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; each yes recorded against its
+  file — by `verify.py` in the kit, by hand without it; the draft's values file and "build from it unchanged"; the
+  review of a UI change in a fixed order, accessibility first.
+- **`accessibility`**: the floors themselves, in `references/criteria.md` with how to meet and test each on every
+  platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
+  alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
+  the accessibility decisions settled beside a mock; the pattern check; the walks the person does on the target.
+- **`design-system`**: how a brief is written, in `references/brief.md`, with a starter `DESIGN.md` that passes the
+  checks, so the folder is portable; `DESIGN.md` as the place a token is decided; roles over values; complete themes
+  as values for the same roles; at most a surface step and a shadow per surface; a named layer order; registered exceptions; the design
+  check and the token check.
+- **`motion`**: the principles of motion in `references/motion.md`, so the folder is portable; "decide whether it
+  moves before how"; the motion brief before a study; the debugging loop; the review categories with accessibility
+  first; the motion check; values always from the project's own DESIGN.md.
+- **`touch-and-gesture`**: the principles of touch, gestures and mobile layout in `references/touch.md`, so the folder
+  is portable; the gesture spec and a prototype on the device before the build; the device walk handed to the person;
+  the touch check; values always from the project's own DESIGN.md.
+- **`esp-idf-setup`**: the principles of an ESP-IDF project in `references/esp-idf.md` and the project's templates, so
+  the folder is portable; ESP-IDF checked, never installed; the hardware spec written from the person's answers before
+  anything is generated; the person's yes or no to LVGL; a feature as one line; the layering check.
+- **`ux-content`**: the rules for an interface's words in `references/ux-content.md`, so the folder is portable; the
+  four tests and editing passes; the pattern for each element; the string check; the voice, case convention and word
+  list always from the project's DESIGN.md.
+- **`secrets-handling`**: how a product handles its users' secrets in `references/secrets.md`, per platform; the leak
+  procedure; the secret scan, which counts and never prints. The agent's own safety stays the guard's and the
+  pre-commit hook's.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -480,6 +522,9 @@ description: <What it checks or does, naming the files in scope>. Use when <trig
 tools: Read, Grep, Glob, Bash
 model: <haiku | sonnet | opus>
 effort: <low | medium | high>
+metadata:
+  scope: <portable | project>
+  requires: [<skill>, …]   # a portable agent only: the portable skills it loads
 ---
 
 You are the <role> for <project>.
@@ -505,6 +550,8 @@ You are the <role> for <project>.
   guard keep it from writing.
 - **Keep the items in the rubric, not in the agent.** The agent's steps map one-to-one to R-items, and learned items
   go only in the rubric. The agent file then stays stable, and the rubric's history shows what the harness learned.
+  A portable judge's items travel with its skill (the `ui-designer`'s in `ui-designer/references/rubric.md`); its file
+  in `.agents/rubrics/` holds what this project learned.
 - **Fix the output format.** The loop records verdicts by agent name, and the person compares runs.
 - **A runner reports and never fixes.** Feature work, doc edits and commits stay with the coordinating agent.
 - **A builder stops at each gate its work has.** A builder of what the person must like — a screen, motion, copy —
@@ -514,15 +561,16 @@ You are the <role> for <project>.
 
 ### 8.2 The harness's agents
 
-| Agent | Kind | Called when — only judges are in `verify.py`'s judge table | Generic |
+| Agent | Kind | Called when — only judges are in `verify.py`'s judge table | Scope |
 | --- | --- | --- | --- |
-| `code-reviewer` | Judge | The code changes | The frame is; the rules it applies are the project's docs |
-| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | Yes |
-| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | Yes, for any project with an interface |
-| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | Yes |
-| `target-runner` | Runner | The change needs the target | The frame is; the steps are `build-run-test`'s |
-| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | Yes |
-| Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | No |
+| `code-reviewer` | Judge | The code changes | `project` — the rules it applies are the project's docs and rubrics |
+| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `project` |
+| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `portable` — with its six skills; its rubric travels in the `ui-designer` skill |
+| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
+| `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
+| `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
+| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
+| Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
 
 What each one does:
 
@@ -538,9 +586,10 @@ What each one does:
   rules. *Drift* takes every backticked name, value, path, token and § citation in a doc and greps for it in the code
   and config, and checks that every § a code comment cites still resolves. It quotes both sides and fixes nothing.
   Blocking: a lint over its baseline, a broken link or citation, or drift in a value a reader would act on.
-- **`ui-designer`**: in mock mode, draws the mock in the scratchpad with its values file and stops for the yes; in
-  build mode, builds from the approved values, shows the built screen beside the mock, and stops again; in review
-  mode, scores a UI diff — the gates' yeses, accessibility, tokens, components — read-only.
+- **`ui-designer`**: in mock mode, draws gate 1's draft — the mock, a motion study, a gesture spec — in the scratchpad
+  with its values file and stops for the yes; in build mode, builds from the approved values, shows the built screen
+  beside the draft, and stops again; in review mode, scores a UI change — the gates' yeses, accessibility, tokens,
+  components, motion, gestures — read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -730,7 +779,7 @@ flowchart TD
 | `status` | Prints where the task stands — read this after compaction, not the chat |
 | `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open |
 | `calibration` | Agreement per judge (§9) |
-| `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, both self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
+| `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, the hooks' and the loop's self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
 | `unverified [--hook]` | Whether the tree changed since the last run; as the agents' Stop hook, asks once per tree (§14.1) |
 
 | Exit | Means |
@@ -749,9 +798,16 @@ file.
 | Touched paths | Check | Judge |
 | --- | --- | --- |
 | The code | The project's checks whose paths match — build, type check, tests, lint; `docs`, since code comments cite docs | `code-reviewer`; `doc-reviewer`, since docs describe the code |
-| `DESIGN.md`, UI paths and token files | `design` — `DESIGN.md`'s contrast pairs against their floors and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode |
-| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check, link check | `doc-reviewer` |
-| The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's and the flag's self-tests, the pre-commit hook on the index | — |
+| `DESIGN.md`, UI paths, token files, the design-system skill | `design` — `DESIGN.md`'s contrast pairs against their floors, a value in every theme, solid surfaces, and its tokens present in code (§23); once `TOKEN_FILES` is set, no colour literal outside the tokens | `ui-designer` in review mode, for all but the skill |
+| UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
+| UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
+| UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
+| `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
+| The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
+| Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
+| The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
+| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
+| The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
 - **A check or a judge joins the plan only once it exists.** The script tests for the agent's file or the check's
   entry, so the harness can name a future judge before it lands.
@@ -794,7 +850,8 @@ of these holds:
 - a judge the changed files call for has no review, said blocking, or reviewed an older version of its files;
 - a gated change lacks the person's yes of a kind its gate names, the approved file changed since, a draft's yes came
   after the first run that built it, or the built thing changed after its yes — unless the person recorded "no visible
-  change" or, for the draft, "design given";
+  change" or, for the draft, "design given". The first run that built it is the first whose gated files differ from
+  what they held when the task started, so a gated file an earlier task left uncommitted is not this task's build;
 - the change ran on the target and has no sign-off for the code as it ran.
 
 On exit `0` the draft is ready for the agent to fill in. The filled-in block goes into the hand-over message and the
@@ -830,7 +887,8 @@ in code instead of trusting the prompt.
 
 | Decision | When | Output |
 | --- | --- | --- |
-| **deny** | Never from an agent, even with a yes: anything that would put a credential in the chat | `permissionDecision: "deny"`, with a reason telling the agent to ask the person to run it themselves |
+| **deny** | Never from an agent, even with a yes: anything that would put a credential in the chat, or change a device for good | `permissionDecision: "deny"`, with a reason telling the agent to ask the person to run it themselves |
+| **deny until corrected** | A call the agent mends itself after asking the person — a new skill or agent with no scope, a file the project makes only once a doc exists | `permissionDecision: "deny"`, with the question to ask and what to write; the corrected call is then asked |
 | **ask** | Needs the person: destructive, irreversible or outward-facing, or rewrites the harness | `permissionDecision: "ask"`, with the reason. Under Codex this becomes `deny` plus "ask the person in the chat", because Codex does not act on `ask` `[?]` |
 | **allow** | Everything else | No output |
 
@@ -862,8 +920,12 @@ The guard judges each simple command by its program and arguments, so text that 
 - **Name a Python call by its module or script** (`python -m <module>`, `python <script>.py`).
 - **Let the strongest decision win** across the simple commands: deny over ask over allow.
 - **Judge writes made through** the edit tools, `apply_patch`, the redirects `>`, `>>` and `tee`, and the destination
-  of `cp`, `mv`, `ln`, `install` and `rsync`. Writes by `sed -i`, `touch`, `dd` or a script are not followed; the
-  pre-commit hook stands behind them.
+  of `cp`, `mv`, `ln`, `install` and `rsync`; `sed` or `perl` in place on the file; and an inline script, whatever
+  the interpreter is called, that names the file in quotes and makes a known write call — read as text. Writes by
+  `touch`, `dd`, a script kept in a file, a script that builds the path, or a write call the guard does not know are
+  not followed; the pre-commit hook stands behind them.
+- **Never let a path crash the guard** — a crash lets the call through, the secret deny with it; a NUL ends a path, as
+  it does for the shell.
 - **Judge Read, Grep and Glob only for credential paths**, Glob patterns that reach into them included.
 - **Make credential names the one word-match.** Any word in a shell command that names a credential path or file is
   denied before the program is looked at, so `grep -r token .env` and `echo id_rsa` are denied too. A pattern that
@@ -888,6 +950,9 @@ The guard judges each simple command by its program and arguments, so text that 
 | Sending data off the machine | ask | `curl` or `wget` with a body or a non-GET method; `nc`, `ssh`, `scp`, `sftp`, `ftp`, `telnet`, `socat`; a remote `rsync`; a fetch from a host outside `ALLOWED_HOSTS` |
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
 | The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
+| A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
+| A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec; denied with what to ask the person; from the shell, asked (`NEEDS_DOC` in the settings file) |
+| Writing or fusing a device | ask; deny | Flashing or erasing a board (`idf.py flash`, `esptool write-flash`) asks; burning or protecting an eFuse — permanent on the chip — is denied |
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 
@@ -940,8 +1005,8 @@ Content counts as outside when it is:
 ## 13. Git hooks
 
 `.agents/githooks/pre-commit` refuses a commit that carries something no commit should. It runs for agents and people
-alike, so it backs up the guard: it catches what the guard cannot see, such as `sed -i`, scripts, and agents with no
-hooks.
+alike, so it backs up the guard: it catches what the guard cannot see, such as a script kept in a file, and agents with
+no hooks.
 
 | Refuses | How it finds it |
 | --- | --- |
@@ -958,7 +1023,8 @@ hooks.
   secrets.
 - **`--no-verify` and `commit -n` ask the person**, through the guard.
 - **CI runs the same script with `--range <base>..<head>` on every push and pull request** — the backstop for clones
-  where the hooks path was never set and commits made with `--no-verify`. It runs the hooks' self-tests too.
+  where the hooks path was never set and commits made with `--no-verify`. It runs the hooks' and the loop's self-tests
+  too.
 
 ---
 
@@ -1057,14 +1123,14 @@ rules its judges score — almost all of it in one settings file.
 
 | Part | Copy as is | Fill in per project |
 | --- | --- | --- |
-| `.agents/project.py` | The helpers at its foot | Every list: `PROJECT_NAME`, `DOC_PREFIX`, `PROJECT_WIDE_DOCS`, `CODE_PATHS`, `UI_PATHS`, `DESIGN_FILE`, `TOKEN_FILES`, `GENERATED`, `MANAGED`, `VENDORED`, `SECRET_FILES`, `ALLOWED_HOSTS`, `ASK_COMMANDS`, `DENY_COMMANDS`, `DEBUG_MARKERS`, `INVARIANTS`, `CHECKS`, `JUDGES`, `GATES`, `TARGET`, `GUARD_CASES` |
+| `.agents/project.py` | The helpers at its foot | Every list: `PROJECT_NAME`, `DOC_PREFIX`, `PROJECT_WIDE_DOCS`, `CODE_PATHS`, `UI_PATHS`, `DESIGN_FILE`, `TOKEN_FILES`, `GENERATED`, `MANAGED`, `VENDORED`, `SECRET_FILES`, `ALLOWED_HOSTS`, `ASK_COMMANDS`, `DENY_COMMANDS`, `NEEDS_DOC`, `DEBUG_MARKERS`, `INVARIANTS`, `CHECKS`, `JUDGES`, `GATES`, `TARGET`, `GUARD_CASES` |
 | `AGENTS.md` | The section skeleton (§6), the Harness and Safety text | Project, environment, conventions, validation per change type, the doc table |
 | `DESIGN.md` | Its sections and table shapes (§23) | The principles and every value — the template's are a demo |
 | `.agents/HARNESS.md` | Its sections and the generic rows | The project's rows: its secrets, gates, hosts, checks and judges |
 | `verify.py` | All of it | Nothing — its lists are in the settings file |
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
 | `untrusted.py`, `pre-commit` | All of it | Nothing |
-| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
+| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
 | Agents | `doc-writer`, `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
 | Rubrics | The verdict and evidence rules | The items, as the project's rules grow |
 | Adapters | All of it | A Read deny per secret file; the Codex network list from `ALLOWED_HOSTS` |
@@ -1090,7 +1156,7 @@ Each layer rests on the ones before it. An agent building a later layer already 
 | 2. Doc tools and domain rules | `docs-authoring-and-sync` with its lint and baselines; `<domain>-rules` | 1 | The doc checks keep the docs true from the first commit |
 | 3. Controls | The settings file's secrets, hosts and gates; the guard and its self-test, the injection flag, the pre-commit hook, CI, the adapters, `.cache/` ignored | 1 | Every later step then runs behind them |
 | 4. The loop | `verify.py` with the `docs` and `harness` checks; the verify-change skill; `doctor` | 2, 3 | Its first checks are the ones that exist already |
-| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility and design-system skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
+| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility, design-system, motion and touch-and-gesture skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
 | 6. Code checks | The project's build, tests and lint in `CHECKS`; the quiet build wrapper; `build-run-test`; `commit-message` | Code that builds | A build check needs a build |
 | 7. The target | `target-runner`, the target scripts (health check, screenshots, logs), the routes | 6 | Evidence from the target needs a runnable build |
 | 8. Calibration | `judgements.jsonl`, `open-items-curator` | 7 | Findings come from the target |
@@ -1319,6 +1385,7 @@ reasons before it answers.
 | Search and exploration | `haiku` | `low` | Finds code and returns a conclusion |
 | Docs research | `haiku`; `sonnet` where sources conflict | `low` or `medium` | Fetches and condenses |
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
+| `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
 between the ends. Cached input costs a small fraction of fresh input. The provider's pricing page has the current
@@ -1457,19 +1524,15 @@ flowchart TD
   judge -->|yes: signoff| done[Done]
 ```
 
-- **Only the person's yes approves, and it names the draft.** A yes covers exactly the draft it names: a changed draft
-  needs a new yes, and an unchanged draft keeps its yes for the rest of the task — `start` clears approvals, so a yes
-  from an earlier task is recorded again before the build, or named in a "design given" decision. Silence, a yes to
-  something else, a judge's pass, a check that passed or the agent's own reading never approves.
+What counts as the person's yes, how a draft is made and how the build is held to it are the `ui-designer` skill's,
+in its reference (DESIGN_GATES §2, §4, §5), so they travel with the skill. The harness adds:
+
 - **Record the yes with the file's hash, the moment it is given** — `verify.py approve <file> --kind <kind>`. `finish`
   refuses a hand-over whose draft was approved after the first run that built it, or whose approved file changed.
-- **Draft where it costs nothing**: in the scratchpad, at the target's real sizes, in its real colours and type — never
-  as a change to the product.
-- **Write the draft's values down beside it, and build them unchanged.** A change the person asks for after seeing the
-  build goes back to a draft.
-- **Read the built thing against the draft before showing it**, and say where they differ.
-- **A design the person handed over is the approved draft** — record where it is with `verify.py decision "design
-  given: <where>"`; a change with nothing visible, with `"no visible change: <why>"`.
+- **`start` clears approvals**, so a yes from an earlier task is recorded again before the build, or named in a
+  "design given" decision.
+- **The two words that stand in for a draft are decisions** — `verify.py decision "design given: <where>"`, and
+  `"no visible change: <why>"`.
 
 ### 20.2 A skill or agent that does UI work
 
@@ -1485,15 +1548,9 @@ A UI skill or agent carries the gates in its own steps, so no session skips them
 
 ### 20.3 The three design gates
 
-A screen, component or style passes three gates, each its own step with its own yes. Each answer goes back to the gate
-that owns it: what it should look like or say to gate 1, a logic or layout fault to gate 2, feel and the real device
-to gate 3.
-
-| Gate | Settles | Artifact | Passes when |
-| --- | --- | --- | --- |
-| 1. Mock | Layout, look, words | A still at the target's sizes, in the scratchpad, with its values file | The person's yes names the mock (`approve --kind mock`) |
-| 2. Built | That the real screen holds the mock and passes the checks | The screen built from the mock's values, shown beside it | The checks pass, then the person's yes on the side-by-side (`approve --kind built`) |
-| 3. Target | Feel, speed, touch, the real screen | Screenshots, a recording, the walks | The person's sign-off (`signoff`) |
+A screen, component or style passes three gates — a draft, the built screen beside it, the target — each its own step
+with its own yes; the gates themselves are the `ui-designer` skill's (DESIGN_GATES §1). The harness records them:
+gate 1's yes with `approve --kind mock|motion|copy`, gate 2's with `approve --kind built`, gate 3's with `signoff`.
 
 - **The gates' paths live in the settings file** (`GATES`: by default the UI paths, with a mock and a built yes, and
   `DESIGN.md` with the token files, with a specimen's yes), so `finish` knows which changes need which yes.
@@ -1569,13 +1626,15 @@ the design skills and the `ui-designer` read it before any UI work. Agents desig
   column per theme; the colour table adds a `Kind` column (`| Token | Kind | Light | Dark | Use |`) giving each role's
   kinds — `surface`, `text`, `non-text`, `fill`, `on-fill`, `scrim`, `exempt`. The contrast-pairs table's header is
   `| Foreground | Background | Floor | <theme> | <theme> |`, with the ratio written per theme.
-- **The design check proves it** (`design_check.py`, run by `verify.py run` when `DESIGN.md`, the token files or the
-  UI change): D1, every contrast pair meets its floor in every theme, and no floor is under its kind's — 4.5 for text
-  and on-fill, 3 for non-text; D2, every ratio written in it is true; D3, every token it names, and every colour value
-  it gives, is in the token files; D4, every pair the kinds call for exists — each text and non-text role on each
-  surface, each on-fill role on each fill. A pair that fails is fixed with a different token, never a lower floor.
+- **The design check proves it** (`design_check.py`, run by `verify.py run` when `DESIGN.md`, the token files, the
+  UI or the design-system skill change): D1, every contrast pair meets its floor in every theme, and no floor is under
+  its kind's — 4.5 for text and on-fill, 3 for non-text — and none sits on a translucent background; D2, every ratio written in it is true; D3, every token it
+  names, and every colour value it gives, is in the token files; D4, every pair the kinds call for exists — each text
+  and non-text role on each surface, each on-fill role on each fill; D5, every colour has a value in every theme; D6,
+  no surface or fill is translucent. A pair that fails is fixed with a different token, never a lower floor.
 - **A change to it is a design change.** The `ui-designer` judges it, and the gate in `GATES` asks for the person's
   yes on a specimen — swatches, the type scale, a screen or two before and after — before the token files change. The
   principles are the person's: an agent proposes a change to one, and the person decides.
 - **The template ships a demo** with real, passing values, so the checks have something to run on from the first
-  commit. A new project writes its own over it, keeping the sections and the table shapes.
+  commit. A new project writes its own over it, keeping the sections and the table shapes. The design-system skill
+  carries a smaller starter (`references/templates/DESIGN.md`) for a repo that takes the skill without the template.
