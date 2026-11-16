@@ -52,7 +52,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
    gate 2; feel, speed and the real device to gate 3 (DESIGN_GATES §1).
 8. **Reuse before making** — an existing component first; a second caller moves a one-off into the shared components
    in the same change (the `design-system` skill).
-9. **Design for every input the target has** — pointer, touch, keyboard, screen reader; the focus order is part of the
+9. **Design for every input the target has** — pointer, touch, keyboard, screen reader on the web and phones; touch, a
+   rotary encoder and buttons on an embedded device (DESIGN_GATES §6); the focus order is part of the
    draft, and so is the plain alternative to each gesture, drag and hover (the `accessibility` skill); how each
    gesture behaves is the `touch-and-gesture` skill's.
 10. **Draft motion as motion** — the motion brief first, then a GIF or video at real speed beside it; a still cannot
@@ -127,8 +128,8 @@ Input: a described screen, component or flow. Everything here is written in the 
 
 1. **Run it on the target** — where people use it; in the kit, `verify-change` → The target, and `V target`.
 2. **Hand over the evidence, then what needs the person** for each changed screen: the walk with each input the target
-   has (touch, keyboard, screen reader), motion and timing, contrast and legibility on the real screen, how it feels,
-   and for each gesture its device walk (DESIGN_GATES §6).
+   has, motion and timing, contrast and legibility on the real screen, how it feels, and for each gesture its device
+   walk (DESIGN_GATES §6, which names them per platform).
 3. **The gate passes on the person's sign-off**, in their words, recorded (DESIGN_GATES §3). What they report wrong is
    a finding, routed back to the gate that owns it (Do 7).
 

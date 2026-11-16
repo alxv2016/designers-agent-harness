@@ -86,8 +86,15 @@ is visible.**
 type — never as a change to the product.**
 
 - **Every state that changes the layout** — empty, loading, error, long text, the largest text size.
-- **What renders it at real size** — a static page that loads the project's token file, an SVG, a frame exported from
-  the design file; look at the picture before showing it, and fix every contrast failure first.
+- **What renders it at real size** — something that draws the project's tokens and type as the product will; look at
+  the picture before showing it, and fix every contrast failure first.
+  - **Web** — a static page that loads the project's token file, at each breakpoint the product supports.
+  - **iOS, Android** — a frame at the device sizes the product supports, in the platform's text sizes.
+  - **Embedded (ESP-IDF, LVGL)** — a frame at the panel's resolution, pixel for pixel, in the fonts compiled into the
+    firmware; a host build of the UI on LVGL's SDL display renders it in the real widgets. Judge it also at the
+    panel's physical size — the same pixels on a small dense panel read far smaller than on a monitor — and on the
+    panel's shape when it is round or has cut corners.
+- **Or a frame exported from the design file**, when the person designs there.
 - **The values file beside it** (`<screen>_mock<n>.md`) — each element's component, its tokens (colour role, type
   role, spacing, radius), its states, the focus order, each text's contrast against what is painted under it, and the
   accessibility decisions (the `accessibility` skill).
@@ -106,6 +113,10 @@ type — never as a change to the product.**
   reason.
 - **The side-by-side** — a screenshot of the built screen at the draft's sizes, in one image with the draft; read it,
   and fix or name every difference before showing it.
+  - **Web** — a headless browser's screenshot at each breakpoint; **iOS, Android** — the simulator's or emulator's.
+  - **Embedded (ESP-IDF, LVGL)** — the screen as LVGL drew it: `lv_snapshot_take()` on the device, sent off it over
+    the console or a file, or the same screen from the host build at the panel's resolution. A photo of the panel is
+    evidence for gate 3, not a screenshot: it adds the panel's colour, brightness and angle.
 
 ## 6. The target
 
@@ -113,8 +124,15 @@ type — never as a change to the product.**
 
 - **The evidence** — a screenshot of each changed screen at the sizes that matter, a recording for motion and
   gestures, the console and the logs.
-- **The walks** — each input the target has (touch, keyboard, screen reader), motion and timing, contrast and
-  legibility on the real screen, and for each gesture its device walk (the `touch-and-gesture` skill).
+  - **Web** — the browser at each breakpoint and its console; **iOS, Android** — the simulator, then a real device.
+  - **Embedded (ESP-IDF, LVGL)** — the firmware flashed with the person's yes, the boot log over the serial console,
+    a snapshot of each changed screen, and a video of the panel itself for motion — filmed, since only the panel
+    shows its refresh, tearing and brightness.
+- **The walks** — each input the target has, motion and timing, contrast and legibility on the real screen, and for
+  each gesture its device walk (the `touch-and-gesture` skill).
+  - **Web, iOS, Android** — touch, the keyboard, the screen reader.
+  - **Embedded (ESP-IDF, LVGL)** — touch, the encoder and buttons, in the light and at the angles the device is used
+    in; sound and haptics where the product gives them.
 - **The sign-off is the person's, in their words** — never claimed from code or a screenshot. What they report wrong
   goes back to the gate that owns it (§1).
 

@@ -425,6 +425,11 @@ fails a skill or agent with no scope or an unknown one; a portable skill whose `
 its folder; and a portable agent with no `metadata.requires`, with a required skill that is missing or not portable,
 or with a link to a file.
 
+**Platforms.** The design skills — `ui-designer`, `accessibility`, `design-system`, `motion`,
+`touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen. Each states a
+principle once, in platform-neutral words, and labels the guidance that differs **Web**, **iOS**, **Android** or
+**Embedded (ESP-IDF, LVGL)**; their checks read web, native and C/C++ files, and say so when a run read no UI file.
+
 | Skill | Role | Owns | Scope |
 | --- | --- | --- | --- |
 | `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | `project` — needs the kit; the project's lists are in `project.py` |

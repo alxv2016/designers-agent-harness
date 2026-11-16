@@ -119,10 +119,10 @@ Everything is plain files and Python's standard library: no package to install, 
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept, from token roles to surfaces, layers and tokens in code. Generic: any project, any stack |
 | [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored: the verdict, the evidence, one item per rule the review checks. Generic: any project, any stack |
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | How UI work reaches the person: a draft they approve, the build beside it, their sign-off on the target, and how each yes is recorded. Generic: any project, any stack |
-| [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified, built and walked on a device. Generic: any project, any stack |
+| [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and layout are specified, built and walked on a device, with an encoder and buttons on an embedded one. Generic: any project, any stack |
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF firmware project is set up from the board's hardware spec: the installed toolchain, the spec's facts, the app's structure and its layering rules, LVGL. Generic: any ESP-IDF project |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed, with a glossary. Generic: any project, any stack |
-| [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS and Android. Generic: any project, any stack |
+| [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS, Android and an embedded device with an LVGL screen, with closed functionality under EN 301 549. Generic: any project, any stack |
 
 The kit's own pages: [.agents/README.md](.agents/README.md) (the skills and agents in plain words) and
 [.agents/HARNESS.md](.agents/HARNESS.md) (this repo's policy, case by case).

@@ -22,7 +22,11 @@ It reads two kinds of table in DESIGN.md:
      colour token that is not in a token table
   D3 token missing from the token files — a token DESIGN.md names, or a colour value it gives, is not in TOKEN_FILES
      (skipped while TOKEN_FILES is empty). A name matches in any spelling: `color.text.primary`,
-     `--color-text-primary`, `colorTextPrimary`, `color_text_primary`.
+     `--color-text-primary`, `colorTextPrimary`, `color_text_primary`, `kColorTextPrimary`. A colour matches only
+     its exact value, as CSS writes it (`#6b7280`, any case; `#fff` or `#ffffff` for `#fff`) or as C and C++ write
+     it (`0x6B7280`, any case, an integer suffix allowed, so `lv_color_hex(0x6B7280)` too) — never a longer or
+     shorter number (DESIGN_BRIEF §15). Prints how many token files it read; TOKEN_FILES naming no file that
+     exists is one hit.
   D4 contrast pair missing — a pair the kinds call for has no row. A token table with a `Kind` column gives each
      colour role one or more kinds (`text, fill`): every `text` and `non-text` role needs a row on every `surface`,
      and every `on-fill` role a row on every `fill`; `scrim` and `exempt` roles are not paired. With no `Kind`
@@ -183,15 +187,29 @@ def squash(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
-def check_code(colours: dict, names: set) -> list[str]:
-    files = [ROOT / f for f in project.TOKEN_FILES if (ROOT / f).is_file()]
-    text = "\n".join(f.read_text(errors="replace") for f in files)
-    flat, low = squash(text), text.lower()
-    hits = [f"token {n} is not in {', '.join(project.TOKEN_FILES)}" for n in sorted(names) if squash(n) not in flat]
+def spelled(value: str) -> re.Pattern:
+    """Every way a token file writes one hex colour, and only that value: `#6b7280` as CSS writes it, and
+    `0x6B7280` as C and C++ write it (inside `lv_color_hex(…)` on LVGL), with an optional integer suffix. C has no
+    shorthand, so `#fff` is `0xffffff` there. A longer or shorter number — `0xFF6B7280`, `0x6B72801` — is another
+    value (DESIGN_BRIEF §15)."""
+    digits = value.lstrip("#").lower()
+    full = "".join(c * 2 for c in digits) if len(digits) in (3, 4) else digits
+    css = digits if full == digits else f"(?:{digits}|{full})"
+    return re.compile(rf"#{css}(?![0-9a-f])|(?<![0-9a-z_])0x{full}[ul]{{0,3}}(?![0-9a-z_])", re.IGNORECASE)
+
+
+def check_code(colours: dict, names: set, files: list) -> list[str]:
+    text = "\n".join((ROOT / f).read_text(errors="replace") for f in files)
+    return code_hits(colours, names, text, ", ".join(files))
+
+
+def code_hits(colours: dict, names: set, text: str, where: str) -> list[str]:
+    flat = squash(text)
+    hits = [f"token {n} is not in {where}" for n in sorted(names) if squash(n) not in flat]
     for name, values in sorted(colours.items()):
         for theme, value in values.items():
-            if value.lower() not in low:
-                hits.append(f"{name} {theme} {value} is not in {', '.join(project.TOKEN_FILES)}")
+            if not spelled(value).search(text):
+                hits.append(f"{name} {theme} {value} is not in {where}")
     return hits
 
 
@@ -261,6 +279,28 @@ def self_test() -> int:
         cases += [(brief_hits(f) >= 1, "D1: text written on a scrim is reported")]
         f.write_text(kinded.replace("| Token | Kind | Light | Dark | Use |", "| Token | Kind | Light | Dark | Usage |"))
         cases += [(brief_hits(f) == 0, "D5: a column named Usage is not a theme")]
+        kept, project.TOKEN_FILES = project.TOKEN_FILES, ("no/such/tokens.h",)
+        try:
+            f.write_text(kinded)
+            cases += [(brief_hits(f, code=True) == 1, "D3: TOKEN_FILES naming no file that exists is one hit")]
+        finally:
+            project.TOKEN_FILES = kept
+    brief = {"color.text.secondary": {"Dark": "#6B7280"}}
+    named = {"color.text.secondary"}
+    for code, ok, what in (
+            (":root { --color-text-secondary: #6b7280; }", True, "D3: a CSS custom property matches"),
+            ("constexpr uint32_t kColorTextSecondary = 0x6B7280;", True, "D3: a C constant 0x6B7280 matches"),
+            ("constexpr uint32_t kColorTextSecondary = 0x6b7280u;", True, "D3: a lowercase C constant with a suffix "
+                                                                            "matches"),
+            ("lv_color_t ColorTextSecondary() { return lv_color_hex(0x6B7280); }", True,
+             "D3: lv_color_hex(0x6B7280) matches"),
+            ("constexpr uint32_t kColorTextSecondary = 0x6B7281;", False, "D3: a C value one step off is missing"),
+            ("constexpr uint32_t kColorTextSecondary = 0xFF6B7280;", False, "D3: an ARGB 0xFF6B7280 is another value"),
+            ("constexpr uint32_t kColorTextSecondary = 0x6B72801;", False, "D3: a longer C number is another value"),
+            ("--color-text-secondary: #6b728080;", False, "D3: a CSS value with alpha is another value")):
+        cases += [((code_hits(brief, named, code, "t") == []) == ok, what)]
+    cases += [(code_hits({"color.bg": {"Light": "#FFF"}}, {"color.bg"}, "kColorBg = 0xFFFFFF;", "t") == [],
+               "D3: #FFF matches its C spelling 0xFFFFFF")]
     template = Path(__file__).resolve().parent.parent / "references" / "templates" / "DESIGN.md"
     if template.is_file():
         cases += [(brief_hits(template) == 0, "the DESIGN.md template passes the design check")]
@@ -287,7 +327,12 @@ def brief_hits(path: Path, code: bool = False, quiet: bool = True) -> int:
     say("D6", "translucent surface or fill", clear)
     drift = []
     if code and project.TOKEN_FILES:
-        drift = check_code(colours, names)
+        files = project.token_paths()
+        if not quiet:
+            print(f"D3 read {len(files)} token file(s)" + (f": {', '.join(files)}" if files else
+                  f" — TOKEN_FILES ({', '.join(project.TOKEN_FILES)}) names no file that exists"))
+        drift = check_code(colours, names, files) if files else \
+            [f"TOKEN_FILES names no file that exists: {', '.join(project.TOKEN_FILES)}"]
         say("D3", "token missing from the token files", drift)
     elif code and not quiet:
         print("D3 token missing from the token files — skipped: no TOKEN_FILES"
@@ -301,8 +346,9 @@ def main(argv: list[str]) -> int:
     given = argv[argv.index("--file") + 1] if "--file" in argv and argv.index("--file") + 1 < len(argv) else None
     path = Path(given).resolve() if given else ROOT / project.DESIGN_FILE
     if not path.is_file():
-        print(f"design check — no {given or project.DESIGN_FILE}: nothing to check")
+        print(f"design check — no {given or project.DESIGN_FILE}: read no brief, nothing to check")
         return 0
+    print(f"design check — read {path.relative_to(ROOT) if path.is_relative_to(ROOT) else path}")
     hits = brief_hits(path, code=not given, quiet=False)
     if hits:
         print(f"    FAIL — {hits} hit(s) over the baseline of 0: fix {path.name} or the token files")

@@ -188,7 +188,8 @@ non-text `[SPEC]` (WCAG 1.4.3, 1.4.11). Run the design check and write the ratio
 | --- | --- | --- |
 | `breakpoint.medium` | 600 px | From here: two columns where content allows |
 
-- **Mocks are drawn at the sizes the product ships** — one compact and one expanded, plus 320 px wide for reflow.
+- **Mocks are drawn at the sizes the product ships** — on a screen that resizes, one compact and one expanded, plus
+  320 px wide for reflow; on a device's fixed panel, its one resolution, and no breakpoint token.
 
 ---
 

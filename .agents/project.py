@@ -38,12 +38,14 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
 #   Web:     ("src/", "app/", "public/", "package.json")
 #   Mobile:  ("ios/", "android/", "lib/", "pubspec.yaml")
 #   Python:  ("src/", "tests/", "pyproject.toml")
+#   ESP-IDF: ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
 CODE_PATHS = ()
 
 # The files that change what a person sees: screens, components, styles, copy, icons. Empty: no UI gates and no
 # ui-designer judge. Fill it in for any project with an interface.
 #   Web:     ("src/components/", "src/pages/", "src/app/", "*.css", "*.scss", "src/styles/")
 #   Mobile:  ("ios/*/Views/", "android/app/src/main/res/", "lib/widgets/", "lib/screens/")
+#   ESP-IDF with LVGL: ("components/app_shell/screen_*", "components/ui_*/", "components/<feature>/*_screen.cpp")
 UI_PATHS = ()
 
 # The design brief at the repo root: the product's principles and every design token by role, with its value per
@@ -55,6 +57,7 @@ DESIGN_FILE = "DESIGN.md"
 # values from these files, never from a literal (the design-system skill). Empty: the token check and the design
 # check's token-drift half do not run.
 #   ("src/styles/tokens.css",)  ("design/tokens.json",)  ("lib/theme/tokens.dart",)
+#   ESP-IDF with LVGL: ("components/ui_theme/include/ui_theme.h",) — constants named by role, colours as 0xRRGGBB
 TOKEN_FILES = ()
 
 # Files a build or a tool writes. Never committed — the pre-commit hook refuses them — and the guard asks before an
@@ -200,6 +203,7 @@ GATES = [
 
 # Where the change finally runs, in a few words — the Verified block names it.
 #   "the app in a browser at localhost:3000"  "the iOS simulator"  "a phone over USB"  "the staging site"
+#   "the ESP32-S3 board over USB, its serial console on the same port"
 TARGET = "<target>"
 
 # Extra guard self-test cases for the project's own gates: (command, "deny" | "ask" | None). Give each gate a case,
@@ -239,7 +243,8 @@ def matches(path, patterns):
     import fnmatch
     for p in patterns:
         if p.endswith("/"):
-            if path.startswith(p):
+            # a folder: everything under it; with a glob in it (`components/ui_*/`), everything under each match
+            if path.startswith(p) or (any(c in p for c in "*?[") and fnmatch.fnmatch(path, p + "*")):
                 return True
         elif any(c in p for c in "*?["):
             if fnmatch.fnmatch(path, p):

@@ -27,7 +27,8 @@ TOKEN_FILES: tuple = ()
 UI_PATHS = None  # None: every tracked UI file; a tuple (the kit's, possibly empty): only those paths
 KIT = False
 SKIP_DIRS = ("node_modules/", "vendor/", "third_party/", "build/", "dist/", "out/", "coverage/", ".cache/", ".venv/",
-             "Pods/", ".agents/", ".claude/", ".codex/", ".github/")
+             "Pods/", "managed_components/", ".agents/", ".claude/", ".codex/", ".github/")
+VENDORED = ("/node_modules/", "/managed_components/")  # the npm and ESP-IDF component managers' downloads
 
 _project = ROOT / ".agents/project.py"
 if _project.is_file():
@@ -40,20 +41,32 @@ if _project.is_file():
 
 
 def matches(path: str, patterns) -> bool:
-    """A folder with `/`, a glob, or an exact file — the kit's pattern rules."""
-    return any((p.endswith("/") and path.startswith(p)) or (any(c in p for c in "*?[") and fnmatch.fnmatch(path, p))
-               or path == p for p in patterns)
+    """A folder with `/`, a glob, or an exact file — the kit's pattern rules. A folder with a glob in it
+    (`components/ui_*/`) matches every file beneath the folders it names."""
+    def one(p: str) -> bool:
+        glob = any(c in p for c in "*?[")
+        if p.endswith("/"):
+            return fnmatch.fnmatch(path, p + "*") if glob else path.startswith(p)
+        return fnmatch.fnmatch(path, p) if glob else path == p
+    return any(one(p) for p in patterns)
 
 
 def is_ui(path: str) -> bool:
     if UI_PATHS is not None:
         return matches(path, UI_PATHS)
-    return not path.startswith(SKIP_DIRS) and "/node_modules/" not in path
+    return not path.startswith(SKIP_DIRS) and not any(v in path for v in VENDORED)
 
 
 def tracked() -> list[str]:
     return subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
                           capture_output=True, text=True).stdout.splitlines()
+
+
+def token_paths() -> list[str]:
+    """The files TOKEN_FILES names, each pattern resolved the way `matches` reads it: an exact file, a folder or a
+    glob."""
+    found = [f for f in TOKEN_FILES if (ROOT / f).is_file()]
+    return sorted(set(found) | {f for f in tracked() if matches(f, TOKEN_FILES) and (ROOT / f).is_file()})
 
 
 def _wcag_ratio(fg_hex: str, bg_hex: str) -> float:

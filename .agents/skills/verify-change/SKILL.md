@@ -110,8 +110,8 @@ flowchart TD
 
 ### The target
 
-Where the change finally runs — `TARGET` in `.agents/project.py`: a browser on the dev server, a simulator, a device,
-a preview deploy. The steps are the project's: [`build-run-test`](../build-run-test/SKILL.md) holds them, and the
+Where the change finally runs — `TARGET` in `.agents/project.py`: a browser on the dev server, a simulator, a phone,
+a board over USB, a preview deploy. The steps are the project's: [`build-run-test`](../build-run-test/SKILL.md) holds them, and the
 [`target-runner`](../../agents/target-runner.md) agent runs them.
 
 1. **Build** through the quiet wrapper — no warning the change introduced.

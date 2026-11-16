@@ -11,14 +11,22 @@ a screen.
 it into any repo's `.agents/skills/` and this reference, the template, the design check and the token check come with
 it. The product's own values and choices live in its `DESIGN.md`, cited `DESIGN §n`, and win over this reference.
 
+**Platforms.** Each rule is written for every platform. Guidance that holds on one platform only carries its label —
+**Web**, **iOS**, **Android**, **Embedded (ESP-IDF, LVGL)** for a device that draws its own screen with LVGL — in a
+bold lead or a table row.
+
 **Stability.** Cite this doc as `DESIGN_BRIEF §n`. Do not renumber; add new material under the next free number.
+
+| Tag | Meaning |
+| --- | --- |
+| `[D]` | Derived — calculated from cited values, not measured |
 
 | § | Section | Look here for |
 | --- | --- | --- |
 | 1 | [The brief](#1-the-brief) | What DESIGN.md holds, its sections and the table shapes the check reads |
 | 2 | [Principles](#2-principles) | How the product's tie-breakers are written |
 | 3 | [Tokens and roles](#3-tokens-and-roles) | Naming by role, primitives, one owner per value |
-| 4 | [Colour](#4-colour) | Kinds, pairs, states, solid surfaces, status hues, icons |
+| 4 | [Colour](#4-colour) | Kinds, pairs, states, solid surfaces, status hues, icons; the panel a device draws on |
 | 5 | [Themes](#5-themes) | Complete themes, dark ordering, re-chosen accents, the first frame |
 | 6 | [Type](#6-type) | A scale by role, weights that hold across states, numbers, fonts |
 | 7 | [Space, size and stability](#7-space-size-and-stability) | The spacing scale, targets, reserved boxes, states that keep size |
@@ -29,7 +37,7 @@ it. The product's own values and choices live in its `DESIGN.md`, cited `DESIGN 
 | 12 | [Motion tokens](#12-motion-tokens) | Durations, easings and the feedback ladder as tokens |
 | 13 | [Components and states](#13-components-and-states) | Reuse, states, the four states of a data view |
 | 14 | [Exceptions](#14-exceptions) | A value off the scale, registered with its reason |
-| 15 | [Tokens in code](#15-tokens-in-code) | Carrying the brief to the web, iOS and Android |
+| 15 | [Tokens in code](#15-tokens-in-code) | Carrying the brief to the web, iOS, Android and an embedded device (ESP-IDF, LVGL) |
 | 16 | [The checks](#16-the-checks) | What the scripts prove, and what is left to read |
 
 ---
@@ -53,7 +61,8 @@ how to work in the repo, this one is what the product should look and feel like.
   adds a `Kind` column and one column per theme (`| Token | Kind | Light | Dark | Use |`); the pairs table is
   `| Foreground | Background | Floor | <Theme> | … |`.
 - **Write each colour as hex in the token tables** — the value the checks measure. A product that authors in another
-  space (OKLCH, a palette tool) keeps its source there and writes the resulting hex here.
+  space (OKLCH, a palette tool) keeps its source there and writes the resulting hex here. The token files spell it
+  the platform's way (§15).
 - **The numbers in this table are the starter's**; a product's brief may number its sections otherwise, and the
   checks read the table shapes, never the numbers. Skills cite a section by what it holds.
 - **Number every section and never renumber** — skills, rubrics and code comments cite `DESIGN §n`.
@@ -109,9 +118,19 @@ theme.**
 - **Status hues stay apart from the accent** — when success shares the accent's hue, "the primary action" and "it
   worked" look alike; words and icons still carry the meaning (WCAG 1.4.1).
 - **Icons take the text role they sit with**, so they follow the theme (web: `currentColor`; iOS: template rendering;
-  Android: tint from the theme).
+  Android: tint from the theme; Embedded (ESP-IDF, LVGL): a symbol-font icon takes the label's `text_color`, an
+  image icon `image_recolor` at full `image_recolor_opa`).
 - **A hover colour may be derived while drafting** (mixing the base with the surface), but the result is written as
   the role's value, so the check can measure it.
+- **When the product ships on one known panel, the brief names it and its values are chosen for it.** A browser or a
+  phone shows the product on many screens; a device shows it on one, and the panel changes what a value looks like.
+
+| Embedded (ESP-IDF, LVGL): the panel | What the brief decides |
+| --- | --- |
+| Colour depth | The depth the display is driven at (`LV_COLOR_DEPTH`; `LV_COLOR_FORMAT_DEFAULT` in LVGL releases after 9.5). At 16-bit RGB565, LVGL keeps the top 5 bits of red and blue and 6 of green, so each value moves by up to 7 levels per channel, a grey takes a green or magenta tint (`#767676` paints `#737573`), and near-black surface steps can merge `[D]`. Surface steps stay far enough apart to survive it; a pair near its floor is measured again on the painted value, which moves a ratio by about 0.1 `[D]` |
+| AMOLED | A black pixel is unlit: it draws no current and shows true black, so the dark canvas is `#000000` and every raised surface a lighter step (§5). A static, bright element — a status bar, a logo, a clock face — ages its pixels unevenly (burn-in): the brief keeps static elements dim, moves or dims them over time, and names when the screen sleeps |
+| LCD | The backlight lights every pixel, so black is a dark grey, saves no power, and a dark canvas gains nothing over a near-black one; viewing angle shifts contrast, so pairs keep margin above their floors |
+| Brightness | A brightness setting scales every colour; the brief names the lowest level the product allows, and the darkest surface steps and the `non-text` pairs are checked on the device at that level, where an AMOLED panel crushes near-black steps together |
 
 ## 5. Themes
 
@@ -127,6 +146,13 @@ theme.**
   match (web: `color-scheme`; iOS: the interface style; Android: the DayNight theme).
 - **The right theme is on the first frame, and switching themes is one change, not every colour animating at its own
   pace** — a flash of the wrong theme reads as broken (MDN, `prefers-color-scheme`).
+- **Embedded (ESP-IDF, LVGL): there is no system appearance to follow or declare.** A theme is a product setting,
+  stored on the device (in NVS) and read before the first screen is built; the display stays dark until that first
+  frame is drawn. Switching restyles at run time: the shared `lv_style_t`s take the other theme's values and
+  `lv_obj_report_style_change(NULL)` redraws every object that uses them, or the LVGL theme is initialised again
+  (`lv_theme_default_init(…, dark, …)` restyles the display it is given). A single-theme device writes one column.
+- **Embedded (ESP-IDF, LVGL): on an AMOLED panel, dark is often the product's only theme** — black pixels draw no
+  current and do not heat the panel, so a light theme costs battery and age (§4, the panel table).
 
 ## 6. Type
 
@@ -138,9 +164,23 @@ theme.**
 - **A role's weight is the same in every state**: hover, pressed and selected never change it, since a heavier weight
   is a wider word and the layout moves.
 - **Numbers that update use tabular figures** (web: `font-variant-numeric: tabular-nums`; SwiftUI:
-  `monospacedDigit()`; Android: the `tnum` font feature), so a counter or a timer does not jitter.
-- **A web font is loaded so it does not shift the layout**: only the weights used, the first view's fonts first, and a
-  fallback with matched metrics (web.dev, "Best practices for fonts"; MDN, `size-adjust`).
+  `monospacedDigit()`; Android: the `tnum` font feature; Embedded (ESP-IDF, LVGL): a compiled font carries the
+  face's default digits, so choose a face whose default digits share one width, or give each digit a fixed box), so a
+  counter or a timer does not jitter.
+- **Web: a web font is loaded so it does not shift the layout**: only the weights used, the first view's fonts first,
+  and a fallback with matched metrics (web.dev, "Best practices for fonts"; MDN, `size-adjust`).
+- **Embedded (ESP-IDF, LVGL): the type scale is the list of fonts compiled into the firmware.** LVGL's built-in
+  engine draws a font converted ahead of time (`lv_font_conv`) to C arrays at one size and one bit depth, kept in
+  flash, so each role's size and weight is its own font (`text.title` → a 28 px semibold font) and every font costs
+  flash. The brief lists each compiled font beside its role: face, size, weight, bits per pixel (4 for smooth edges
+  on a colour panel, 1 for a monochrome one), and the glyph ranges it holds.
+- **Embedded (ESP-IDF, LVGL): a compiled font holds only the glyphs it was given** — the ranges and symbols the
+  converter took — and a missing glyph draws as a box (`LV_USE_FONT_PLACEHOLDER`) or nothing, unless the font's
+  `fallback` font has it. Every string the product shows, in every language it ships, is drawn from the fonts'
+  ranges; the brief names them.
+- **Embedded (ESP-IDF, LVGL): the person's text size is a product setting, if the product has one** — a choice
+  between compiled sets of fonts, or a run-time engine (`tiny_ttf`, FreeType) that renders any size at a cost in RAM
+  and time. With no setting, the scale is sized for the panel's density and viewing distance.
 
 ## 7. Space, size and stability
 
@@ -154,6 +194,9 @@ theme.**
   Shift").
 - **A state change never changes a size** — a label that swaps to "Saving…" keeps its control's width; a selected
   row keeps its height.
+- **Embedded (ESP-IDF, LVGL): a pixel is the panel's own pixel**, at a density the brief knows — there is no CSS
+  pixel, point or dp in between. The brief records the panel's resolution and density, and sets `size.target` and
+  the type scale from physical size (millimetres at that density) and the viewing distance, then writes them in px.
 
 ## 8. Radius
 
@@ -192,6 +235,10 @@ levels; a line that carries meaning stays a border.**
 - **These shadow rules are written web-first; the intent carries to every platform** — a ladder of levels, one light
   direction, a visible edge in dark. Android draws elevation from one value per level and iOS sets a layer's shadow,
   so each level maps to the platform's own way of drawing it.
+- **Embedded (ESP-IDF, LVGL): depth is a surface step and an edge before it is a shadow.** A shadow costs frame time
+  (what it costs: `MOTION §7.1`), and on a black AMOLED canvas a dark shadow cannot read at all. The elevation ladder
+  on a device is surface steps and a faint edge; a shadow level is allowed only where the panel was measured to hold
+  its frame rate with it.
 - **All shadows share one light direction**, the same offset sign on every level.
 - **An interactive raised surface changes only its elevation on hover or press**, and only that property animates.
 - **In dark, every raised surface's edge stays visible** — by a lighter surface, a faint light edge, or both — checked
@@ -207,6 +254,10 @@ levels; a line that carries meaning stays a border.**
 - **Name each layer by what sits there** — raised content, sticky headers, menus, the scrim, overlays (sheets and
   dialogs), toasts, tooltips — and fix their order once: does a toast sit above an open dialog?
 - **Overlays render at the top level of the screen**, not inside a parent that clips them (MDN, stacking context).
+- **Embedded (ESP-IDF, LVGL): there is no z-index; order is the object tree.** A child draws over its parent and
+  over the siblings created before it; `lv_obj_move_to_index` reorders siblings. The screen's layers set the rest:
+  the active screen, then `lv_layer_top()` for overlays that outlive a screen change (dialogs, toasts), then
+  `lv_layer_sys()` above everything. The brief's named order says which parent or layer each one is created on.
 - **A stress walk proves the order**: a dialog, a menu inside it, a tooltip inside that, and a toast, all open at
   once; nothing covers what it should not, and focus is never hidden (WCAG 2.4.11).
 
@@ -225,6 +276,14 @@ levels; a line that carries meaning stays a border.**
 - **A translucent glass material only where real content moves behind it** — blur over a flat colour costs
   rendering and says nothing (Apple HIG, materials). Its role is `exempt`, so the check does not pair it; the text on
   it is measured by hand at its worst point.
+- **Embedded (ESP-IDF, LVGL): a gradient bands at 16-bit colour, and LVGL 9's software renderer does not dither it.**
+  RGB565 has 32 levels of red and blue and 64 of green, so a wide gradient shows steps, worst in dark, slow ramps.
+  Keep a gradient's lightness span short, or draw it as an image dithered when it is made; check it on the panel, as
+  a computer screen at 24-bit hides the bands. A gradient takes at most `LV_GRADIENT_MAX_STOPS` stops (2 unless
+  raised, each extra stop costing RAM), interpolates in RGB, and an angled, radial or conic one needs
+  `LV_USE_DRAW_SW_COMPLEX_GRADIENTS`.
+- **Embedded (ESP-IDF, LVGL): a gradient, a fade or a blur is allowed only where the panel was measured to hold its
+  frame rate with it** — what each costs a frame is `MOTION §7.1`'s.
 
 ## 12. Motion tokens
 
@@ -236,6 +295,10 @@ levels; a line that carries meaning stays a border.**
 - **How each surface enters and leaves** — menu, dialog, sheet, toast — is a table in the brief, so every build of it
   moves the same way.
 - **Reduced motion is decided in the brief**: what a move becomes, and what keeps moving (the `accessibility` skill).
+- **Embedded (ESP-IDF, LVGL): an easing token is a path callback.** A duration is a millisecond constant; a named
+  easing maps to `lv_anim_path_ease_out` and its siblings, or a `cubic-bezier()` value to
+  `lv_anim_path_custom_bezier3` with `lv_anim_set_bezier3_param` (its points scaled by `LV_BEZIER_VAL_FLOAT`), so a
+  device and a web build of the same token move alike.
 
 ## 13. Components and states
 
@@ -250,12 +313,21 @@ levels; a line that carries meaning stays a border.**
   messages).
 - **Loading keeps the shape of what is coming** — a placeholder in the loaded geometry, an action's wait inside its
   control, a refresh that keeps the old content (Nielsen Norman Group, "Skeleton Screens 101").
+- **Embedded (ESP-IDF, LVGL): a component is a set of shared styles and one function that builds the widget.** The
+  styles (`lv_style_t`, initialised once from the tokens) carry the looks; the function creates the LVGL widget and
+  adds them with `lv_obj_add_style(obj, &style, selector)`, one per state — `LV_STATE_PRESSED`, `LV_STATE_FOCUSED`,
+  `LV_STATE_CHECKED` for selected, `LV_STATE_DISABLED` — so every instance takes each state from the same tokens,
+  and a screen restyles none of them with its own `lv_obj_set_style_*` calls. The token header holds values and
+  styles only; the builders sit in a widgets module above it, so a colour change never changes a widget tree. A
+  touch-only device has no hover state (`LV_STATE_HOVERED` needs a pointer); a device driven by a knob or keys has
+  focus.
 
 ## 14. Exceptions
 
 **A value off the scale is allowed only with its row in the brief's exceptions: the value, where, and why.**
 
-- **The code line carries `token-exception`** in a comment, so the token check skips it and a reader finds the row.
+- **The code line carries `token-exception`** in a comment (`/* token-exception */`, `// token-exception` in C and
+  C++), so the token check skips it and a reader finds the row.
 - **A computed value is not an exception** — a nested radius from the rule in §8, a hover colour written as a role.
 - **An exception that spreads to a second screen becomes a token.**
 
@@ -269,12 +341,22 @@ step by hand.**
 | Web | CSS custom properties, one block per theme (`:root`, `[data-theme="dark"]`, `prefers-color-scheme`) | `--color-text-secondary` |
 | iOS | An asset catalog colour set with Any and Dark appearances; a Swift extension for the rest | `colorTextSecondary` / `Color.textSecondary` |
 | Android | Theme attributes and `values/` + `values-night/` resources; a Compose theme object | `color_text_secondary` / `textSecondary` |
+| Embedded (ESP-IDF, LVGL) | A C or C++ header of `constexpr` values named by role (`static const` or `#define` in C), with the shared `lv_style_t`s built from them once at start and the compiled fonts declared (`LV_FONT_DECLARE`); one value set per theme | `kColorTextSecondary` = `0x6B7280`, painted as `lv_color_hex(kColorTextSecondary)` |
 | Any | A token file in the W3C Design Tokens Community Group format, built to each platform by a tool such as Style Dictionary | `color.text.secondary` |
 
 - **Name a code token after its role** — the design check matches any spelling of the same words, so
-  `--color-text-secondary` matches `color.text.secondary`, and `--fg-2` does not.
+  `--color-text-secondary`, `colorTextSecondary` and `kColorTextSecondary` match `color.text.secondary`, and `--fg-2`
+  does not.
+- **Write each colour with the brief's exact digits in the platform's spelling** — `#6B7280` in CSS, `0x6B7280` in C
+  and C++ (any case, an integer suffix allowed); the design check accepts both and no other number (D3).
 - **A value in code that the brief does not have is drift** — fix the copy that is not the brief.
 - **A screen reads tokens, never the primitive ramp or a literal.**
+- **Embedded (ESP-IDF, LVGL): a theme is a second set of the same constants, chosen at run time** — a struct of role
+  values per theme, or one array per role indexed by theme, so restyling (§5) swaps the set and rebuilds the styles
+  from it. Both sets live in the token header, so the design check finds every theme's value.
+- **Embedded (ESP-IDF, LVGL): a translucent role keeps the brief's eight digits in one constant** (`0x00000066` for
+  `#00000066`, read as RRGGBBAA), split where it is painted into the colour (`lv_color_hex(c >> 8)`) and the opacity
+  (`(lv_opa_t)(c & 0xFF)`), since LVGL takes the two apart.
 
 ## 16. The checks
 
@@ -284,12 +366,14 @@ step by hand.**
 | --- | --- |
 | D1 | A contrast pair under its floor, written with a floor under its kind's, or on a translucent background |
 | D2 | A ratio written wrong, or a pair naming an unknown role |
-| D3 | A token the brief names, or a colour value it gives, missing from the token files |
+| D3 | A token the brief names, or a colour value it gives, missing from the token files — a colour matched in CSS or C spelling (§15) |
 | D4 | A pair the kinds call for with no row |
 | D5 | A colour with a value in one theme and none in another |
 | D6 | A translucent surface or fill |
-| T1 | A colour literal in a UI file outside the token files |
+| T1 | A colour literal in a UI file outside the token files; in C and C++, only a number in a colour's place — LVGL's colour constructors and palette, a colour-named call, a label recolour — outside comments, and never an address or a register value |
 
+- **Both scripts say how many files they read**, and a run that read none says so, so a pass is never an empty one.
 - **What no script reads**: a spacing, size, radius, shadow or duration literal in a screen; a depth cue stacked on
-  another; a dark overlay whose edge disappears; a state that changes a size. A reviewer reads every number in a
-  changed style.
+  another; a dark overlay whose edge disappears; a state that changes a size; on a device, a font that is not in the
+  brief's compiled list, banding in a gradient, and a value that the panel's colour depth paints differently. A
+  reviewer reads every number in a changed style, and the panel shows the rest.

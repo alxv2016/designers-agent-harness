@@ -303,11 +303,12 @@ def check_harness(run_dir: Path) -> dict:
 def check_design(run_dir: Path) -> dict:
     """DESIGN.md against its contrast floors and the token files; then no colour literal in a UI file."""
     results = [sh([sys.executable, DESIGN_CHECK], run_dir / "design.brief.log"),
-               sh([sys.executable, DESIGN_CHECK, "--test"], run_dir / "design.selftest.log")]
-    if project.TOKEN_FILES:
-        results.append(sh([sys.executable, TOKEN_CHECK], run_dir / "design.tokens.log"))
+               sh([sys.executable, DESIGN_CHECK, "--test"], run_dir / "design.selftest.log"),
+               sh([sys.executable, TOKEN_CHECK, "--test"], run_dir / "design.tokens.selftest.log")]
+    ui = sh([sys.executable, TOKEN_CHECK], run_dir / "design.tokens.log") if project.TOKEN_FILES else None
+    results += [ui] if ui else []
     ok = all(code == 0 for code, _ in results)
-    return {"ok": ok, "detail": f"{project.DESIGN_FILE} and the tokens {'at baseline' if ok else 'over a baseline'}",
+    return {"ok": ok, "detail": ui_detail(f"{project.DESIGN_FILE}, the tokens", ok, ui and ui[1]),
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
@@ -321,14 +322,26 @@ def project_check(name: str):
     return run
 
 
+READ_NOTHING = re.compile(r"NOTHING CHECKED|nothing was checked|read no (?:UI )?files?", re.I)
+
+
+def ui_detail(what: str, ok: bool, out: str | None) -> str:
+    """A UI check's line in the run: a pass over no files says so, rather than "at baseline" — the paths may name
+    nothing the check reads (a firmware project's UI_PATHS before its C/C++ folders are listed)."""
+    said = next((ln.strip() for ln in (out or "").splitlines() if READ_NOTHING.search(ln)), None)
+    if ok and said:
+        return f"{what}: self-tests pass, but the UI run read no file — {said}"
+    return f"{what} and the UI {'at baseline' if ok else 'over a baseline'}"
+
+
 def check_a11y(run_dir: Path) -> dict:
     """The accessibility scripts' self-tests; then the UI files against the accessibility patterns."""
     results = [sh([sys.executable, f"{A11Y_SCRIPTS}/contrast.py", "--test"], run_dir / "a11y.contrast.log"),
                sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py", "--test"], run_dir / "a11y.selftest.log")]
-    if project.UI_PATHS:
-        results.append(sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py"], run_dir / "a11y.ui.log"))
+    ui = sh([sys.executable, f"{A11Y_SCRIPTS}/a11y_check.py"], run_dir / "a11y.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
     ok = all(code == 0 for code, _ in results)
-    return {"ok": ok, "detail": f"the accessibility scripts and the UI {'at baseline' if ok else 'over a baseline'}",
+    return {"ok": ok, "detail": ui_detail("the accessibility scripts", ok, ui and ui[1]),
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
@@ -339,10 +352,10 @@ MOTION_CHECK = f"{MOTION_SKILL}scripts/motion_check.py"
 def check_motion(run_dir: Path) -> dict:
     """The motion check's self-test; then the UI files against the motion patterns."""
     results = [sh([sys.executable, MOTION_CHECK, "--test"], run_dir / "motion.selftest.log")]
-    if project.UI_PATHS:
-        results.append(sh([sys.executable, MOTION_CHECK], run_dir / "motion.ui.log"))
+    ui = sh([sys.executable, MOTION_CHECK], run_dir / "motion.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
     ok = all(code == 0 for code, _ in results)
-    return {"ok": ok, "detail": f"the motion check and the UI {'at baseline' if ok else 'over a baseline'}",
+    return {"ok": ok, "detail": ui_detail("the motion check", ok, ui and ui[1]),
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
@@ -353,10 +366,10 @@ TOUCH_CHECK = f"{TOUCH_SKILL}scripts/touch_check.py"
 def check_touch(run_dir: Path) -> dict:
     """The touch check's self-test; then the UI files against the touch patterns."""
     results = [sh([sys.executable, TOUCH_CHECK, "--test"], run_dir / "touch.selftest.log")]
-    if project.UI_PATHS:
-        results.append(sh([sys.executable, TOUCH_CHECK], run_dir / "touch.ui.log"))
+    ui = sh([sys.executable, TOUCH_CHECK], run_dir / "touch.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
     ok = all(code == 0 for code, _ in results)
-    return {"ok": ok, "detail": f"the touch check and the UI {'at baseline' if ok else 'over a baseline'}",
+    return {"ok": ok, "detail": ui_detail("the touch check", ok, ui and ui[1]),
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
