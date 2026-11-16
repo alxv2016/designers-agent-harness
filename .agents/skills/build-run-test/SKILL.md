@@ -1,6 +1,8 @@
 ---
 name: build-run-test
 description: Builds, runs, tests and screenshots this project, and takes evidence from the target — the install, the dev server or simulator, the build through the quiet wrapper (quiet.py prints the result and the errors, not the log), the tests, screenshots at the sizes that matter, and what may run on the target without asking. Use when building, starting the app, running tests, taking a screenshot, setting up a fresh clone, or when the build or the app will not start.
+metadata:
+  scope: project
 ---
 
 # Build, run and test

@@ -1,6 +1,8 @@
 ---
 name: ui-designer
 description: Designs, builds and reviews UI through three gates, carried in the skill (references/gates.md) — a draft the person says yes to before any code (a mock at the target's real sizes in the project's tokens, with its values file, component list, states, focus order and accessibility decisions; a motion study; a gesture spec and prototype), the screen built from the draft's values and shown beside it, then the person's sign-off on the target — with each yes recorded against the file it names, by verify.py in the agent-harness kit or by hand without it, and the review of a UI change in a fixed order, accessibility first. Reads the project's own DESIGN.md and applies the accessibility, design-system, motion and touch-and-gesture skills. Portable — the folder works in any repo. Read first for any UI work. Use when designing, adding, changing or reviewing a screen, component, style, icon, animation, gesture or piece of copy, drawing a mock, turning a design file into code, before committing UI work, or when asked "is this screen right?".
+metadata:
+  scope: portable
 ---
 
 # UI designer — the three gates

@@ -52,18 +52,20 @@ and the code: find out which is intended before changing either
 ## Skills
 
 A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. Read the one the task matches first.
+Scope is `portable`, `kit` or `project`
+([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
 
-| Skill | Use when |
-| --- | --- |
-| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block |
-| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a draft, the built screen beside it, the target — and the review of a UI change |
-| [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements |
-| [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks |
-| [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion |
-| [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec and the device walk |
-| [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start |
-| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks |
-| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit |
+| Skill | Use when | Scope |
+| --- | --- | --- |
+| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block | `kit` |
+| [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a draft, the built screen beside it, the target — and the review of a UI change | `portable` |
+| [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements | `portable` |
+| [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks | `portable` |
+| [`motion`](.agents/skills/motion/SKILL.md) | Anything that moves: whether and how, the motion brief, debugging and reviewing motion | `portable` |
+| [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec and the device walk | `portable` |
+| [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
+| [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks | `portable` |
+| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `kit` |
 
 ---
 
@@ -71,14 +73,14 @@ A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. 
 
 An agent is a focused role with its own prompt in [.agents/agents/](.agents/agents/); reviewers are read-only.
 
-| Agent | Role |
-| --- | --- |
-| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review |
-| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite |
-| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules |
-| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) |
-| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw |
-| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer |
+| Agent | Role | Scope |
+| --- | --- | --- |
+| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review | `kit` |
+| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `kit` |
+| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `kit` |
+| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `kit` |
+| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `kit` |
+| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer | `kit` |
 
 ---
 

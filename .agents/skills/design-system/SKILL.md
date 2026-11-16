@@ -1,6 +1,8 @@
 ---
 name: design-system
 description: The project's design system, decided in DESIGN.md at the repo root — its principles, and every token (colour, type, space, radius, elevation, layers, motion, layout) by semantic role with a value per theme — and carried into code by the token files. Carries how a brief is written (references/brief.md — roles, colour kinds and pairs, complete themes and dark ordering, type that holds across states, layout stability, radius, surfaces and elevation, layers, decoration, motion tokens, components and their states, exceptions, tokens on the web, iOS and Android) and a starter DESIGN.md that passes the checks. Screens take values from tokens by role, never as literals; themes are a second set of values for the same roles; components are reused before new ones are made; exceptions are registered with their reason. Owns the design check (DESIGN.md's contrast pairs against their floors, its ratios, every pair its kinds call for, a value in every theme, solid surfaces, its tokens present in code) and the token check (a colour literal in a UI file). Portable — the folder works in any repo. Use when reading or changing DESIGN.md, adding or changing a token, a theme, a component or a style, when a screen needs a value the scale does not have, when setting up DESIGN.md for a new project, when moving a design file's styles into code, or when the design check fails.
+metadata:
+  scope: portable
 ---
 
 # Design system

@@ -1,6 +1,8 @@
 ---
 name: accessibility
 description: The accessibility floors every screen meets, from WCAG 2.2 AA, carried in the skill (references/criteria.md) with how to meet and test each on the web, iOS and Android — text contrast 4.5:1 and 3:1 for large text and non-text measured against the colour actually painted, with contrast.py; colour never the only signal; text that resizes and reflows; names, roles and labels; keyboard access, focus order, visible focus, modals and hidden content; target size; a plain alternative to every gesture and drag, actions on release, hover never the only path; tooltips that can be dismissed and hovered; time limits, autoplay, flashing and reduced motion on each platform; forms, errors and status messages; the walks the person does on the target; and a11y_check.py for the patterns code can show. Portable — the folder works in any repo. Use when designing or reviewing a screen, picking a colour pair, putting text or an icon over a fill or an image, making a control, a form, a gesture, a tooltip or an animation, or asked "is this accessible?" or "does this pass contrast?".
+metadata:
+  scope: portable
 ---
 
 # Accessibility

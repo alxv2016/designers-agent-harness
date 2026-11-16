@@ -1,6 +1,8 @@
 ---
 name: touch-and-gesture
 description: How touch input, gestures, scroll-linked motion and mobile layout are specified, built, reviewed and checked so they feel direct and never fight the platform, carried in the skill (references/touch.md) — what follows a drag and catching a moving object; the platform's movement tolerance, axis lock, claiming only one axis, a sheet that hands off with its list; deciding on release by distance or speed, resistance past a limit, what cancels on touch; the platform's sheets, swipe actions, long press, hold to confirm, reorder, pull to refresh and pinch, screen edges left to the system; the pressed state on touch, delays in scrolling lists, tap highlight, hover on hybrid devices, haptics; scroll-triggered against scroll-driven motion and never taking over scrolling; the visible area, safe areas, the on-screen keyboard, field keyboards, back closing the top layer, bottom navigation; the gesture spec, the prototype on the device, the device walk and the review of a gesture change; plus touch_check.py for the patterns code can show. Builds on the accessibility skill's input floors and the motion skill's easing and interruption. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when designing, building or reviewing a drag, swipe, sheet, long press, reorder, pull to refresh or pinch, a pressed state, a scroll-linked effect, a full-height or keyboard-heavy mobile screen, or when a gesture lags, jumps, fights scrolling or closes by accident.
+metadata:
+  scope: portable
 ---
 
 # Touch and gesture

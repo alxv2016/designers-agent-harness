@@ -416,20 +416,25 @@ skill.>
 The template ships nine skills. Eight are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
-| Skill | Role | Owns | Generic |
+**Scope** is each skill's and agent's `metadata: scope:` label: `portable` — the folder works copied into any repo on
+its own, takes every value from that project's files and links nothing outside itself; `kit` — generic, but needs
+the kit around it (`verify.py`, the rubrics, the settings file); `project` — filled in for one project. `verify.py
+run` fails a skill or agent with no scope, and a portable skill that links out of its folder.
+
+| Skill | Role | Owns | Scope |
 | --- | --- | --- | --- |
-| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | Yes — the project's lists are in `project.py` |
-| `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | Yes — and portable: the folder works in any repo |
-| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | Yes — the convention changes |
-| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md` | Yes, for any project with an interface — and portable: the folder works in any repo with the skills it applies |
-| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | Yes — and portable: the folder works in any repo |
-| `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | Yes — and portable: the folder works in any repo; `DESIGN.md` and the token files are the project's |
-| `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | Yes — and portable: the folder works in any repo; the values are the project's DESIGN.md |
-| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `touch_check.py` | Yes — and portable: the folder works in any repo; the values are the project's DESIGN.md |
-| `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | No — filled in per project |
-| `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | No — added when needed |
-| `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | No — added when needed |
-| `config-rules` | Build and runtime settings: defaults against generated files, coupled settings, debug switches | Grep checks | No — added when needed |
+| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | `kit` — generic; the project's lists are in `project.py` |
+| `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | `portable` — the folder works in any repo |
+| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | `kit` — generic; the convention changes |
+| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
+| `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
+| `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
+| `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
+| `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
+| `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
+| `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
+| `config-rules` | Build and runtime settings: defaults against generated files, coupled settings, debug switches | Grep checks | `project` — added when needed |
 
 Each skill must hold the following:
 
@@ -529,15 +534,15 @@ You are the <role> for <project>.
 
 ### 8.2 The harness's agents
 
-| Agent | Kind | Called when — only judges are in `verify.py`'s judge table | Generic |
+| Agent | Kind | Called when — only judges are in `verify.py`'s judge table | Scope |
 | --- | --- | --- | --- |
-| `code-reviewer` | Judge | The code changes | The frame is; the rules it applies are the project's docs |
-| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | Yes |
-| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | Yes, for any project with an interface |
-| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | Yes |
-| `target-runner` | Runner | The change needs the target | The frame is; the steps are `build-run-test`'s |
-| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | Yes |
-| Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | No |
+| `code-reviewer` | Judge | The code changes | `kit` — the frame is generic; the rules it applies are the project's docs |
+| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `kit` |
+| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `kit` — for any project with an interface |
+| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `kit` |
+| `target-runner` | Runner | The change needs the target | `kit` — the frame is generic; the steps are `build-run-test`'s |
+| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `kit` |
+| Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
 
 What each one does:
 
@@ -769,6 +774,7 @@ file.
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
+| The skills and agents | `scope` — every skill and agent carries its scope label; a portable skill links nothing outside its folder | — |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 

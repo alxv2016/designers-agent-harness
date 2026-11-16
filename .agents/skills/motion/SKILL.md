@@ -1,6 +1,8 @@
 ---
 name: motion
 description: How motion in a product is decided, drafted, built, debugged and reviewed, carried in the skill (references/motion.md) — whether to animate at all (frequency, purpose, budget, keyboard changes land at once), choosing a curve by the journey and a duration by size and distance, nothing growing from nothing, growing from the trigger and leaving the way it came, one clock per object and short ordered staggers, retargeting from where it is, springs and direct manipulation, cheap properties and the frame budget, the reduced variant of every move, the motion brief interview before a motion study, the debugging loop from symptom to cause, the review of a motion change, and a glossary; plus motion_check.py for the patterns code can show. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when deciding whether or how something should move, drafting a motion study, building or fixing a transition, an animation, a hover or press state, a stagger, a spring or a drag hand-off, when motion feels slow, cheap, janky or jumps, when reviewing a motion change, or asked "what's it called when…".
+metadata:
+  scope: portable
 ---
 
 # Motion

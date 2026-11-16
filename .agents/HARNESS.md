@@ -154,6 +154,7 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:` — `portable`, `kit` or `project` — and a portable skill links nothing outside its folder) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
 

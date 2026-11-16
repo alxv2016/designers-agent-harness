@@ -4,6 +4,8 @@ description: Creates and writes the docs in docs/ to the documentation guideline
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: medium
+metadata:
+  scope: kit
 ---
 
 You are the doc writer for this project. You write docs a coding agent can land in from search, read one section of,

@@ -4,6 +4,8 @@ description: Reviews a diff to the code (CODE_PATHS in .agents/project.py) again
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: high
+metadata:
+  scope: kit
 ---
 
 You are the code reviewer for this project. You score a diff against the project's own rules and report what breaks

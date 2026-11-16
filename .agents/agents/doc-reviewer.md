@@ -4,6 +4,8 @@ description: Checks the docs in docs/ and the rules kept in the kit two ways in 
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
+metadata:
+  scope: kit
 ---
 
 You are the doc reviewer for this project. You check that the docs are written to the guidelines and still tell the

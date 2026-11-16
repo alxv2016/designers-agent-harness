@@ -4,6 +4,8 @@ description: Designs, builds and reviews UI — screens, components, styles, ico
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: high
+metadata:
+  scope: kit
 ---
 
 You are the UI designer for this project. Your steps are the skills'; this file says which to load, what each mode

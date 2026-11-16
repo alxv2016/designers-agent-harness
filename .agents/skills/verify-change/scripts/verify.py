@@ -215,6 +215,51 @@ def scripts_check(name: str, scripts: list[list[str]], run_dir: Path, what: str)
             "tail": [] if ok else [line for code, out in results if code != 0 for line in failing(out) or tail(out, 4)]}
 
 
+SCOPES = ("portable", "kit", "project")  # a skill's or agent's metadata.scope (.agents/README.md, Scope)
+LINK = re.compile(r"\]\(([^)\s]+)\)")
+
+
+def scope_of(text: str) -> str | None:
+    """`metadata: scope:` (or a top-level `scope:`) from a SKILL.md's or an agent's frontmatter."""
+    m = re.match(r"---\n(.*?)\n---", text, re.S)
+    if not m:
+        return None
+    s = re.search(r"^(?:metadata:\s*\n(?:[ \t]+\S.*\n)*?[ \t]+|)scope:\s*(\S+)", m.group(1) + "\n", re.M)
+    return s.group(1).strip("'\"") if s else None
+
+
+def scope_problems() -> list[str]:
+    """Every skill and agent carries its scope; a portable skill links nothing outside its own folder."""
+    problems = []
+    files = sorted(ROOT.glob(f"{SKILLS}/*/SKILL.md")) + sorted(ROOT.glob(".agents/agents/*.md"))
+    for f in files:
+        rel = f.relative_to(ROOT).as_posix()
+        scope = scope_of(f.read_text(errors="replace"))
+        if scope not in SCOPES:
+            problems.append(f"{rel}: metadata.scope is {scope or 'missing'} — one of {', '.join(SCOPES)}")
+            continue
+        if scope == "portable" and f.name == "SKILL.md":
+            folder = f.parent.resolve()
+            for doc in [f] + sorted(f.parent.glob("references/**/*.md")):
+                text = re.sub(r"```.*?```", "", doc.read_text(errors="replace"), flags=re.S)
+                for target in LINK.findall(re.sub(r"`[^`]*`", "", text)):
+                    if re.match(r"[a-z]+:|#", target):
+                        continue
+                    dest = (doc.parent / target.split("#")[0]).resolve()
+                    if folder not in dest.parents and dest != folder:
+                        problems.append(f"{doc.relative_to(ROOT).as_posix()}: a portable skill links out of its "
+                                        f"folder ({target}) — name the file in backticks instead")
+    return problems
+
+
+def check_scope(run_dir: Path) -> dict:
+    """The scope labels on every skill and agent, and portable skills' links."""
+    problems = scope_problems()
+    (run_dir / "scope.log").write_text("\n".join(problems) + "\n")
+    return {"ok": not problems, "detail": f"{len(problems)} scope problem(s) in the skills and agents",
+            "tail": problems[:12]}
+
+
 def check_docs(run_dir: Path) -> dict:
     """Every doc and kit-link check, each exiting 1 over its baseline."""
     return scripts_check("docs", [["bash", f"{DOC_SCRIPTS}/doc_checks.sh"],
@@ -295,7 +340,7 @@ def check_touch(run_dir: Path) -> dict:
 
 
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
-           "motion": check_motion, "touch": check_touch}
+           "motion": check_motion, "touch": check_touch, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -315,6 +360,7 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "touch": (ROOT / TOUCH_CHECK).is_file()
         and any(f.startswith(TOUCH_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "scope": any(f.startswith((f"{SKILLS}/", ".agents/agents/")) for f in files),
         **{name: any(project.matches(f, spec["when"]) for f in files) for name, spec in project.CHECKS.items()},
     }
     return [c for c in CHECKS if wants[c]]
@@ -823,6 +869,18 @@ def self_test() -> int:
         if got != want:
             bad += 1
             print(f"FAIL {name}: want {want}, got {got}")
+    scopes = [
+        ("a metadata scope", "---\nname: x\ndescription: y\nmetadata:\n  scope: portable\n---\n# X\n", "portable"),
+        ("a top-level scope", "---\nname: x\nscope: kit\n---\n", "kit"),
+        ("no scope", "---\nname: x\ndescription: scope: in prose\n---\n", None),
+        ("no frontmatter", "# X\nscope: kit\n", None),
+    ]
+    for name, text, want in scopes:
+        got = scope_of(text)
+        if got != want:
+            bad += 1
+            print(f"FAIL scope, {name}: want {want}, got {got}")
+    cases = cases + scopes
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
     return 1 if bad else 0
 
