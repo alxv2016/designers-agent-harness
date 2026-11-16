@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
 metadata:
-  scope: kit
+  scope: project
 ---
 
 You are the open-items curator for this project.

@@ -416,17 +416,21 @@ skill.>
 The template ships nine skills. Eight are generic and copy across almost unchanged; `build-run-test` is filled in from
 the project. A project adds its own domain skills as the code grows.
 
-**Scope** is each skill's and agent's `metadata: scope:` label: `portable` — the folder works copied into any repo on
-its own, takes every value from that project's files and links nothing outside itself; `kit` — generic, but needs
-the kit around it (`verify.py`, the rubrics, the settings file); `project` — filled in for one project. `verify.py
-run` fails a skill or agent with no scope, and a portable skill that links out of its folder.
+**Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
+folder on its own, taking every value from that project's files and linking nothing outside itself; an agent's file
+in the project's agents folder (`.claude/agents/`) with the portable skills it names in `metadata.requires`, using
+`verify.py` when the kit is there and recording by hand when it is not. `project` — it belongs to this repo: it needs
+the kit around it (`verify.py`, the rubrics, the settings file) or is filled in for this project. `verify.py run`
+fails a skill or agent with no scope or an unknown one; a portable skill whose `SKILL.md` or references link out of
+its folder; and a portable agent with no `metadata.requires`, with a required skill that is missing or not portable,
+or with a link to a file.
 
 | Skill | Role | Owns | Scope |
 | --- | --- | --- | --- |
-| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | `kit` — generic; the project's lists are in `project.py` |
+| `verify-change` | The loop: start, draft approvals, run, judges, the target, sign-off, findings, finish | `verify.py` (§10) | `project` — needs the kit; the project's lists are in `project.py` |
 | `docs-authoring-and-sync` | The documentation guidelines, carried in the skill; creating a doc from its type's template; keeping docs true; rewriting without loss; the doc lint | `references/guidelines.md`, `references/templates/`, `new_doc.py`, doc lint, anchor and citation check, link check | `portable` — the folder works in any repo |
-| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | `kit` — generic; the convention changes |
-| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
+| `commit-message` | The commit convention; an honest verification line; commit only when asked | Subject-shape greps | `project` — the convention is this repo's |
+| `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md`, `references/rubric.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
@@ -454,7 +458,8 @@ Each skill must hold the following:
 - **`commit-message`**: the subject shape, per-area bullets, a `Docs:` bullet naming each doc § changed, a
   verification line that claims only what ran and what the person approved, the coding tool's trailer, and "commit
   only when asked".
-- **`ui-designer`**: the gates themselves, in `references/gates.md`, so the folder is portable; the project's
+- **`ui-designer`**: the gates themselves, in `references/gates.md`, and the review rubric, in `references/rubric.md`,
+  so the folder is portable; the project's
   `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; each yes recorded against its
   file — by `verify.py` in the kit, by hand without it; the draft's values file and "build from it unchanged"; the
   review of a UI change in a fixed order, accessibility first.
@@ -500,6 +505,9 @@ description: <What it checks or does, naming the files in scope>. Use when <trig
 tools: Read, Grep, Glob, Bash
 model: <haiku | sonnet | opus>
 effort: <low | medium | high>
+metadata:
+  scope: <portable | project>
+  requires: [<skill>, …]   # a portable agent only: the portable skills it loads
 ---
 
 You are the <role> for <project>.
@@ -525,6 +533,8 @@ You are the <role> for <project>.
   guard keep it from writing.
 - **Keep the items in the rubric, not in the agent.** The agent's steps map one-to-one to R-items, and learned items
   go only in the rubric. The agent file then stays stable, and the rubric's history shows what the harness learned.
+  A portable judge's items travel with its skill (the `ui-designer`'s in `ui-designer/references/rubric.md`); its file
+  in `.agents/rubrics/` holds what this project learned.
 - **Fix the output format.** The loop records verdicts by agent name, and the person compares runs.
 - **A runner reports and never fixes.** Feature work, doc edits and commits stay with the coordinating agent.
 - **A builder stops at each gate its work has.** A builder of what the person must like — a screen, motion, copy —
@@ -536,12 +546,12 @@ You are the <role> for <project>.
 
 | Agent | Kind | Called when — only judges are in `verify.py`'s judge table | Scope |
 | --- | --- | --- | --- |
-| `code-reviewer` | Judge | The code changes | `kit` — the frame is generic; the rules it applies are the project's docs |
-| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `kit` |
-| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `kit` — for any project with an interface |
-| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `kit` |
-| `target-runner` | Runner | The change needs the target | `kit` — the frame is generic; the steps are `build-run-test`'s |
-| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `kit` |
+| `code-reviewer` | Judge | The code changes | `project` — the rules it applies are the project's docs and rubrics |
+| `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `project` |
+| `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `portable` — with its five skills; its rubric travels in the `ui-designer` skill |
+| `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
+| `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
+| `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
 | Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
 
 What each one does:
@@ -774,7 +784,7 @@ file.
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
-| The skills and agents | `scope` — every skill and agent carries its scope label; a portable skill links nothing outside its folder | — |
+| The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
 | `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 

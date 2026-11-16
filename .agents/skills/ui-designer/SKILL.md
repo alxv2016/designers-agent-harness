@@ -135,7 +135,9 @@ Input: a described screen, component or flow. Everything here is written in the 
 ### Review a UI change (read-only)
 
 Input: a diff — `git diff`, `git diff <base>...HEAD` — or the paths given. Read every changed UI file in full, and the
-record of yeses first (in the kit, `V status`): the person's approvals and decisions are settled, never blocking.
+record of yeses first (in the kit, `V status`): the person's approvals and decisions are settled, never blocking. Score
+each step against [references/rubric.md](references/rubric.md) (UI_REVIEW_RUBRIC) and the project's learned items, and
+return its report.
 
 1. **Run the script checks** (Checks, below) on the changed UI files; a hit is a finding only on an added or changed
    line.
@@ -190,6 +192,7 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 | Topic | Where |
 | --- | --- |
 | The gates, the yes, the record, drafting, building, the target, review | [references/gates.md](references/gates.md) |
+| How a review is scored: verdict, evidence, R1–R17, the report | [references/rubric.md](references/rubric.md) |
 | Principles, tokens, contrast pairs, components | The project's `DESIGN.md` |
 | Contrast, focus, target size, input | The `accessibility` skill |
 | Tokens, components, exceptions | The `design-system` skill |

@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
 metadata:
-  scope: kit
+  scope: project
 ---
 
 You are the doc reviewer for this project. You check that the docs are written to the guidelines and still tell the

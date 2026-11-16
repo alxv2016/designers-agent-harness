@@ -52,12 +52,12 @@ and the code: find out which is intended before changing either
 ## Skills
 
 A skill is a folder with a `SKILL.md` — its rules, steps, checks and sources. Read the one the task matches first.
-Scope is `portable`, `kit` or `project`
+Scope is `portable` or `project`
 ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
 
 | Skill | Use when | Scope |
 | --- | --- | --- |
-| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block | `kit` |
+| [`verify-change`](.agents/skills/verify-change/SKILL.md) | Every change, first edit to hand-over: the checks, the judges, the person's approvals, the target, the Verified block | `project` |
 | [`ui-designer`](.agents/skills/ui-designer/SKILL.md) | **Read first for any UI work.** The three gates — a draft, the built screen beside it, the target — and the review of a UI change | `portable` |
 | [`accessibility`](.agents/skills/accessibility/SKILL.md) | The WCAG 2.2 AA floors, carried in the skill: contrast against what is painted, focus and keyboard, names, target size, alternatives to gestures and hover, reduced motion, announcements | `portable` |
 | [`design-system`](.agents/skills/design-system/SKILL.md) | DESIGN.md: principles, tokens by role, themes, surfaces, layers, components, exceptions; a starter brief; the design and token checks | `portable` |
@@ -65,7 +65,7 @@ Scope is `portable`, `kit` or `project`
 | [`touch-and-gesture`](.agents/skills/touch-and-gesture/SKILL.md) | Gestures, touch feedback, scroll-linked motion and mobile layout; the gesture spec and the device walk | `portable` |
 | [`build-run-test`](.agents/skills/build-run-test/SKILL.md) | Building, running, testing, screenshots, a fresh clone, an app that will not start | `project` |
 | [`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md) | Creating a doc, any doc change, or code a doc describes; carries the documentation guidelines, the doc templates and the doc checks | `portable` |
-| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `kit` |
+| [`commit-message`](.agents/skills/commit-message/SKILL.md) | Writing a commit | `project` |
 
 ---
 
@@ -75,12 +75,12 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 
 | Agent | Role | Scope |
 | --- | --- | --- |
-| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review | `kit` |
-| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `kit` |
-| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `kit` |
-| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `kit` |
-| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `kit` |
-| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer | `kit` |
+| [`ui-designer`](.agents/agents/ui-designer.md) | Designs, builds and reviews UI through the three gates; modes mock, build and review | `portable` |
+| [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `portable` |
+| [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
+| [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `project` |
+| [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `project` |
+| [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer | `project` |
 
 ---
 
@@ -165,6 +165,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified and walked on a device — generic, any project; kept in the touch-and-gesture skill so it travels with it |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
+| [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored, one item per rule — generic, any project; kept in the ui-designer skill so it travels with it |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
 

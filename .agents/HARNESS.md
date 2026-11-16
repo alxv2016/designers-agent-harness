@@ -154,7 +154,7 @@ What would put a secret in the chat (AGENTS.md → Safety):
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `motion` skill | `motion` (the motion check's self-test; the motion check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
-| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:` — `portable`, `kit` or `project` — and a portable skill links nothing outside its folder) | — |
+| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
 
@@ -163,7 +163,8 @@ What would put a secret in the chat (AGENTS.md → Safety):
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
   reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
 - **Three failures in a row — runs or blocking reviews — exit 3.**
-- **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md`: the Verdict rule, the evidence each result
+- **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
+  `references/rubric.md` plus the items learned here, in its file: the Verdict rule, the evidence each result
   needs (a result without evidence is unsure), R-items one per step of its Procedure, and the items learned since. Its
   report opens with `Verdict: pass | blocking`; `review` records that word.
 

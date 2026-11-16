@@ -215,7 +215,7 @@ def scripts_check(name: str, scripts: list[list[str]], run_dir: Path, what: str)
             "tail": [] if ok else [line for code, out in results if code != 0 for line in failing(out) or tail(out, 4)]}
 
 
-SCOPES = ("portable", "kit", "project")  # a skill's or agent's metadata.scope (.agents/README.md, Scope)
+SCOPES = ("portable", "project")  # a skill's or agent's metadata.scope (AGENT_HARNESS §7.3)
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 
 
@@ -228,16 +228,37 @@ def scope_of(text: str) -> str | None:
     return s.group(1).strip("'\"") if s else None
 
 
+def requires_of(text: str) -> list[str]:
+    """`metadata: requires: [a, b]` from an agent's frontmatter — the skills a portable agent needs."""
+    m = re.match(r"---\n(.*?)\n---", text, re.S)
+    r = re.search(r"^[ \t]+requires:\s*\[([^\]]*)\]", m.group(1), re.M) if m else None
+    return [s.strip().strip("'\"") for s in r.group(1).split(",") if s.strip()] if r else []
+
+
 def scope_problems() -> list[str]:
-    """Every skill and agent carries its scope; a portable skill links nothing outside its own folder."""
+    """Every skill and agent carries its scope; a portable skill links nothing outside its own folder; a portable
+    agent names the skills it needs, and each is present and portable."""
     problems = []
     files = sorted(ROOT.glob(f"{SKILLS}/*/SKILL.md")) + sorted(ROOT.glob(".agents/agents/*.md"))
+    scopes = {f.parent.name: scope_of(f.read_text(errors="replace")) for f in ROOT.glob(f"{SKILLS}/*/SKILL.md")}
     for f in files:
         rel = f.relative_to(ROOT).as_posix()
-        scope = scope_of(f.read_text(errors="replace"))
+        text = f.read_text(errors="replace")
+        scope = scope_of(text)
         if scope not in SCOPES:
             problems.append(f"{rel}: metadata.scope is {scope or 'missing'} — one of {', '.join(SCOPES)}")
             continue
+        if scope == "portable" and f.name != "SKILL.md":
+            needs = requires_of(text)
+            if not needs:
+                problems.append(f"{rel}: a portable agent names the skills it needs in metadata.requires")
+            for skill in needs:
+                if scopes.get(skill) != "portable":
+                    problems.append(f"{rel}: requires {skill}, which is "
+                                    f"{'missing' if skill not in scopes else 'not portable'}")
+            for target in LINK.findall(re.sub(r"`[^`]*`", "", text)):
+                if not re.match(r"[a-z]+:|#", target):
+                    problems.append(f"{rel}: a portable agent links to a file ({target}) — name it in backticks")
         if scope == "portable" and f.name == "SKILL.md":
             folder = f.parent.resolve()
             for doc in [f] + sorted(f.parent.glob("references/**/*.md")):
@@ -871,7 +892,7 @@ def self_test() -> int:
             print(f"FAIL {name}: want {want}, got {got}")
     scopes = [
         ("a metadata scope", "---\nname: x\ndescription: y\nmetadata:\n  scope: portable\n---\n# X\n", "portable"),
-        ("a top-level scope", "---\nname: x\nscope: kit\n---\n", "kit"),
+        ("a top-level scope", "---\nname: x\nscope: project\n---\n", "project"),
         ("no scope", "---\nname: x\ndescription: scope: in prose\n---\n", None),
         ("no frontmatter", "# X\nscope: kit\n", None),
     ]
@@ -880,7 +901,11 @@ def self_test() -> int:
         if got != want:
             bad += 1
             print(f"FAIL scope, {name}: want {want}, got {got}")
-    cases = cases + scopes
+    needs = requires_of("---\nname: a\nmetadata:\n  scope: portable\n  requires: [ui-designer, 'motion']\n---\n")
+    if needs != ["ui-designer", "motion"]:
+        bad += 1
+        print(f"FAIL requires: want ['ui-designer', 'motion'], got {needs}")
+    cases = cases + scopes + [("requires", "", "")]
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
     return 1 if bad else 0
 

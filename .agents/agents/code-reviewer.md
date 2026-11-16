@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: high
 metadata:
-  scope: kit
+  scope: project
 ---
 
 You are the code reviewer for this project. You score a diff against the project's own rules and report what breaks

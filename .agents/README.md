@@ -15,10 +15,11 @@ guarded, checked and judged. Where this page and one of them disagree, they win 
 - **An agent is a focused role with its own session** — a file in `agents/` that names the skills it loads, the tools
   it may use, the model and effort it runs on, and what it returns. The main session hands it a task and gets back its
   report. Builders make things; reviewers judge a diff, read-only; runners operate the target.
-- **Every skill and agent carries a scope** — `portable`, `kit` or `project`, in its frontmatter and in the tables
+- **Every skill and agent carries a scope** — `portable` or `project`, in its frontmatter and in the tables
   below; what each means, and the check that holds them, is
   [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills).
-- **A reviewer scores against its rubric** — a file in `rubrics/`, one item per step of its review, plus items learned
+- **A reviewer scores against its rubric** — a file in `rubrics/` (the `ui-designer`'s items travel in its
+  skill, `references/rubric.md`; its file here holds what this project learned), one item per step of its review, plus items learned
   from what the person found on the target. It opens its report with `Verdict: pass | blocking`.
 - **Skills act on principles and industry standards, and adapt to any project** — WCAG, the platforms' design
   guidelines, MDN, published research. A design skill carries that knowledge in its `references/`, links nothing outside
@@ -76,10 +77,10 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 
 | Skill | What it is for | Loaded by | Scope |
 | --- | --- | --- | --- |
-| [`verify-change`](skills/verify-change/SKILL.md) | The loop every change runs: `verify.py` picks the checks and reviewers, records the person's approvals and the target, and refuses a hand-over while anything is open | Every session; the reviewers | `kit` |
+| [`verify-change`](skills/verify-change/SKILL.md) | The loop every change runs: `verify.py` picks the checks and reviewers, records the person's approvals and the target, and refuses a hand-over while anything is open | Every session; the reviewers | `project` |
 | [`build-run-test`](skills/build-run-test/SKILL.md) | Building, running, testing, screenshots; a fresh clone — filled in per project | `target-runner`, `ui-designer` | `project` |
 | [`docs-authoring-and-sync`](skills/docs-authoring-and-sync/SKILL.md) | Creating docs, writing them and keeping them true to the code. Portable: it carries the documentation guidelines (`references/guidelines.md`), a template per doc type, the scaffolder (`new_doc.py`) and the doc checks | `doc-writer`, `doc-reviewer`, `open-items-curator` | `portable` |
-| [`commit-message`](skills/commit-message/SKILL.md) | The repo's commit format, and stating honestly what was verified | — (loaded by task) | `kit` |
+| [`commit-message`](skills/commit-message/SKILL.md) | The repo's commit format, and stating honestly what was verified | — (loaded by task) | `project` |
 
 ### Design
 
@@ -97,8 +98,8 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 
 | Agent | What it is for | Modes | Model / effort | Scope |
 | --- | --- | --- | --- | --- |
-| [`ui-designer`](agents/ui-designer.md) | Screens, components, styles, motion and copy through the three gates, from DESIGN.md, accessibility first | mock, build, review | sonnet / high | `kit` |
-| [`doc-writer`](agents/doc-writer.md) | Docs in `docs/`: a new doc scaffolded for its type, a new section, a rewrite — from verified facts and the person's answers | outline, write, rewrite | sonnet / medium | `kit` |
+| [`ui-designer`](agents/ui-designer.md) | Screens, components, styles, motion and copy through the three gates, from DESIGN.md, accessibility first | mock, build, review | sonnet / high | `portable` |
+| [`doc-writer`](agents/doc-writer.md) | Docs in `docs/`: a new doc scaffolded for its type, a new section, a rewrite — from verified facts and the person's answers | outline, write, rewrite | sonnet / medium | `portable` |
 
 ### Reviewers — read-only; each scores a diff against its rubric and returns a verdict
 
@@ -106,16 +107,16 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 
 | Agent | What it reviews | Model / effort | Scope |
 | --- | --- | --- | --- |
-| [`code-reviewer`](agents/code-reviewer.md) | The code: correctness, the project's rules, coupled changes, what must never ship, docs in the same change | sonnet / high | `kit` |
-| [`doc-reviewer`](agents/doc-reviewer.md) | The docs: form against the guidelines, truth against the code | sonnet / medium | `kit` |
-| [`ui-designer`](agents/ui-designer.md) | UI and DESIGN.md, in review mode: the gates, accessibility, principles, tokens, components | sonnet / high | `kit` |
+| [`code-reviewer`](agents/code-reviewer.md) | The code: correctness, the project's rules, coupled changes, what must never ship, docs in the same change | sonnet / high | `project` |
+| [`doc-reviewer`](agents/doc-reviewer.md) | The docs: form against the guidelines, truth against the code | sonnet / medium | `project` |
+| [`ui-designer`](agents/ui-designer.md) | UI and DESIGN.md, in review mode: the gates, accessibility, principles, tokens, components | sonnet / high | `portable` |
 
 ### Runners — they operate the target, or tend the open items
 
 | Agent | What it is for | Model / effort | Scope |
 | --- | --- | --- | --- |
-| [`target-runner`](agents/target-runner.md) | Builds, runs the change on the target, takes screenshots and logs, and reports what it saw | haiku / low | `kit` |
-| [`open-items-curator`](agents/open-items-curator.md) | Matches the docs' open items against new results and proposes closing the answered ones; edits nothing | sonnet / medium | `kit` |
+| [`target-runner`](agents/target-runner.md) | Builds, runs the change on the target, takes screenshots and logs, and reports what it saw | haiku / low | `project` |
+| [`open-items-curator`](agents/open-items-curator.md) | Matches the docs' open items against new results and proposes closing the answered ones; edits nothing | sonnet / medium | `project` |
 
 Why each runs on the model it does: [HARNESS.md](HARNESS.md) §8.
 

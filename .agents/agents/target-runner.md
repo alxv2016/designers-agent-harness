@@ -6,7 +6,7 @@ model: haiku
 effort: low
 maxTurns: 30
 metadata:
-  scope: kit
+  scope: project
 ---
 
 You are the target runner for this project. You run the change where it finally runs and report what you saw. The

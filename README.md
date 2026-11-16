@@ -117,6 +117,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [DESIGN](DESIGN.md) | The product's design brief — principles and tokens. A demo until you write yours; AGENT_HARNESS §23 explains how agents use it |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept, from token roles to surfaces, layers and tokens in code. Generic: any project, any stack |
+| [UI_REVIEW_RUBRIC](.agents/skills/ui-designer/references/rubric.md) | How a UI change is scored: the verdict, the evidence, one item per rule the review checks. Generic: any project, any stack |
 | [DESIGN_GATES](.agents/skills/ui-designer/references/gates.md) | How UI work reaches the person: a draft they approve, the build beside it, their sign-off on the target, and how each yes is recorded. Generic: any project, any stack |
 | [TOUCH](.agents/skills/touch-and-gesture/references/touch.md) | How touch, gestures, scroll-linked motion and mobile layout are specified, built and walked on a device. Generic: any project, any stack |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed, with a glossary. Generic: any project, any stack |

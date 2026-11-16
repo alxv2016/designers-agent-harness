@@ -2,7 +2,7 @@
 name: verify-change
 description: Runs a change through the harness loop from first edit to hand-over — verify.py start, run (it picks the checks the touched files need — the project's build, tests and lint, the doc lint and links, the design check of DESIGN.md and the token files, the accessibility, motion and touch checks of the UI files, the guard's self-tests — runs them in parallel, and stops after 3 failed attempts in a row), the judges it names recorded with review, the person's yes to a mock, a motion study or the built screen recorded with approve and the file's hash, the target recorded with target and the person's sign-off on it, every lesson routed with finding, and finish, the hand-over gate that drafts the Verified block. Use when starting a code, design, doc or kit change, before handing one over or committing, when a check keeps failing, when the person approves a draft or reports what they saw on the target, or when the agent learns something worth keeping.
 metadata:
-  scope: kit
+  scope: project
 ---
 
 # Verify a change
@@ -54,7 +54,8 @@ flowchart TD
    (AGENT_HARNESS §1, Do 6).
 4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
    verdict is a failed attempt; a pass stands until that judge's own files change — ask again only the judges
-   `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` and opens its report with
+   `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its
+   skill's `references/rubric.md`, its learned ones in that file) and opens its report with
    `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    mock|motion|copy` the moment they give it, naming the file.** After the build, their yes on the built screen beside
