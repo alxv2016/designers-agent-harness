@@ -56,7 +56,9 @@ The project's docs win over the skills; report a disagreement, never resolve it 
 Mock mode draws gate 1's whole draft — the mock, and with it any motion study and gesture spec; the mode keeps its
 name because callers ask for it by that name.
 
-Input: a described screen, component or flow. Follow `ui-designer` → Gate 1, writing the draft and its values in a
+Input: a described screen, component or flow — and, for a new flow, feature or screen, the UX brief the person
+approved (from the `ux-designer` agent), whose flow, states and behaviour the draft follows. Follow
+`ui-designer` → Gate 1, writing the draft and its values in a
 scratch folder, never the repo. Return:
 
 1. **Surface**, and why.

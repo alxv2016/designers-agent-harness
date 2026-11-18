@@ -58,7 +58,8 @@ flowchart TD
    skill's `references/rubric.md`, its learned ones in that file) and opens its report with
    `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
-   mock|motion|copy` the moment they give it, naming the file.** After the build, their yes on the built screen beside
+   ux|mock|motion|copy` the moment they give it, naming the file** — `ux` for a UX brief, which comes before the
+   mock for a new flow (the `ux-designer` skill). After the build, their yes on the built screen beside
    the mock is `--kind built`; after it runs on the target, their sign-off is `verify.py signoff "<what they judged>"`
    in their words. A change with no visible effect needs their word instead: `verify.py decision "no visible change:
    <why>"`; a design they handed over: `verify.py decision "design given: <where>"` (HARNESS §9; AGENT_HARNESS §20).

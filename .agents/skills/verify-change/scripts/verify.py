@@ -7,7 +7,7 @@ docs/AGENT_HARNESS.md §10).
     verify.py start "<task>"          # a new task: state reset, the last one kept in history/
     verify.py run [--only docs,harness,design,<the project's checks>]
     verify.py review <judge> pass|blocking [--note TEXT]
-    verify.py approve <file> --kind mock|motion|copy|built [--note TEXT]   # the person's yes, naming the file
+    verify.py approve <file> --kind ux|mock|motion|copy|built [--note TEXT]   # the person's yes, naming the file
     verify.py decision "<what the person decided>"   # settled for this task: the judges read it in `status`
     verify.py target --where "<where it ran>" --build "<which build>" [--health-exit N] [--note TEXT]
     verify.py signoff "<what the person judged on the target>"   # their yes on the target, in their words
@@ -58,9 +58,10 @@ A11Y_SKILL = f"{SKILLS}/accessibility/"
 A11Y_SCRIPTS = f"{A11Y_SKILL}scripts"
 HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py", ".agents/skills/verify-change/scripts/verify.py")
 ROUTES = ["test", "rubric", "guard", "skill", "doc", "open-item", "none"]
-KINDS_BEFORE = ("mock", "motion", "copy")  # a draft, approved before the build
+KINDS_BEFORE = ("ux", "mock", "motion", "copy")  # a draft, approved before the build; `ux` is the UX brief
 KINDS_AFTER = ("built",)                   # the built thing beside its draft, approved after
-KIND_NAMES = {"mock": "mock", "motion": "motion study", "copy": "copy", "built": "built screen beside its mock"}
+KIND_NAMES = {"ux": "UX brief", "mock": "mock", "motion": "motion study", "copy": "copy",
+              "built": "built screen beside its mock"}
 # The person's word that waives a gate: no visible change waives them all; a design they gave waives the draft.
 NO_VISIBLE_CHANGE = "no visible change"
 DESIGN_GIVEN = "design given"
@@ -547,7 +548,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     gated = [what for what, paths, kinds in project.GATES if paths and set(kinds) & set(KINDS_BEFORE)]
     if gated:
         print(f"a visible change ({', '.join(gated)}) starts with a draft and the person's yes on it — "
-              "verify.py approve <file> --kind mock|motion|copy, before the first edit")
+              "verify.py approve <file> --kind ux|mock|motion|copy, before the first edit")
     return 0
 
 
