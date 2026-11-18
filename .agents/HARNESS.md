@@ -182,6 +182,7 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `typography` skill | `typography` (the typography check's self-test; the typography check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` (the setup script's self-test; the layering rules W1–W5 in a React and Vite app — a `package.json` with React beside a `vite.config`) | `code-reviewer` for code |
+| The `ux-designer` skill | `scope`, and the doc checks of its references — no script reads an experience | `ux-designer` in review mode, when asked |
 | `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
@@ -284,6 +285,7 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 
 | Point | What the person does | How it is recorded |
 | --- | --- | --- |
+| A new flow, feature or screen | Says yes to its UX brief — the task, the flow, the states and the behaviour — before its mock is drafted (the `ux-designer` skill) | `approve <flow>_ux<n>.md --kind ux` — recorded, and required only where `GATES` lists `ux` |
 | A screen, component or style | Says yes to its mock before it is built, then to the built screen beside the mock | `verify.py approve <png> --kind mock`; then `--kind built`, held against the code as it was at the yes |
 | A design token or principle in `DESIGN.md` | Says yes to a specimen — swatches, the type scale, screens before and after — before the token files change | `approve <png> --kind mock` |
 | A motion or a transition | Says yes to its motion study (a GIF or video at real speed) before it is built | `approve <gif> --kind motion` |

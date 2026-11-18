@@ -413,7 +413,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships fifteen skills. Fourteen are generic and copy across almost unchanged; `build-run-test` is filled
+The template ships sixteen skills. Fifteen are generic and copy across almost unchanged; `build-run-test` is filled
 in from the project. A project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
@@ -425,10 +425,11 @@ fails a skill or agent with no scope or an unknown one; a portable skill whose `
 its folder; and a portable agent with no `metadata.requires`, with a required skill that is missing or not portable,
 or with a link to a file.
 
-**Platforms.** The design skills — `ui-designer`, `accessibility`, `design-system`, `layout`, `typography`,
-`motion`, `touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen. Each states a
-principle once, in platform-neutral words, and labels the guidance that differs **Web**, **iOS**, **Android** or
-**Embedded (ESP-IDF, LVGL)**; their checks read web, native and C/C++ files, and say so when a run read no UI file.
+**Platforms.** The design skills — `ui-designer`, `ux-designer`, `accessibility`, `design-system`, `layout`,
+`typography`, `motion`, `touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen.
+Each states a principle once, in platform-neutral words, and labels the guidance that differs **Web**, **iOS**,
+**Android** or **Embedded (ESP-IDF, LVGL)**; their checks read web, native and C/C++ files, and say so when a run read
+no UI file.
 
 | Skill | Role | Owns | Scope |
 | --- | --- | --- | --- |
@@ -440,6 +441,7 @@ principle once, in platform-neutral words, and labels the guidance that differs 
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
 | `layout` | How screens are laid out and adapt: Bootstrap's breakpoint tiers on the window's width, the scaffold's regions, navigation and panes by tier, grids, containers, margins, spacing, density, content width, what survives a resize, watches and round or small panels; the layout spec and the review of layout — carried in the skill | `references/layout.md`, `layout_check.py` | `portable` — the folder works in any repo; the tiers are Bootstrap's and every other value the project's DESIGN.md |
 | `typography` | How type is applied from the project's own scale: six roles and what each is for, hierarchy, families and pairing, line height and spacing, the measure and alignment, emphasis, numbers, editorial treatments, text that scales, watches and compiled fonts; the type spec and the review of type — carried in the skill | `references/typography.md`, `typography_check.py` | `portable` — the folder works in any repo; the scale is the project's DESIGN.md |
+| `ux-designer` | How an experience works: people, tasks, flows, structure, interaction models, states and errors, from the principles of HCI — the heuristics, golden rules, ISO 9241-110, Norman's principles, the seven stages and gulfs, mental models, every law on Laws of UX — and its research and evaluation methods; the UX brief before the mock, and the review of an experience — carried in the skill | `references/hci.md`, `references/methods.md`, `references/rubric.md`, the UX brief template | `portable` — the folder works in any repo |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `references/feedback.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
@@ -488,6 +490,9 @@ Each skill must hold the following:
 - **`typography`**: the principles of applying type in `references/typography.md`, so the folder is portable; every
   text by role from the project's scale, never a size of its own; the type spec in the draft; the screen read at its
   largest text size handed to the person; the typography check.
+- **`ux-designer`**: the principles, models and laws in `references/hci.md` and the methods in `references/methods.md`,
+  so the folder is portable; the UX brief, approved by the person before the `ui-designer` drafts a new flow's screen;
+  every decision and finding citing its principle; claims about people labelled research or assumption; no script.
 - **`motion`**: the principles of motion in `references/motion.md`, so the folder is portable; "decide whether it
   moves before how"; the motion brief before a study; the debugging loop; the review categories with accessibility
   first; the motion check; values always from the project's own DESIGN.md.
@@ -580,6 +585,7 @@ You are the <role> for <project>.
 | `doc-reviewer` | Judge | Docs, the README, the kit, or code a doc describes change | `project` |
 | `ui-designer` | Builder, and a judge in review mode | `DESIGN.md`, `UI_PATHS` or the token files change | `portable` — with its six skills; its rubric travels in the `ui-designer` skill |
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
+| `ux-designer` | Builder of UX briefs and research plans, and a reviewer of experiences | A new flow, feature or screen is framed, research is planned, or an experience is reviewed — when asked | `portable` — with the `ux-designer`, `accessibility` and `ux-content` skills; its rubric travels in the skill, its learned items in `.agents/rubrics/ux-designer.md` |
 | `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
@@ -603,6 +609,10 @@ What each one does:
   with its values file and stops for the yes; in build mode, builds from the approved values, shows the built screen
   beside the draft, and stops again; in review mode, scores a UI change — the gates' yeses, accessibility, tokens,
   components, motion, gestures — read-only.
+- **`ux-designer`**: in frame mode, writes the UX brief — people, tasks, the flow, structure, interaction model, states,
+  errors, the principle behind each decision — in the scratchpad and stops for the yes; in research mode, plans a study
+  and analyses what the person brings back, never contacting people; in review mode, walks the top tasks and scores the
+  experience X1–X14, read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -783,7 +793,7 @@ flowchart TD
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts failures, names the judges to ask |
 | `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict counts as a failed attempt |
-| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`mock`, `motion`, `copy`) or the built thing (`built`) |
+| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`) or the built thing (`built`) |
 | `decision "<text>"` | Records the person's word for this task; judges read it in `status` and do not block on it |
 | `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code |
 | `signoff "<text>"` | Records the person's yes on the target, in their words; refuses when nothing ran there or the code changed since |
@@ -1154,7 +1164,7 @@ rules its judges score — almost all of it in one settings file.
 | `verify.py` | All of it | Nothing — its lists are in the settings file |
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
 | `untrusted.py`, `pre-commit` | All of it | Nothing |
-| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `layout`, `typography`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
+| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `ux-designer`, `accessibility`, `design-system`, `layout`, `typography`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
 | Agents | `doc-writer`, `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
 | Rubrics | The verdict and evidence rules | The items, as the project's rules grow |
 | Adapters | All of it | A Read deny per secret file; the Codex network list from `ALLOWED_HOSTS` |
@@ -1409,6 +1419,7 @@ reasons before it answers.
 | Search and exploration | `haiku` | `low` | Finds code and returns a conclusion |
 | Docs research | `haiku`; `sonnet` where sources conflict | `low` or `medium` | Fetches and condenses |
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
+| `ux-designer` (builder and reviewer) | `sonnet`; `opus` for a new product's flows | `high` | Reasons about people and tasks against named principles; the brief template and the rubric carry the structure |
 | `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
@@ -1574,7 +1585,8 @@ A UI skill or agent carries the gates in its own steps, so no session skips them
 
 A screen, component or style passes three gates — a draft, the built screen beside it, the target — each its own step
 with its own yes; the gates themselves are the `ui-designer` skill's (DESIGN_GATES §1). The harness records them:
-gate 1's yes with `approve --kind mock|motion|copy`, gate 2's with `approve --kind built`, gate 3's with `signoff`.
+gate 1's yes with `approve --kind mock|motion|copy`
+— after a UX brief's with `--kind ux` for a new flow — gate 2's with `approve --kind built`, gate 3's with `signoff`.
 
 - **The gates' paths live in the settings file** (`GATES`: by default the UI paths, with a mock and a built yes, and
   `DESIGN.md` with the token files, with a specimen's yes), so `finish` knows which changes need which yes.

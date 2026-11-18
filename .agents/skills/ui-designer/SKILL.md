@@ -94,8 +94,9 @@ starts at gate 2 — record "design given: <where>" (`V decision "design given: 
 
 Input: a described screen, component or flow. Everything here is written in the scratchpad.
 
-1. **Read what exists** — DESIGN.md's principles, tokens and components, the screens nearby; a screenshot of the
-   screen as it is today when it is a change.
+1. **Read what exists** — the approved UX brief for a new flow, feature or screen (the `ux-designer` skill), whose
+   flow, states and behaviour the draft follows; DESIGN.md's principles, tokens and components, the screens nearby; a
+   screenshot of the screen as it is today when it is a change.
 2. **Choose the surface and each control by what it does** — a screen, a sheet, a dialog, a toast; a typed value is an
    input, a choice of few is a segmented control or radio, an action that cannot be undone asks for a confirmation.
 3. **List the components top to bottom** — each element's component from DESIGN.md's components (existing ones first),
@@ -207,6 +208,7 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 | Topic | Where |
 | --- | --- |
 | The gates, the yes, the record, drafting, building, the target, review | [references/gates.md](references/gates.md) |
+| How the experience works — the UX brief, flows, states, the laws of UX | The `ux-designer` skill |
 | How a review is scored: verdict, evidence, R1–R20, the report | [references/rubric.md](references/rubric.md) |
 | Principles, tokens, contrast pairs, components | The project's `DESIGN.md` |
 | Contrast, focus, target size, input | The `accessibility` skill |

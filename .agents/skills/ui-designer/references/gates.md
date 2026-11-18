@@ -17,7 +17,7 @@ motion and touch come from the `accessibility`, `design-system`, `layout`, `typo
 
 | § | Section | Look here for |
 | --- | --- | --- |
-| 1 | [The three gates](#1-the-three-gates) | What each gate settles, its artifact, when it passes, where an answer goes back to |
+| 1 | [The three gates](#1-the-three-gates) | What each gate settles, its artifact, when it passes, where an answer goes back to; the UX brief before them |
 | 2 | [The person's yes](#2-the-persons-yes) | What approves and what never does; the kinds of draft; a design handed over |
 | 3 | [Recording a yes](#3-recording-a-yes) | With the kit, and by hand without it; checking the record before the hand-over |
 | 4 | [The draft](#4-the-draft) | Where and how a draft is made; the values file beside it |
@@ -42,6 +42,9 @@ the target.**
 - **Each answer goes back to the gate that owns it** — what it should look like or say to gate 1; a logic, layout or
   focus fault to gate 2; feel and the real device to gate 3. A change from the target never goes straight into code.
 - **A design the person handed over starts at gate 2** — it is the approved draft.
+- **A new flow, feature or screen starts with a UX brief** — the task, the flow, the states and the behaviour, approved
+  by the person before gate 1 (the `ux-designer` skill); the draft follows it, and a change to how it works is a new
+  brief. A change to how an existing screen looks starts at gate 1.
 - **A token or a principle in the design brief is a draft too** — a specimen of the old and new values on the screens
   that use them, approved before the brief or the token files change.
 
@@ -65,6 +68,7 @@ is visible.**
 
 | Event | With the agent-harness kit | Without it |
 | --- | --- | --- |
+| A yes on a UX brief | `verify.py approve <flow>_ux<n>.md --kind ux` | A line in the change's record: the brief's path, `shasum -a 256 <file>`, the kind, the person's words, the time |
 | A yes on a draft | `verify.py approve <file> --kind mock\|motion\|copy` | A line in the change's record: the file's path, `shasum -a 256 <file>`, the kind, the person's words, the time |
 | A yes on the built screen | `verify.py approve <side-by-side> --kind built` | The same, for the side-by-side, with the commit or the working tree it showed |
 | A gesture prototype | `verify.py decision "gesture prototype approved on device: <screen> — <their words>"` | The same words in the record |
