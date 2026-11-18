@@ -672,6 +672,8 @@ CASES = [
     ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
     ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
     ("python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test", None),
+    ("python3 .agents/skills/layout/scripts/layout_check.py --test", None),
+    ("python3 .agents/skills/typography/scripts/typography_check.py --test", None),
     ("cat > .agents/skills/zz-new/SKILL.md <<'EOF'\nx\nEOF", "ask"),  # a new skill from the shell: the scope question
     ("sed -Ei 's/a/b/' .agents/project.py", "ask"),
     ("sed -i.bak 's/a/b/' .agents/project.py", "ask"),

@@ -138,7 +138,7 @@ non-text `[SPEC]` (WCAG 1.4.3, 1.4.11). Run the design check and write the ratio
 | `space.xs` | 4 px | Icon to its label |
 | `space.sm` | 8 px | Inside a control; between related lines |
 | `space.md` | 12 px | Between controls in a group |
-| `space.lg` | 16 px | Screen edge on compact; inside a card |
+| `space.lg` | 16 px | Screen edge below `breakpoint.sm`; inside a card |
 | `space.xl` | 24 px | Between groups |
 | `size.target` | 44 px | The smallest hit area of any control, drawn or padded |
 
@@ -186,10 +186,17 @@ non-text `[SPEC]` (WCAG 1.4.3, 1.4.11). Run the design check and write the ratio
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `breakpoint.medium` | 600 px | From here: two columns where content allows |
+| `breakpoint.sm` | 576 px | From here: wider margins; still one column |
+| `breakpoint.md` | 768 px | From here: navigation at the side; two columns where content allows |
+| `breakpoint.lg` | 992 px | From here: two panes where the content has them |
+| `breakpoint.xl` | 1200 px | From here: content held to the container's cap |
+| `breakpoint.xxl` | 1400 px | From here: a third pane where the content has one; otherwise wider margins |
 
-- **Mocks are drawn at the sizes the product ships** — on a screen that resizes, one compact and one expanded, plus
-  320 px wide for reflow; on a device's fixed panel, its one resolution, and no breakpoint token.
+- **The tiers are Bootstrap's, written mobile first** — each applies from its width up; "below a tier" is 0.02 px
+  under it on the web (`767.98px`).
+- **Mocks are drawn at the sizes the product ships** — on a screen that resizes, each tier where the layout changes,
+  plus 320 px wide for reflow; on a device's fixed panel, its one resolution in each rotation, and no breakpoint
+  token.
 
 ---
 

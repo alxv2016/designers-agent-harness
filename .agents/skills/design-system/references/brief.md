@@ -39,6 +39,7 @@ bold lead or a table row.
 | 14 | [Exceptions](#14-exceptions) | A value off the scale, registered with its reason |
 | 15 | [Tokens in code](#15-tokens-in-code) | Carrying the brief to the web, iOS, Android and an embedded device (ESP-IDF, LVGL) |
 | 16 | [The checks](#16-the-checks) | What the scripts prove, and what is left to read |
+| 17 | [Layout tokens](#17-layout-tokens) | Breakpoint tiers, margins, gutters, the container's cap, pane widths, the measure, density levels |
 
 ---
 
@@ -156,7 +157,9 @@ theme.**
 
 ## 6. Type
 
-**A small scale of text roles — size, line height, weight, use — that follows the person's text-size setting.**
+**A small scale of text roles — size, line height, weight, use — that follows the person's text-size setting.** How
+each role is applied on a screen — which role goes where, hierarchy, the measure, emphasis — is the `typography`
+skill's.
 
 - **Name text by role** — `text.title`, `text.body`, `text.label`, `text.caption` — with its size and line height.
 - **Carry type in a unit that scales** — `rem` on the web, Dynamic Type text styles on iOS, `sp` on Android — so text
@@ -186,7 +189,8 @@ theme.**
 
 **A spacing scale on a fixed base, a minimum target, and boxes that never move once the person is reading.**
 
-- **One base, a few steps** — a 4 px or 8 px base; space between related things smaller than between groups.
+- **One base, a few steps** — a 4 px or 8 px base. How the steps are applied — proximity, margins, gutters, gaps,
+  density — is the `layout` skill's.
 - **A minimum hit area as a token** (`size.target`), at or above WCAG's 24 px; a small control grows its hit area
   without growing its drawing, and two hit areas never overlap.
 - **Everything that arrives late has its box reserved** — media with a known aspect ratio, a deferred component with a
@@ -407,7 +411,32 @@ step by hand.**
 | T1 | A colour literal in a UI file outside the token files; in C and C++, only a number in a colour's place — LVGL's colour constructors and palette, a colour-named call, a label recolour — outside comments, and never an address or a register value |
 
 - **Both scripts say how many files they read**, and a run that read none says so, so a pass is never an empty one.
-- **What no script reads**: a spacing, size, radius, shadow or duration literal in a screen; a depth cue stacked on
+- **What no script reads**: a spacing value on the base grid but off the scale (the `layout` skill's check finds one
+  off the base grid), and a size, radius, shadow or duration literal in a screen; a depth cue stacked on
   another; a dark overlay whose edge disappears; a state that changes a size; on a device, a font that is not in the
   brief's compiled list, banding in a gradient, and a value that the panel's colour depth paints differently. A
   reviewer reads every number in a changed style, and the panel shows the rest.
+
+## 17. Layout tokens
+
+**The brief's layout section names the tiers a screen changes at and every width a layout uses, so no screen decides
+one for itself.**
+
+| Token | Holds |
+| --- | --- |
+| `breakpoint.sm` … `breakpoint.xxl` | Bootstrap's tiers, with the values the `layout` skill gives, each with what changes from it up |
+| Margins by tier | The screen's edge, a spacing step per tier, smaller below `breakpoint.md` |
+| `size.gutter` | The gap between grid columns and between panes |
+| `size.content-max`, or a cap per tier | The widest the content runs, centred |
+| `size.pane-min`, pane widths | A pane's minimum, and a fixed pane's width |
+| The measure | The widest a line of running text runs, in characters where the platform can |
+| Density levels | Each level as whole steps of the spacing scale; never a smaller target |
+| Small screens | The width below which a screen is laid out as a small screen, a watch's or round panel's margins as a percentage of the screen, and the smallest size supported |
+
+- **Name only what the product uses** — a product with no panes names no pane width; a device with one fixed panel
+  names no breakpoint and records the panel's resolution and density instead (§7); the `layout` skill still places
+  that panel in a tier by its logical width, to choose its structure.
+- **Every value lands on the spacing scale's base**, and a tier is never a value between Bootstrap's — a component that
+  must change at its own width uses its container's width, not a new tier.
+- **The layout check reads the `breakpoint.*` rows**, so they keep the token table's shape (§1); how each token is
+  used is the `layout` skill's.

@@ -413,7 +413,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships thirteen skills. Twelve are generic and copy across almost unchanged; `build-run-test` is filled
+The template ships fifteen skills. Fourteen are generic and copy across almost unchanged; `build-run-test` is filled
 in from the project. A project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
@@ -425,8 +425,8 @@ fails a skill or agent with no scope or an unknown one; a portable skill whose `
 its folder; and a portable agent with no `metadata.requires`, with a required skill that is missing or not portable,
 or with a link to a file.
 
-**Platforms.** The design skills — `ui-designer`, `accessibility`, `design-system`, `motion`,
-`touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen. Each states a
+**Platforms.** The design skills — `ui-designer`, `accessibility`, `design-system`, `layout`, `typography`,
+`motion`, `touch-and-gesture` — serve a web app, a phone app and an embedded device with an LVGL screen. Each states a
 principle once, in platform-neutral words, and labels the guidance that differs **Web**, **iOS**, **Android** or
 **Embedded (ESP-IDF, LVGL)**; their checks read web, native and C/C++ files, and say so when a run read no UI file.
 
@@ -438,6 +438,8 @@ principle once, in platform-neutral words, and labels the guidance that differs 
 | `ui-designer` | The three design gates — draft, built, target — each yes recorded with or without the kit, and the review of a UI change, carried in the skill | `references/gates.md`, `references/rubric.md` | `portable` — for any project with an interface; the folder works in any repo with the skills it applies |
 | `accessibility` | The accessibility floors (WCAG 2.2 AA), carried in the skill with how to meet and test each per platform; the walks | `references/criteria.md`, `references/focus.md`, `contrast.py`, `a11y_check.py` | `portable` — the folder works in any repo |
 | `design-system` | `DESIGN.md`: principles, tokens by role, themes, surfaces, layers, components, exceptions; how a brief is written, carried in the skill, with a starter brief | `references/brief.md`, `references/templates/DESIGN.md`, `design_check.py`, `token_check.py` | `portable` — the folder works in any repo; `DESIGN.md` and the token files are the project's |
+| `layout` | How screens are laid out and adapt: Bootstrap's breakpoint tiers on the window's width, the scaffold's regions, navigation and panes by tier, grids, containers, margins, spacing, density, content width, what survives a resize, watches and round or small panels; the layout spec and the review of layout — carried in the skill | `references/layout.md`, `layout_check.py` | `portable` — the folder works in any repo; the tiers are Bootstrap's and every other value the project's DESIGN.md |
+| `typography` | How type is applied from the project's own scale: six roles and what each is for, hierarchy, families and pairing, line height and spacing, the measure and alignment, emphasis, numbers, editorial treatments, text that scales, watches and compiled fonts; the type spec and the review of type — carried in the skill | `references/typography.md`, `typography_check.py` | `portable` — the folder works in any repo; the scale is the project's DESIGN.md |
 | `motion` | Whether and how things move: purpose and frequency, easing and duration, origin, choreography, interruption, rendering cost, reduced variants; the motion brief, the debugging loop, the review of motion, a glossary — carried in the skill | `references/motion.md`, `motion_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `touch-and-gesture` | Gestures, touch feedback, scroll-linked motion and mobile layout: following the finger, claiming one axis, deciding on release, the platform's patterns, the visible area, safe areas and the keyboard; the gesture spec and the device walk — carried in the skill | `references/touch.md`, `references/feedback.md`, `touch_check.py` | `portable` — the folder works in any repo; the values are the project's DESIGN.md |
 | `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
@@ -480,6 +482,12 @@ Each skill must hold the following:
   checks, so the folder is portable; `DESIGN.md` as the place a token is decided; roles over values; complete themes
   as values for the same roles; at most a surface step and a shadow per surface; a named layer order; registered exceptions; the design
   check and the token check.
+- **`layout`**: the principles of layout in `references/layout.md`, so the folder is portable; the window, never the
+  device; Bootstrap's tiers, mobile first; the layout spec in the draft, tier by tier; the walk across tiers handed to
+  the person; the layout check; every value but the tiers from the project's own DESIGN.md.
+- **`typography`**: the principles of applying type in `references/typography.md`, so the folder is portable; every
+  text by role from the project's scale, never a size of its own; the type spec in the draft; the screen read at its
+  largest text size handed to the person; the typography check.
 - **`motion`**: the principles of motion in `references/motion.md`, so the folder is portable; "decide whether it
   moves before how"; the motion brief before a study; the debugging loop; the review categories with accessibility
   first; the motion check; values always from the project's own DESIGN.md.
@@ -807,6 +815,8 @@ file.
 | UI paths, the `accessibility` skill | `a11y` — the contrast script's and the accessibility check's self-tests; once UI paths are set, the UI files against the patterns that break an accessibility floor | `ui-designer` in review mode, for UI paths |
 | UI paths, the `motion` skill | `motion` — the motion check's self-test; once UI paths are set, the UI files against the motion patterns | `ui-designer` in review mode, for UI paths |
 | UI paths, the `touch-and-gesture` skill | `touch` — the touch check's self-test; once UI paths are set, the UI files against the touch patterns | `ui-designer` in review mode, for UI paths |
+| UI paths, the `layout` skill | `layout` — the layout check's self-test; once UI paths are set, the UI files against the layout patterns | `ui-designer` in review mode, for UI paths |
+| UI paths, the `typography` skill | `typography` — the typography check's self-test; once UI paths are set, the UI files against the typography patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
@@ -1144,7 +1154,7 @@ rules its judges score — almost all of it in one settings file.
 | `verify.py` | All of it | Nothing — its lists are in the settings file |
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
 | `untrusted.py`, `pre-commit` | All of it | Nothing |
-| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
+| Skills | `verify-change`, `docs-authoring-and-sync`, `commit-message`, `ui-designer`, `accessibility`, `design-system`, `layout`, `typography`, `motion`, `touch-and-gesture` | `build-run-test`; `<domain>-rules`, `app-architecture`, `config-rules` when needed |
 | Agents | `doc-writer`, `doc-reviewer`, `ui-designer`, `open-items-curator` | The `code-reviewer`'s rules come from the docs; the `target-runner`'s steps from `build-run-test` |
 | Rubrics | The verdict and evidence rules | The items, as the project's rules grow |
 | Adapters | All of it | A Read deny per secret file; the Codex network list from `ALLOWED_HOSTS` |
@@ -1170,7 +1180,7 @@ Each layer rests on the ones before it. An agent building a later layer already 
 | 2. Doc tools and domain rules | `docs-authoring-and-sync` with its lint and baselines; `<domain>-rules` | 1 | The doc checks keep the docs true from the first commit |
 | 3. Controls | The settings file's secrets, hosts and gates; the guard and its self-test, the injection flag, the pre-commit hook, CI, the adapters, `.cache/` ignored | 1 | Every later step then runs behind them |
 | 4. The loop | `verify.py` with the `docs` and `harness` checks; the verify-change skill; `doctor` | 2, 3 | Its first checks are the ones that exist already |
-| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility, design-system, motion and touch-and-gesture skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
+| 5. Judges and design | `doc-reviewer`, `code-reviewer`, `ui-designer` and their rubrics; `DESIGN.md`; the accessibility, design-system, layout, typography, motion and touch-and-gesture skills; the UI paths, token files and gates | 4 | The loop names judges and gates by path |
 | 6. Code checks | The project's build, tests and lint in `CHECKS`; the quiet build wrapper; `build-run-test`; `commit-message` | Code that builds | A build check needs a build |
 | 7. The target | `target-runner`, the target scripts (health check, screenshots, logs), the routes | 6 | Evidence from the target needs a runnable build |
 | 8. Calibration | `judgements.jsonl`, `open-items-curator` | 7 | Findings come from the target |

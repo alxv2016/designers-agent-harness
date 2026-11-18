@@ -298,10 +298,10 @@ unless the product draws one.
 - **Embedded (ESP-IDF, LVGL) — back**: back is what the product defines — a key, a button, an edge swipe — one path
   on every screen, closing the topmost layer first; an encoder's or keypad's `LV_KEY_ESC` reaches the focused object as
   `LV_EVENT_CANCEL` (§11).
-- **Bottom navigation**: a few destinations, each icon with a label; switching is instant and keeps each tab's scroll
+- **Bottom navigation**: which width takes a bottom bar, a rail or a side list is the `layout` skill's; on a bar, a
+  few destinations, each icon with a label; switching is instant and keeps each tab's scroll
   and state; tapping the active tab returns to its top (Apple HIG, Tab bars; Material Design 3, Navigation bar).
-  **Embedded (ESP-IDF, LVGL)**: a small or round panel holds fewer destinations; pages side by side in an
-  `lv_tileview` keep each page's scroll.
+  **Embedded (ESP-IDF, LVGL)**: pages side by side in an `lv_tileview` keep each page's scroll.
 
 ## 8. The gesture spec
 

@@ -32,6 +32,8 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/design-system/references/brief.md",
                      ".agents/skills/motion/references/motion.md",
                      ".agents/skills/touch-and-gesture/references/touch.md",
+                     ".agents/skills/layout/references/layout.md",
+                     ".agents/skills/typography/references/typography.md",
                      ".agents/skills/ui-designer/references/gates.md",
                      ".agents/skills/ui-designer/references/rubric.md",
                      ".agents/skills/esp-idf-setup/references/esp-idf.md",
