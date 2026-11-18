@@ -373,6 +373,34 @@ def check_touch(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+LAYOUT_SKILL = f"{SKILLS}/layout/"
+LAYOUT_CHECK = f"{LAYOUT_SKILL}scripts/layout_check.py"
+
+
+def check_layout(run_dir: Path) -> dict:
+    """The layout check's self-test; then the UI files against the layout patterns."""
+    results = [sh([sys.executable, LAYOUT_CHECK, "--test"], run_dir / "layout.selftest.log")]
+    ui = sh([sys.executable, LAYOUT_CHECK], run_dir / "layout.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the layout check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
+TYPE_SKILL = f"{SKILLS}/typography/"
+TYPE_CHECK = f"{TYPE_SKILL}scripts/typography_check.py"
+
+
+def check_typography(run_dir: Path) -> dict:
+    """The typography check's self-test; then the UI files against the typography patterns."""
+    results = [sh([sys.executable, TYPE_CHECK, "--test"], run_dir / "typography.selftest.log")]
+    ui = sh([sys.executable, TYPE_CHECK], run_dir / "typography.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the typography check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 ESP_SKILL = f"{SKILLS}/esp-idf-setup/"
 ESP_SCRIPT = f"{ESP_SKILL}scripts/esp_idf.py"
 ESP_PATHS = ("main/", "components/", "CMakeLists.txt")
@@ -449,8 +477,9 @@ def check_react_vite(run_dir: Path) -> dict:
 
 
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
-           "motion": check_motion, "touch": check_touch, "ux": check_ux, "esp-idf": check_esp_idf,
-           "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
+           "motion": check_motion, "touch": check_touch, "layout": check_layout,
+           "typography": check_typography, "ux": check_ux,
+           "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
 
@@ -470,6 +499,10 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(MOTION_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "touch": (ROOT / TOUCH_CHECK).is_file()
         and any(f.startswith(TOUCH_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "layout": (ROOT / LAYOUT_CHECK).is_file()
+        and any(f.startswith(LAYOUT_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "typography": (ROOT / TYPE_CHECK).is_file()
+        and any(f.startswith(TYPE_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
         "esp-idf": (ROOT / ESP_SCRIPT).is_file()
         and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()

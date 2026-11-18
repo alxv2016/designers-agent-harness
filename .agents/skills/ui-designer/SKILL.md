@@ -1,6 +1,6 @@
 ---
 name: ui-designer
-description: Designs, builds and reviews UI through three gates, carried in the skill (references/gates.md) — a draft the person says yes to before any code (a mock at the target's real sizes in the project's tokens, with its values file, component list, states, focus order and accessibility decisions; a motion study; a gesture spec and prototype), the screen built from the draft's values and shown beside it, then the person's sign-off on the target — with each yes recorded against the file it names, by verify.py in the agent-harness kit or by hand without it, and the review of a UI change in a fixed order, accessibility first. Reads the project's own DESIGN.md and applies the accessibility, design-system, motion and touch-and-gesture skills. Portable — the folder works in any repo. Read first for any UI work. Use when designing, adding, changing or reviewing a screen, component, style, icon, animation, gesture or piece of copy, drawing a mock, turning a design file into code, before committing UI work, or when asked "is this screen right?".
+description: Designs, builds and reviews UI through three gates, carried in the skill (references/gates.md) — a draft the person says yes to before any code (a mock at the target's real sizes in the project's tokens, with its values file, component list, states, focus order and accessibility decisions; a motion study; a gesture spec and prototype), the screen built from the draft's values and shown beside it, then the person's sign-off on the target — with each yes recorded against the file it names, by verify.py in the agent-harness kit or by hand without it, and the review of a UI change in a fixed order, accessibility first. Reads the project's own DESIGN.md and applies the accessibility, design-system, layout, typography, motion and touch-and-gesture skills. Portable — the folder works in any repo. Read first for any UI work. Use when designing, adding, changing or reviewing a screen, component, style, icon, animation, gesture or piece of copy, drawing a mock, turning a design file into code, before committing UI work, or when asked "is this screen right?".
 metadata:
   scope: portable
 ---
@@ -12,12 +12,14 @@ its own yes, and the review of a UI change. How the gates work and why is kept i
 [references/gates.md](references/gates.md) (cited `DESIGN_GATES §n`); this page holds the rules and the steps. **Read
 this first for any UI work, then the project's `DESIGN.md`** — its principles and tokens, which every draft and every
 build takes its values from, each section named by what it holds — and the skills every gate applies: `accessibility`
-(contrast, focus, target size, input), `design-system` (tokens, components, exceptions), `motion` (anything that
-moves) and `touch-and-gesture` (gestures, touch, mobile layout). The project's `DESIGN.md` wins over this skill; the
+(contrast, focus, target size, input), `design-system` (tokens, components, exceptions), `layout` (breakpoints,
+regions, navigation, panes, spacing, how a screen adapts), `typography` (roles, hierarchy, the measure, text that
+scales), `motion` (anything that moves) and `touch-and-gesture` (gestures, touch, safe areas and the keyboard).
+The project's `DESIGN.md` wins over this skill; the
 reference wins over this page.
 
 **Portable.** This folder is self-contained and links to nothing outside itself (it names the rest of a kit in
-backticks). Copy it into any repo's `.agents/skills/` (or `.claude/skills/`) with the four skills it applies, and it
+backticks). Copy it into any repo's `.agents/skills/` (or `.claude/skills/`) with the six skills it applies, and it
 works there. In the agent-harness kit, `verify.py` records each yes and `finish` refuses a hand-over that skipped a
 gate — `V` below is `python3 .agents/skills/verify-change/scripts/verify.py`; without the kit, each yes goes in the
 change's record by hand (DESIGN_GATES §3), and the same steps apply.
@@ -102,23 +104,28 @@ Input: a described screen, component or flow. Everything here is written in the 
 5. **Settle the accessibility decisions** — the `accessibility` skill's "Deciding a screen's accessibility, before it
    is built": contrast pairs (its `contrast.py` for a new one), focus on open and close, names and alternatives,
    targets, the alternative to each gesture, drag and hover, reduced motion, what is announced and what times out.
-6. **Draw the draft** in DESIGN.md's tokens at the sizes its layout section names, with what renders them at real size
+6. **Settle the layout tier by tier** — the `layout` skill's "Deciding a screen's layout": the tiers it changes at,
+   regions, navigation, panes, margins and spacing tokens, density, what survives a resize; on a watch or a round
+   panel, its shape and insets — written into the values file as its layout spec.
+7. **Give each text its role** — the `typography` skill's "Choosing type for a screen": role, emphasis, measure,
+   wrap and numbers, and the largest text size — written into the values file as its type spec.
+8. **Draw the draft** in DESIGN.md's tokens at the sizes its layout section names, with what renders them at real size
    — a static page that loads the token file, an SVG, a frame exported from the design file — and save it as
    `<screen>_mock<n>.png` with its values in `<screen>_mock<n>.md`. Look at the picture yourself; fix every contrast
    failure before showing it.
-7. **When anything moves, brief it and draft it as motion** (the `motion` skill → Deciding motion, Drafting the
+9. **When anything moves, brief it and draft it as motion** (the `motion` skill → Deciding motion, Drafting the
    study); **a gesture gets its spec and a prototype on the device** (the `touch-and-gesture` skill → Specifying a
    gesture, Prototyping and building).
-8. **Show the draft and stop.** The gate passes when the person's yes names it, recorded against the file
-   (DESIGN_GATES §3). A change is a new draft, `n + 1`, and a new yes.
+10. **Show the draft and stop.** The gate passes when the person's yes names it, recorded against the file
+    (DESIGN_GATES §3). A change is a new draft, `n + 1`, and a new yes.
 
 ### Gate 2 — the built screen
 
 1. **Build from the draft's values, unchanged** (Do 5), with the existing components; tokens only.
 2. **Update DESIGN.md in the same change** — a new component's row, a new contrast pair, an exception and its reason,
    each in its DESIGN.md section (the `design-system` skill).
-3. **Run the checks** — the design and token checks, the accessibility, motion and touch checks, the project's build,
-   tests and lint; leave no new hit. In the kit, `V run` runs them.
+3. **Run the checks** — the design and token checks, the accessibility, layout, typography, motion and
+   touch checks, the project's build, tests and lint; leave no new hit. In the kit, `V run` runs them.
 4. **Screenshot the built screen** at the draft's sizes, and put it beside the draft in one image,
    `<screen>_side<n>.png`. Read it: every difference from the draft is either fixed or named.
 5. **Ask for a review** — in the kit, the judges `V run` names, the `ui-designer` agent in review mode among them.
@@ -144,8 +151,9 @@ return its report.
 1. **Run the script checks** (Checks, below) on the changed UI files; a hit is a finding only on an added or changed
    line.
 2. **Judge what no script can, in DESIGN_GATES §8's order** — the record of yeses, accessibility, the brief's
-   principles, tokens and components, motion through the `motion` skill's review, each gesture against its spec
-   through the `touch-and-gesture` skill's review, then the gates.
+   principles, tokens and components, layout through the `layout` skill's review, type through the `typography` skill's
+   review, motion through the `motion` skill's review, each gesture against its spec through the `touch-and-gesture`
+   skill's review, then the gates.
 3. **Rank the findings, accessibility highest**; each one the file and symbol — the rule broken — the fix.
 4. **List what needs the target** — gate 3's hand-over list; never claim it passed from reading code.
 
@@ -157,6 +165,8 @@ The scripts below belong to the skills this one applies; run each that is presen
 python3 .agents/skills/design-system/scripts/design_check.py              # the brief's pairs and tokens
 python3 .agents/skills/design-system/scripts/token_check.py <files>       # colour literals in UI files
 python3 .agents/skills/accessibility/scripts/a11y_check.py <files>        # accessibility patterns
+python3 .agents/skills/layout/scripts/layout_check.py <files>             # layout patterns
+python3 .agents/skills/typography/scripts/typography_check.py <files>     # typography patterns
 python3 .agents/skills/motion/scripts/motion_check.py <files>             # motion patterns
 python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touch patterns
 ```
@@ -169,7 +179,10 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 - [ ] The record checked before the hand-over: every gate's yes, each file's hash unchanged (in the kit, `V finish`
   shows no open gate)
 - [ ] (script) The design check at 0, and no colour literal on a changed UI line
-- [ ] (script) No accessibility, motion or touch pattern on a changed UI line
+- [ ] (script) No accessibility, layout, typography, motion or touch pattern on a changed UI line
+- [ ] The layout spec in the draft, tier by tier, and the build resized across each tier — or rotated on a panel —
+  with the walk handed over
+- [ ] The type spec in the draft — each text's role from the brief — and the screen read at its largest text size
 - [ ] The change follows DESIGN.md's principles, and every value is one of its tokens (Do 1)
 - [ ] Every text and icon pair meets its contrast floor, against the colour painted
 - [ ] Anything that moves has its brief and an approved study; every gesture has its spec, an approved prototype and
@@ -194,9 +207,11 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 | Topic | Where |
 | --- | --- |
 | The gates, the yes, the record, drafting, building, the target, review | [references/gates.md](references/gates.md) |
-| How a review is scored: verdict, evidence, R1–R18, the report | [references/rubric.md](references/rubric.md) |
+| How a review is scored: verdict, evidence, R1–R20, the report | [references/rubric.md](references/rubric.md) |
 | Principles, tokens, contrast pairs, components | The project's `DESIGN.md` |
 | Contrast, focus, target size, input | The `accessibility` skill |
 | Tokens, components, exceptions | The `design-system` skill |
+| Breakpoints, navigation, panes, spacing, density, resizing, watches and round panels | The `layout` skill |
+| Type roles, hierarchy, fonts, line height, the measure, emphasis, numbers, text that scales | The `typography` skill |
 | Whether and how things move | The `motion` skill |
-| Gestures, touch, mobile layout | The `touch-and-gesture` skill |
+| Gestures, touch, safe areas and the keyboard | The `touch-and-gesture` skill |

@@ -9,8 +9,9 @@ agents read it, through the `ui-designer` skill, before any UI work.
 **Where it lives.** In the `ui-designer` skill, beside the steps and checks that apply it — [its SKILL.md](../SKILL.md).
 The skill folder is self-contained: copy it into any repo's `.agents/skills/` and the gates come with it. With the
 agent-harness kit, `verify.py` records each yes and refuses a hand-over that skipped one; without it, the record in §3
-does the same job by hand. The product's values come from its own `DESIGN.md`; the floors, the tokens, motion and
-touch come from the `accessibility`, `design-system`, `motion` and `touch-and-gesture` skills.
+does the same job by hand. The product's values come from its own `DESIGN.md`; the floors, the tokens, layout, type,
+motion and touch come from the `accessibility`, `design-system`, `layout`, `typography`, `motion` and
+`touch-and-gesture` skills.
 
 **Stability.** Cite this doc as `DESIGN_GATES §n`. Do not renumber; add new material under the next free number.
 
@@ -98,6 +99,12 @@ type — never as a change to the product.**
 - **The values file beside it** (`<screen>_mock<n>.md`) — each element's component, its tokens (colour role, type
   role, spacing, radius), its states, the focus order, each text's contrast against what is painted under it, and the
   accessibility decisions (the `accessibility` skill).
+- **The layout is drafted tier by tier** — the draft is drawn at each tier where the layout changes and its values
+  file holds the layout spec: regions, navigation, panes, margins, spacing, density, what survives a resize (the
+  `layout` skill).
+- **Each text has its role** — the values file holds the type spec: each text's role from the brief, emphasis,
+  measure, wrap and numbers; the draft is drawn with the longest strings and at the largest text size too (the
+  `typography` skill).
 - **Motion and gestures are drafted as themselves** — the motion brief and study (the `motion` skill); the gesture
   spec and a prototype on the device (the `touch-and-gesture` skill).
 - **Ask open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it matters.
@@ -151,13 +158,15 @@ type — never as a change to the product.**
 
 **A review reads in a fixed order — accessibility first — and ranks its findings the same way.**
 
-1. **The scripts** — the design and token checks, the accessibility, motion and touch checks, the project's lint; a hit
-   counts only on an added or changed line.
+1. **The scripts** — the design and token checks, the accessibility, layout, typography, motion and touch checks, the
+   project's lint; a hit counts only on an added or changed line.
 2. **The record** — each gate's yes, its file unchanged since, the draft's yes before the build (§3). A decision the
    person recorded is settled and never blocks.
 3. **Accessibility** — contrast against what is painted, focus order and visibility, target size, names and labels,
    motion (the `accessibility` skill).
-4. **The design brief's principles**, then **tokens and components** (the `design-system` skill).
+4. **The design brief's principles**, then **tokens and components** (the `design-system` skill), then **layout**
+   across its tiers (the `layout` skill), then **type** at the default and the largest text size (the `typography`
+   skill).
 5. **Motion** through its review categories (the `motion` skill), then **each gesture against its spec** (the
    `touch-and-gesture` skill).
 6. **The gates** — built from the draft's values; the side-by-side shown.

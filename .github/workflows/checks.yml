@@ -34,6 +34,8 @@ jobs:
           python3 .agents/skills/accessibility/scripts/a11y_check.py --test
           python3 .agents/skills/motion/scripts/motion_check.py --test
           python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test
+          python3 .agents/skills/layout/scripts/layout_check.py --test
+          python3 .agents/skills/typography/scripts/typography_check.py --test
           python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py --test
           python3 .agents/skills/react-vite-setup/scripts/react_vite.py --test
           python3 .agents/skills/secrets-handling/scripts/secret_scan.py --test

@@ -186,10 +186,10 @@ A 4 px base. Space between related things is smaller than space between groups.
 | `space.xs` | 4 px | Icon to its label |
 | `space.sm` | 8 px | Inside a control; between related lines |
 | `space.md` | 12 px | Between controls in a group |
-| `space.lg` | 16 px | Screen edge on compact; inside a card |
-| `space.xl` | 24 px | Between groups; screen edge on medium and up |
+| `space.lg` | 16 px | Screen edge below `breakpoint.sm`; inside a card |
+| `space.xl` | 24 px | Between groups; screen edge from `breakpoint.sm` up |
 | `space.2xl` | 32 px | Between sections |
-| `space.3xl` | 48 px | Above a screen's first section on expanded |
+| `space.3xl` | 48 px | Above a screen's first section from `breakpoint.lg` up |
 | `space.focus-offset` | 2 px | The gap between a control and its focus ring |
 | `size.target` | 44 px | The smallest hit area of any control, drawn or padded, on every platform |
 | `size.target.material` | 48 px | Optional on Android: Material Design's recommended hit area (48 dp), where a layout has room; never below `size.target` |
@@ -340,14 +340,20 @@ Menus and popovers have no row in §8 yet; they take these values when they are 
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `breakpoint.medium` | 600 px | From here: two columns where content allows; `space.xl` edges |
-| `breakpoint.expanded` | 1024 px | From here: a side navigation; content capped at `size.content-max` |
+| `breakpoint.sm` | 576 px | From here: `space.xl` edges; still one column |
+| `breakpoint.md` | 768 px | From here: a navigation rail at the side; two columns where content allows |
+| `breakpoint.lg` | 992 px | From here: list and detail side by side; content capped at `size.content-max` |
+| `breakpoint.xl` | 1200 px | From here: a side list with full labels in place of the rail |
+| `breakpoint.xxl` | 1400 px | From here: wider margins only |
 
-- **Compact is below `breakpoint.medium`: everything is one column**, navigation at the bottom, the primary action
-  within thumb reach.
-- **Columns divide the layout; `size.content-max` caps a column of text** — on expanded, a two-column layout may run
-  wider than 720 px, but no paragraph does.
-- **Mocks are drawn at 390 px and 1280 px wide** — one compact and one expanded — plus any size a change is about; the
+- **The tiers are Bootstrap's, mobile first** — each applies from its width up; "below a tier" is 0.02 px under it
+  (`767.98px`) `[SPEC]` (Bootstrap 5.3, Breakpoints).
+- **Below `breakpoint.md`, everything is one column**, navigation at the bottom, the primary action within thumb
+  reach.
+- **Columns divide the layout; `size.content-max` caps a column of text** — from `breakpoint.lg`, a two-pane layout
+  may run wider than 720 px, but no paragraph does.
+- **Mocks are drawn at 390 px and 1280 px wide** — one below `breakpoint.md` and one from `breakpoint.xl` — plus 768
+  px when a change touches navigation or panes, and any size a change is about; the
   build is checked at 320 px wide too, where nothing scrolls sideways `[SPEC]` (WCAG 1.4.10).
 
 ---
