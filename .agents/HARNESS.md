@@ -40,7 +40,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 
 1. **Run every change through `verify.py`** — `start`, `run`, the judges `run` names, `finish` — and hand over only
    when `finish` exits 0 ([`verify-change`](skills/verify-change/SKILL.md)).
-2. **Stop at exit 3** — three failed attempts in a row mean the plan is wrong; ask the person.
+2. **Stop at exit 3** — three failed builds or tests in a row mean the plan is wrong; ask the person.
 3. **Ask the person when the guard asks** — a block is a rule from AGENTS.md; never reword or split a command to get
    past it.
 4. **Record the person's yes with `verify.py approve`, naming the file they approved** — a mock, a motion study, the
@@ -193,7 +193,8 @@ what to write, and the corrected call goes on:
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
   reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
-- **Three failures in a row — runs or blocking reviews — exit 3.**
+- **Three failures in a row of a counted check — `"counts": True` in `CHECKS`, the build and the tests — exit 3.** A
+  lint, a doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
   `references/rubric.md` plus the items learned here, in its file: the Verdict rule, the evidence each result
   needs (a result without evidence is unsure), R-items one per step of its Procedure, and the items learned since. Its
@@ -211,6 +212,7 @@ what to write, and the corrected call goes on:
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
+| Two runs on the target with changed code and no finding or decision recorded between, nor one recorded later with `--for-run` naming the later run | A change after the person looked almost always follows something they saw — a lesson for the judgements log ([AGENT_HARNESS §9.4](../docs/AGENT_HARNESS.md#94-the-judgements-log-and-calibration)) |
 | A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
 
 ```markdown

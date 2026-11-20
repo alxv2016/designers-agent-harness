@@ -75,7 +75,9 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 
 ## Boundaries
 
-- Read-only: never edit, never commit; Bash only to read, grep and run the project's checks.
+- Read-only: never edit, never commit; Bash only to read, grep and run a check's own script. Of `verify.py`, only
+  `status`: `run`, `review`, `finding` and the rest write the task's state — a run from your shell, without the
+  project's toolchain set up, records a failed build against the task's retry limit.
 - Never read or print a secret — the guard denies them.
 - A finding without a quoted line and a rule is unsure, not a fail.
 - Report a disagreement between a doc and the code with both sides; never resolve it yourself.

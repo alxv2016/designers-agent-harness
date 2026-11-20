@@ -9,9 +9,9 @@ docs/AGENT_HARNESS.md §10).
     verify.py review <judge> pass|blocking [--note TEXT]
     verify.py approve <file> --kind ux|mock|motion|copy|built [--note TEXT]   # the person's yes, naming the file
     verify.py decision "<what the person decided>"   # settled for this task: the judges read it in `status`
-    verify.py target --where "<where it ran>" --build "<which build>" [--health-exit N] [--note TEXT]
+    verify.py target --where "<where it ran>" --build "<which build>" [--health-exit N] [--note TEXT]   # every run
     verify.py signoff "<what the person judged on the target>"   # their yes on the target, in their words
-    verify.py finding "<what was seen or learned>" --route test|rubric|guard|skill|doc|open-item|none
+    verify.py finding "<what was seen or learned>" --route test|rubric|guard|skill|doc|open-item|none [--for-run N]
                       [--source person|agent] [--judge JUDGE --caught yes|no]
     verify.py dispute <judge> "<what the judge flagged that was not a problem>" [--source agent|person]
     verify.py status | finish | calibration | doctor
@@ -180,8 +180,8 @@ def save(task: dict) -> None:
 
 def new_task(name: str) -> dict:
     return {"task": name, "started": now(), "commit": git("rev-parse", "--short", "HEAD").strip(), "failures": 0,
-            "runs": [], "reviews": {}, "approvals": [], "decisions": [], "target": None, "signoffs": [],
-            "findings": [], "gated_at_start": gated_contents()}
+            "runs": [], "reviews": {}, "approvals": [], "decisions": [], "target": None, "target_log": [],
+            "signoffs": [], "findings": [], "gated_at_start": gated_contents()}
 
 
 # --- The checks --------------------------------------------------------------------------------------------------
@@ -483,6 +483,9 @@ BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design,
            "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
+# The checks whose failure counts toward MAX_FAILURES: the project's build and tests ("counts": True in
+# .agents/project.py). A lint, a doc or a self-test failure is fixed and run again without spending an attempt.
+COUNTED = {name for name, spec in project.CHECKS.items() if spec.get("counts")}
 
 
 def plan(files: list[str], only: set[str] | None) -> list[str]:
@@ -578,7 +581,8 @@ def cmd_run(args: argparse.Namespace) -> int:
     if hits:
         print(f"  debug     ON    a debug marker in the tree ({len(hits)} line(s)) — remove it before finish")
     ok = all(r["ok"] for r in results.values())
-    task["failures"] = 0 if ok else task["failures"] + 1
+    counted = any(not results[c]["ok"] for c in COUNTED if c in results)
+    task["failures"] = 0 if ok else task["failures"] + 1 if counted else task["failures"]
     task["runs"].append({"n": n, "at": now(), "ok": ok,
                          "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
                          "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
@@ -586,6 +590,10 @@ def cmd_run(args: argparse.Namespace) -> int:
                          "seconds": round(time.time() - t0)})
     save(task)
     print(f"run {n}: {'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f} s — logs in {run_dir.relative_to(ROOT)}")
+    if not ok and not counted:
+        print(f"failed, not counted — only {', '.join(sorted(COUNTED)) or 'no check'} count toward the retry limit "
+              "(\"counts\": True in .agents/project.py); fix and run again")
+        return 1
     if not ok:
         return stop_or_retry(task)
     judges = [j for j, wants in JUDGES.items() if judge_ready(j) and any(wants(f) for f in files)]
@@ -609,11 +617,13 @@ def cmd_review(args: argparse.Namespace) -> int:
     task = load() or new_task("(unnamed)")
     task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note,
                                    "fingerprint": judge_fingerprint(args.judge), "at": now()}
-    if args.verdict == "blocking":
-        task["failures"] += 1
-    save(task)
+    save(task)  # a blocking verdict is fixed and asked again; it does not count toward the retry limit
     print(f"review recorded: {args.judge} {args.verdict}")
-    return stop_or_retry(task) if args.verdict == "blocking" else 0
+    if args.verdict == "blocking":
+        print(f"each item {args.judge} raised that you fix is a catch: verify.py finding \"<what>\" --source agent "
+              f"--route <route> --judge {args.judge} --caught yes; one that was not a problem: verify.py dispute")
+        return 1
+    return 0
 
 
 def cmd_approve(args: argparse.Namespace) -> int:
@@ -648,10 +658,36 @@ def cmd_target(args: argparse.Namespace) -> int:
     task = load() or new_task("(unnamed)")
     task["target"] = {"where": args.where, "build": args.build, "health_exit": args.health_exit, "note": args.note,
                       "at": now(), "deployed": deployed_fingerprint()}
+    # Every run on the target, with how many findings and decisions were recorded by then — finish reads it
+    # (unrecorded_redeploys).
+    task.setdefault("target_log", []).append({"at": task["target"]["at"], "deployed": task["target"]["deployed"],
+                                              "findings": len(task.get("findings", [])),
+                                              "decisions": len(task.get("decisions", []))})
     save(task)
     print(f"target recorded: {args.build} on {args.where}"
-          + (f", health check exit {args.health_exit}" if args.health_exit is not None else ""))
+          + (f", health check exit {args.health_exit}" if args.health_exit is not None else "")
+          + f" — run {len(task['target_log'])} on the target this task")
     return 0
+
+
+def unrecorded_redeploys(target_log: list[dict], covered: frozenset = frozenset()) -> list[str]:
+    """The code ran on the target again, changed, with nothing recorded between. A change after the person looked at
+    the target almost always follows something they pointed out; that report is a lesson — a finding, with --judge
+    when a judge reviewed that part — or, for a change they asked for, their decision (verify-change → Recording what
+    was learned). Unrecorded, calibration shows every judge perfect and no rubric learns. A lesson recorded late names
+    the run that shipped its change (`finding --for-run N`), and `covered` holds those runs: it closes that gap."""
+    gaps = []
+    for n, (a, b) in enumerate(zip(target_log, target_log[1:]), start=1):
+        if n + 1 in covered:
+            continue
+        if b["deployed"] != a["deployed"] and b["findings"] == a["findings"] and b["decisions"] == a["decisions"]:
+            gaps.append(f"target run {n} → {n + 1} ({a['at']} → {b['at']}): the code changed with no finding or "
+                        "decision recorded between — if the person pointed out a problem on the target, ask them "
+                        "whether to record it as an eval and record it (verify.py finding \"<what they saw>\" --route "
+                        "<route>, with --judge <judge> --caught no when a judge reviewed that part); a change they "
+                        "asked for is their decision (verify.py decision); the agent's own fix is a finding "
+                        f"--source agent; recorded after the run, name it: --for-run {n + 1}")
+    return gaps
 
 
 def cmd_signoff(args: argparse.Namespace) -> int:
@@ -690,8 +726,14 @@ def cmd_finding(args: argparse.Namespace) -> int:
         print("--judge needs --caught yes|no", file=sys.stderr)
         return 2
     task = load() or new_task("(unnamed)")
+    runs = len(task.get("target_log", []))
+    if args.for_run is not None and not 2 <= args.for_run <= runs:
+        print(f"--for-run names a run on the target after the first: 2 to {runs} this task", file=sys.stderr)
+        return 2
     entry = {"kind": "finding", "source": args.source, "text": args.text, "route": args.route, "judge": args.judge,
              "caught": args.caught == "yes" if args.judge else None}
+    if args.for_run is not None:
+        entry["for_run"] = args.for_run  # recorded late: the run on the target that shipped this lesson's change
     task["findings"].append(entry)
     save(task)
     log_judgement(entry)
@@ -805,6 +847,8 @@ def cmd_finish(_: argparse.Namespace) -> int:
         open_items.append(f"a debug marker is in the tree — /{project.DEBUG_MARKERS}/ (.agents/project.py)")
     open_items += broken_invariants()
     open_items += gate_problems(task, files)
+    covered = frozenset(f["for_run"] for f in task.get("findings", []) if f.get("for_run"))
+    open_items += unrecorded_redeploys(task.get("target_log", []), covered)
     for judge, wants in JUDGES.items():
         if judge_ready(judge) and any(wants(f) for f in files):
             r = task["reviews"].get(judge)
@@ -891,7 +935,8 @@ def cmd_calibration(_: argparse.Namespace) -> int:
     print(f"{len(rows)} judgement(s) in {JUDGEMENTS.relative_to(ROOT)}"
           + ("" if rows else " — verify.py finding / dispute add them"))
     print(f"  {'judge':26} {'caught':>6} {'missed':>6} {'false alarms':>12}")
-    for j in sorted(JUDGES):
+    # Every judge in the kit, and any the log names — one no longer in the plan keeps its record.
+    for j in sorted(set(JUDGES) | {r["judge"] for r in rows if r.get("judge")}):
         mine = [r for r in rows if r.get("judge") == j]
         caught = sum(1 for r in mine if r["kind"] == "finding" and r["caught"])
         missed = sum(1 for r in mine if r["kind"] == "finding" and r["caught"] is False)
@@ -1038,7 +1083,33 @@ def self_test() -> int:
     if needs != ["ui-designer", "motion"]:
         bad += 1
         print(f"FAIL requires: want ['ui-designer', 'motion'], got {needs}")
-    cases = cases + scopes + [("requires", "", "")]
+    dep = lambda d, n, k, at="t": {"at": at, "deployed": d, "findings": n, "decisions": k}
+    redeploys = [
+        ("one run on the target", [dep("a", 0, 0)], 0),
+        ("the same code run twice", [dep("a", 0, 0), dep("a", 0, 0)], 0),
+        ("changed code, nothing recorded", [dep("a", 0, 0), dep("b", 0, 0)], 1),
+        ("changed code, a finding between", [dep("a", 0, 0), dep("b", 1, 0)], 0),
+        ("changed code, a decision between", [dep("a", 2, 1), dep("b", 2, 2)], 0),
+        ("three runs, the second gap unrecorded", [dep("a", 0, 0), dep("b", 1, 0), dep("c", 1, 0)], 1),
+        ("three runs, both gaps unrecorded", [dep("a", 0, 0), dep("b", 0, 0), dep("c", 0, 0)], 2),
+    ]
+    for name, log, want in redeploys:
+        got = len(unrecorded_redeploys(log))
+        if got != want:
+            bad += 1
+            print(f"FAIL redeploys, {name}: {got} gap(s), want {want}")
+    late = [
+        ("a late lesson names the run that shipped it", [dep("a", 0, 0), dep("b", 0, 0)], frozenset({2}), 0),
+        ("a late lesson for another run leaves the gap", [dep("a", 0, 0), dep("b", 0, 0)], frozenset({3}), 1),
+        ("one late lesson closes one gap of two", [dep("a", 0, 0), dep("b", 0, 0), dep("c", 0, 0)], frozenset({3}), 1),
+    ]
+    for name, log, covered, want in late:
+        got = len(unrecorded_redeploys(log, covered))
+        if got != want:
+            bad += 1
+            print(f"FAIL redeploys, {name}: {got} gap(s), want {want}")
+    redeploys = redeploys + [(n, l, w) for n, l, _, w in late]
+    cases = cases + scopes + redeploys + [("requires", "", "")]
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
     return 1 if bad else 0
 
@@ -1079,6 +1150,8 @@ def main() -> int:
                    help="who found it: the person (the default) or the agent during the task")
     f.add_argument("--judge", choices=sorted(JUDGES))
     f.add_argument("--caught", choices=["yes", "no"])
+    f.add_argument("--for-run", type=int, help="recorded after the code it led to ran on the target: that run's number, "
+                                               "as `target` printed it — it closes the gap before that run")
     d = sub.add_parser("dispute")
     d.add_argument("judge", choices=sorted(JUDGES))
     d.add_argument("text")

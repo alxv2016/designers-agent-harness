@@ -254,10 +254,12 @@ INVARIANTS = []
 #           the last lines of a failure are printed.
 #   "when": the paths that call for it (patterns as above).
 #   "wait": True to run it after the parallel ones — for a check that reads what another one writes.
+#   "counts": True when its failure counts toward the retry limit — the build and the tests; a lint or a self-test
+#           failure is fixed and run again without spending an attempt (.agents/HARNESS.md §4).
 # A check whose program is not installed fails with "not found" — add the tool, or take the check out.
 CHECKS = {
-    # "build": {"run": ["npm", "run", "build"], "when": ("src/", "package.json")},
-    # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/")},
+    # "build": {"run": ["npm", "run", "build"], "when": ("src/", "package.json"), "counts": True},
+    # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/"), "counts": True},
     # "lint":  {"run": ["npm", "run", "lint"], "when": ("src/",)},
     # "types": {"run": ["npx", "tsc", "--noEmit"], "when": ("src/",)},
 }

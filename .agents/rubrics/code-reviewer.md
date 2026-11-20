@@ -41,3 +41,5 @@ A result without evidence counts as unsure.
 
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
+| L1 | 2026-11-19 | A device froze for seconds at a time on a page, input dead | A driver step that changes a device's power state (standby, power off, sleep) sent without checking the power state the driver tracks |
+| L2 | 2026-11-19 | That freeze repeated every few seconds | A wait on a busy line or a timeout, on the UI's task, retried on its own failure in a loop |

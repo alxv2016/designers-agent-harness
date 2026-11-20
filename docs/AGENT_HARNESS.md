@@ -107,7 +107,8 @@ These rules hold for every harness, whatever the project. Each rule gives its re
 5. **Pick the checks from the files a change touches.** A loop that runs everything every time gets slow enough that
    agents skip it.
 6. **Stop after 3 failed attempts in a row and ask the person.** A third failure means the plan is wrong, not the last
-   edit.
+   edit. An attempt is a build or a test — the checks the project marks as counted; a lint, a doc check or a blocking
+   review is fixed and run again without spending one, or the limit is spent on typos.
 7. **Keep the task's state in a file and read it with one command.** The chat gets compacted and forgets; a file
    keeps the state.
 8. **Make judges read-only, and make them quote their evidence.** A judge that can edit fixes what it should report.
@@ -756,6 +757,17 @@ calibration` reads the log.
 - **The log is committed.** Calibration then covers every clone and every task, not one machine.
 - **`verify.py calibration` prints, per judge, what it caught, what it missed and its false alarms**, then the findings
   only a person could see, the lessons the agent recorded, and the count per route.
+- **A run on the target with changed code and nothing recorded since the last one stops the hand-over.** The person
+  looked at the target, said something, and the agent changed the code: that report is a lesson — a finding, with
+  `--judge` when a judge reviewed that part — or a change they asked for, their decision. Without the gate, a task can
+  flash a board a dozen times on the person's word and log nothing, and calibration shows every judge perfect.
+- **A lesson recorded after the run it led to names that run** — `finding --for-run N`, kept in the log as `for_run`;
+  the gate counts it for the gap before run N. Without it, a lesson logged late could never close the gap, since each
+  run keeps the count it saw.
+- **A blocking review prompts for its catches.** Each item a judge raised and the agent fixed is a `finding --judge
+  <judge> --caught yes`; `review` keeps only the last verdict, so the catch is lost unless it is logged.
+- **Calibration lists every judge the kit has and every judge the log names**, so a judge never tested shows 0 / 0 / 0
+  and one taken out of the plan keeps its record.
 - **Read it as a to-do list.** A judge that keeps missing one kind of finding needs an item; a judge with many false
   alarms needs a tighter one; many `open-item` routes and few `doc` routes mean the open items are not being closed.
 
@@ -791,13 +803,13 @@ flowchart TD
 | Command | Does |
 | --- | --- |
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
-| `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts failures, names the judges to ask |
-| `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict counts as a failed attempt |
+| `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
+| `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit |
 | `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`) or the built thing (`built`) |
 | `decision "<text>"` | Records the person's word for this task; judges read it in `status` and do not block on it |
-| `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code |
+| `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code, and logs every run with how many findings and decisions were recorded by then |
 | `signoff "<text>"` | Records the person's yes on the target, in their words; refuses when nothing ran there or the code changed since |
-| `finding "<text>" --route <r> [--source person\|agent] [--judge <j> --caught yes\|no]` | Records a lesson in the task and the judgements log (§9.2) |
+| `finding "<text>" --route <r> [--source person\|agent] [--judge <j> --caught yes\|no] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
 | `dispute <judge> "<text>" [--source agent\|person]` | Records a judge's false alarm |
 | `status` | Prints where the task stands — read this after compaction, not the chat |
 | `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open |
@@ -810,7 +822,7 @@ flowchart TD
 | `0` | Pass |
 | `1` | A check failed, or `finish` found something open |
 | `2` | Usage error |
-| `3` | The retry limit: 3 failed attempts in a row — record the failed approach (§9.2), then stop and ask the person |
+| `3` | The retry limit: 3 counted failures in a row — record the failed approach (§9.2), then stop and ask the person |
 
 ### 10.2 Choosing checks and judges
 
@@ -878,7 +890,8 @@ of these holds:
   after the first run that built it, or the built thing changed after its yes — unless the person recorded "no visible
   change" or, for the draft, "design given". The first run that built it is the first whose gated files differ from
   what they held when the task started, so a gated file an earlier task left uncommitted is not this task's build;
-- the change ran on the target and has no sign-off for the code as it ran.
+- the change ran on the target and has no sign-off for the code as it ran;
+- the code ran on the target twice, changed between, with no finding or decision recorded between (§9.4).
 
 On exit `0` the draft is ready for the agent to fill in. The filled-in block goes into the hand-over message and the
 commit message's verification line.
@@ -985,7 +998,7 @@ The guard judges each simple command by its program and arguments, so text that 
 | A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
 | A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec, or a new React and Vite app's `vite.config.ts`, `playwright.config.ts` or `.storybook/main.ts` while it holds no web app spec; denied with what to ask the person. From the shell, where the content cannot be read, a file the rule matches by name alone is asked and one it matches by content is not judged (`NEEDS_DOC` in the settings file) |
 | A web app's tools | ask; deny | Updating visual baselines (`playwright test --update-snapshots`), installing Playwright's browsers, a scaffolder that writes over the repo (`npm create`, `storybook init`), serving on the network (`vite --host`), a global install and a deploy (`netlify deploy`, any `vercel` call) ask, through npm, pnpm, yarn or bun; printing a package registry's token is denied |
-| Writing or fusing a device | ask; deny | Flashing or erasing a board (`idf.py flash`, `esptool write-flash`) asks; burning or protecting an eFuse — permanent on the chip — is denied |
+| Writing or fusing a device | ask; deny | Flashing or erasing a board (`idf.py flash`, `esptool write-flash`) asks by default; a project that allows flashing the app moves `flash` and `app-flash` out of `ASK_COMMANDS` and keeps erasing and writing below the app asking; burning or protecting an eFuse — permanent on the chip — is denied |
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 
@@ -1250,7 +1263,8 @@ marked. A new project starts there, so the controls are in place before the firs
   and learned items need a home that grows without rewriting the agent.
 - **A draft's yes is recorded with the file's hash, before the build.** It covers exactly what the person saw, and
   `finish` can tell a yes given after the build from one given before it.
-- **The retry limit is 3.** One failure is a typo, two can be a bad fix, and three means the approach is wrong.
+- **The retry limit is 3, and only builds and tests count.** One failure is a typo, two can be a bad fix, and three
+  means the approach is wrong; a lint or a judge's finding is a fix list, not a failed approach.
 - **The judgements log is committed, and the task state is not.** The log is the harness's memory of where its judges
   fall short, and it should outlive a clone. Task state belongs to one machine and is noisy.
 - **The loop runs in the session, not only in CI.** The agent needs the result in seconds, picked by path, before it
