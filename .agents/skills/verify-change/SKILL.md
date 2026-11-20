@@ -1,6 +1,6 @@
 ---
 name: verify-change
-description: Runs a change through the harness loop from first edit to hand-over — verify.py start, run (it picks the checks the touched files need — the project's build, tests and lint, the doc lint and links, the design check of DESIGN.md and the token files, the accessibility, layout, typography, motion and touch checks of the UI files, the layering check of an ESP-IDF app, the guard's self-tests — runs them in parallel, and stops after 3 failed attempts in a row), the judges it names recorded with review, the person's yes to a mock, a motion study or the built screen recorded with approve and the file's hash, the target recorded with target and the person's sign-off on it, every lesson routed with finding, and finish, the hand-over gate that drafts the Verified block. Use when starting a code, design, doc or kit change, before handing one over or committing, when a check keeps failing, when the person approves a draft or reports what they saw on the target, or when the agent learns something worth keeping.
+description: Runs a change through the harness loop from first edit to hand-over — verify.py start, run (it picks the checks the touched files need — the project's build, tests and lint, the doc lint and links, the design check of DESIGN.md and the token files, the accessibility, layout, typography, motion and touch checks of the UI files, the layering check of an ESP-IDF app, the guard's self-tests — runs them in parallel, and stops after 3 failed builds or tests in a row), the judges it names recorded with review, the person's yes to a mock, a motion study or the built screen recorded with approve and the file's hash, the target recorded with target and the person's sign-off on it, every lesson routed with finding, and finish, the hand-over gate that drafts the Verified block. Use when starting a code, design, doc or kit change, before handing one over or committing, when a check keeps failing, when the person approves a draft or reports what they saw on the target, or when the agent learns something worth keeping.
 metadata:
   scope: project
 ---
@@ -49,14 +49,16 @@ flowchart TD
    belong to one task (AGENT_HARNESS §10.1).
 2. **Run the checks through `verify.py run`, not one by one** — it picks them from the touched files, runs them in
    parallel, records the run and counts failures (HARNESS §4).
-3. **Stop at exit 3** — three failures in a row, runs or blocking reviews, mean the plan is wrong, not the last edit.
+3. **Stop at exit 3** — three failed builds or tests in a row (the checks marked `"counts": True`) mean the plan is
+   wrong, not the last edit; a lint, a doc check or a blocking review does not count.
    Record the approach that failed and why (Recording what was learned), report each failure, and ask the person
    (AGENT_HARNESS §1, Do 6).
 4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
-   verdict is a failed attempt; a pass stands until that judge's own files change — ask again only the judges
-   `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its
-   skill's `references/rubric.md`, its learned ones in that file) and opens its report with
-   `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
+   verdict is fixed and asked again, and each item it raised that you fix is logged as a catch — `verify.py finding
+   "<what>" --source agent --route <route> --judge <judge> --caught yes`; a pass stands until that judge's own files
+   change — ask again only the judges `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the
+   `ui-designer`'s items are in its skill's `references/rubric.md`, its learned ones in that file) and opens its report
+   with `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    ux|mock|motion|copy` the moment they give it, naming the file** — `ux` for a UX brief, which comes before the
    mock for a new flow (the `ux-designer` skill). After the build, their yes on the built screen beside
@@ -76,6 +78,12 @@ flowchart TD
 11. **Hand over only when `verify.py finish` exits 0**, its Verified block filled in.
 12. **Answer the stop reminder** — stopping on changes no run has seen, the Stop hook asks once: run `verify.py run`,
     or tell the person why not (HARNESS §10).
+13. **Record every run on the target with `verify.py target`, and ask the person whether a re-run's cause is an eval.**
+    Running changed code again after they looked at the target almost always follows something they saw: ask whether
+    to record it, then `verify.py finding` (with `--judge … --caught no` when a judge reviewed that part), or
+    `verify.py decision` for a change they asked for; your own fix is a finding `--source agent`. `finish` refuses two
+    runs of different code with nothing recorded between (AGENT_HARNESS §9.4); a lesson recorded after the later run
+    names it, `--for-run N`, as `target` printed it.
 
 ### Never
 
@@ -103,7 +111,7 @@ flowchart TD
 5. A visible change: show the person the built screen beside the approved mock ([`ui-designer`](../ui-designer/SKILL.md)
    gate 2); their yes: `V approve <side-by-side> --kind built`.
 6. The change needs the target? The target, below; then `V target --where "<where>" --build "<which build>"
-   --health-exit <n>`.
+   --health-exit <n>` — every time, a flash or a deploy each (Do 13).
 7. The person judges it on the target. Their yes: `V signoff "<what they judged>"`, in their words; what they report
    wrong, and what you learned, routed (Recording what was learned).
 8. `V finish` — the Verified block's draft; exit 1 lists what is still open. On exit 0, fill in the `<…>` lines and
@@ -189,7 +197,7 @@ instead of searching the chat for where the task stands.
 - **`V finish`: "no sign-off from the person on the target"** → it ran there and they have not judged it, or the code
   changed after their yes → run it again, `V target`, show them, and record their words with `V signoff`.
 - **A fix reported as done is not in the files** → it was chained with `&&` after `V review <judge> blocking`, which
-  exits 1 (a failed attempt), so the edit never ran → record the verdict as its own step, make each edit as its own
+  exits 1, so the edit never ran → record the verdict as its own step, make each edit as its own
   step, and grep that it landed before saying it is fixed.
 - **The guard blocks a command the task needs** → it is a rule from AGENTS.md → ask the person to run or approve it;
   never rephrase the command to get past it.

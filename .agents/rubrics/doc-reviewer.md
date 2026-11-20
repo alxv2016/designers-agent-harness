@@ -50,3 +50,4 @@ A result without evidence counts as unsure.
 
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
+| L1 | 2026-11-19 | A doc's "never do X" rule passed while the code did X in five places | A rule in a doc that bounds what code does — *never*, *only*, *every* — over a set the code enumerates (commands sent, pins, keys): each member the code uses, grepped and checked against the rule's source, not the rule's wording alone |

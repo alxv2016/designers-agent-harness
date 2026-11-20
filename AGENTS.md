@@ -102,13 +102,13 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 ## Harness
 
 Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.md): `verify.py start "<task>"`, the
-person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
-in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
-then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
-secret files, burning a chip's eFuses and printing a registry token, even with a yes; it also denies a new skill or
-agent until it carries the person's choice of scope (rule 9), a new ESP-IDF project until `docs/` holds its hardware
-spec, and a new React and Vite app's configs until it holds a web app spec; it **asks** before a commit, a push,
-discarding changes, deleting files, sending data off the machine, a fetch from a host outside the allow-list,
+person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failed
+builds or tests in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's
+sign-off (`signoff`), then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading
+credentials and secret files, burning a chip's eFuses and printing a registry token, even with a yes; it also denies a
+new skill or agent until it carries the person's choice of scope (rule 9), a new ESP-IDF project until `docs/` holds its
+hardware spec, and a new React and Vite app's configs until it holds a web app spec; it **asks** before a commit, a
+push, discarding changes, deleting files, sending data off the machine, a fetch from a host outside the allow-list,
 publishing or deploying, flashing a board, installing browsers, updating visual baselines, editing generated files or
 the harness itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The
 injection flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the
