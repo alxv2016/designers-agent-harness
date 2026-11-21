@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "playwright"
+description = "Writes, fixes and reviews Playwright end-to-end tests from the playwright skill"
+developer_instructions = "Read .agents/agents/playwright.md and follow it. In review mode, edit nothing; in setup mode, ask before installing."
+model_reasoning_effort = "medium"

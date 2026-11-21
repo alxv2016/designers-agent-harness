@@ -88,7 +88,8 @@ a browser install or a visual baseline update, and `verify.py run` runs the laye
 1. `src/features/<name>/<name>.tsx` and its CSS module, shaped like `src/features/hello/`; its controls from
    `src/components/ui/`.
 2. Render it from `src/app/` — never from another feature.
-3. Its path through the app in `e2e/<name>.spec.ts`; `R check`, then the three test layers.
+3. Its path through the app in `e2e/<name>.spec.ts`, written with the `playwright` skill (or its agent); `R check`,
+   then the three test layers.
 
 ### Adding a component
 

@@ -55,7 +55,11 @@ and the code: find out which is intended before changing either
     [`storybook`](.agents/agents/storybook.md) agent, or follow the [`storybook`](.agents/skills/storybook/SKILL.md)
     skill: every prop, one concept per story, each theme pinned
     ([STORYBOOK §2](.agents/skills/storybook/references/storybook.md#2-the-story-file)).
-12. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
+12. **Write a feature's end-to-end tests as soon as it exists** — hand it to the
+    [`playwright`](.agents/agents/playwright.md) agent, or follow the
+    [`playwright`](.agents/skills/playwright/SKILL.md) skill: each task and its failure, by role and name, axe in each
+    theme ([PLAYWRIGHT §2](.agents/skills/playwright/references/playwright.md#2-the-spec-file)).
+13. `<The project's own rules: one line each, with a link to the doc that holds the reason.>`
 
 ---
 
@@ -78,6 +82,7 @@ Scope is `portable` or `project`
 | [`ux-designer`](.agents/skills/ux-designer/SKILL.md) | **Read first for a new flow, feature or screen.** How the experience works — people, tasks, flows, structure, interaction models, states, errors — from HCI's principles and the laws of UX; the UX brief before the mock; research plans; the review of an experience | `portable` |
 | [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
 | [`react-vite-setup`](.agents/skills/react-vite-setup/SKILL.md) | Setting up a React, Vite and TypeScript web app from the web app spec in `docs/` — the shell, features, components with their stories, tokens from DESIGN.md, Vitest, Storybook and Playwright tests — and adding a feature or a component to one | `portable` |
+| [`playwright`](.agents/skills/playwright/SKILL.md) | A feature's end-to-end tests, right after it is added: the template's layout, each task and its failure, locators by role and name, web-first assertions awaited, stubs, axe in each theme, reflow; fixing a failing or flaky test; Playwright's MCP server; the e2e check | `portable` |
 | [`storybook`](.agents/skills/storybook/SKILL.md) | A component's stories, right after it is created or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest; the story check | `portable` |
 | [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
 | [`secrets-handling`](.agents/skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets; bench and CI credentials; after a leak; the secret scan | `portable` |
@@ -101,6 +106,7 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 | [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `portable` |
 | [`ux-designer`](.agents/agents/ux-designer.md) | Frames flows as UX briefs, plans research and reviews experiences from the ux-designer skill, beside the `ui-designer`; modes frame, research and review | `portable` |
 | [`ux-content-writer`](.agents/agents/ux-content-writer.md) | Writes and reviews the words on screens from the ux-content skill; modes write, review and rewrite | `portable` |
+| [`playwright`](.agents/agents/playwright.md) | Writes, fixes and reviews a feature's end-to-end tests from the playwright skill, after a feature is added or on request; modes write, heal, setup and review | `portable` |
 | [`storybook`](.agents/agents/storybook.md) | Writes, reviews and sets up a component's stories from the storybook skill, after a component is created or on request; modes write, setup and review | `portable` |
 | [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
 | [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `project` |
@@ -206,6 +212,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [PRINCIPLES](.agents/skills/principles/references/principles.md) | The working principles — proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and its test — generic, any project; kept in the principles skill |
+| [PLAYWRIGHT](.agents/skills/playwright/references/playwright.md) | How end-to-end tests are written, kept and fixed — the spec file, locators, web-first assertions, isolation, stubs, accessibility and reflow, baselines, traces, CI, Playwright's MCP server and test agents — generic, any project with Playwright; kept in the playwright skill |
 | [STORYBOOK](.agents/skills/storybook/references/storybook.md) | How stories are written for people, tests and agents — the layout, props, one concept, summaries, themes, play functions, the manifest, Storybook's MCP server — generic, any Storybook project; kept in the storybook skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |

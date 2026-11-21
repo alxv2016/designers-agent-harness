@@ -88,6 +88,7 @@ The skills load by their description; name one only to insist on it. The full in
 | Decide how a new flow, feature or screen works | [`ux-designer`](../ux-designer/SKILL.md) — the UX brief, before the mock |
 | Design, build or review a screen or component | [`ui-designer`](../ui-designer/SKILL.md) skill and agent — the three gates |
 | Write stories for a component, or set up Storybook's MCP server | [`storybook`](../storybook/SKILL.md) skill and agent |
+| Write, fix or review end-to-end tests, or set up Playwright's MCP server | [`playwright`](../playwright/SKILL.md) skill and agent |
 | Write the words on a screen | [`ux-content`](../ux-content/SKILL.md), the [`ux-content-writer`](../../agents/ux-content-writer.md) |
 | Decide or change a design token | [`design-system`](../design-system/SKILL.md) |
 | Meet the accessibility floors | [`accessibility`](../accessibility/SKILL.md) |
@@ -140,6 +141,7 @@ Swap in the real names; informal wording works.
 - New screen: `add a <screen> where people can <task>. start with the UX brief, then a mock for my yes.`
 - Bug: `<symptom> on <screen or board>. reproduce it first, then fix the cause and show me it on the target.`
 - Stories: `write stories for <component>: its props, light and dark, one concept per story.`
+- End to end: `write the end-to-end tests for <feature>: each task and its failure, axe in light and dark.`
 - Understand: `/teach how <module> works and why it is built this way.`
 - Risk: `what could this change break outside the diff? prove the one fact it's safe because of.`
 - Steer: `apply prove it works. show me the screen on the target, not the build log.`

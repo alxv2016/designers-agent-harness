@@ -256,7 +256,8 @@ typescript: {
 
 ### 10.3 Registering it with the agent
 
-- **Claude Code** — project scope, so every clone gets it, in `.mcp.json` at the repo root:
+- **Claude Code** — project scope, so every clone gets it: `claude mcp add --transport http storybook
+  http://localhost:6006/mcp --scope project`, or in `.mcp.json` at the repo root:
 
 ```json
 {
@@ -269,7 +270,6 @@ typescript: {
 }
 ```
 
-  or from the shell: `claude mcp add --transport http storybook http://localhost:6006/mcp --scope project`.
 - **Other agents** — Storybook's docs give `npx mcp-add --type http --url "http://localhost:6006/mcp" --scope project`,
   which asks for a server name and writes the agent's own config.
 - **The server's name is how its tools are called** — `storybook` makes the tools `mcp__storybook__docs-list` and the

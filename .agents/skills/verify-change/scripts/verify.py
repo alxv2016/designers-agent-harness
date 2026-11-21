@@ -416,6 +416,21 @@ def check_storybook(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+PW_SKILL = f"{SKILLS}/playwright/"
+PW_CHECK = f"{PW_SKILL}scripts/e2e_check.py"
+PW_FILES = re.compile(r"(?:^|/)(?:e2e|tests?)/|\.(?:spec|test)\.[cm]?[jt]sx?$|(?:^|/)playwright\.config\.[cm]?[jt]s$")
+
+
+def check_playwright(run_dir: Path) -> dict:
+    """The e2e check's self-test; then every file that imports @playwright/test, and the Playwright config."""
+    results = [sh([sys.executable, PW_CHECK, "--test"], run_dir / "playwright.selftest.log"),
+               sh([sys.executable, PW_CHECK], run_dir / "playwright.files.log")]
+    ok = all(code == 0 for code, _ in results)
+    summary = next((line for line in results[1][1].splitlines() if line.startswith("PW1")), "")
+    return {"ok": ok, "detail": f"the e2e check {'clean' if ok else 'failing'}: {summary}",
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 ESP_SKILL = f"{SKILLS}/esp-idf-setup/"
 ESP_SCRIPT = f"{ESP_SKILL}scripts/esp_idf.py"
 ESP_PATHS = ("main/", "components/", "CMakeLists.txt")
@@ -493,7 +508,7 @@ def check_react_vite(run_dir: Path) -> dict:
 
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
            "motion": check_motion, "touch": check_touch, "layout": check_layout,
-           "typography": check_typography, "storybook": check_storybook, "ux": check_ux,
+           "typography": check_typography, "storybook": check_storybook, "playwright": check_playwright, "ux": check_ux,
            "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
@@ -523,6 +538,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(TYPE_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "storybook": (ROOT / STORY_CHECK).is_file()
         and any(f.startswith(STORY_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "playwright": (ROOT / PW_CHECK).is_file()
+        and any(f.startswith(PW_SKILL) or (not f.startswith(".agents/") and PW_FILES.search(f)) for f in files),
         # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
         "esp-idf": (ROOT / ESP_SCRIPT).is_file()
         and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()

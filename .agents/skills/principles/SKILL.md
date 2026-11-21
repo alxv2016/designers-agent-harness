@@ -1,6 +1,7 @@
 ---
 name: principles
 description: The working principles behind every change, carried in the skill (references/principles.md), each a named rule with when it applies, a test and what applying it leaves — Prove it on the real thing, Fix the root cause, Test the behaviour not the implementation (the two imagined edits; tests by role and accessible name), Explain the number, Small steps each checked, Question the premise, Get the data shape first, Model the domain (a screen's states as one value), Check at the boundary and trust inside, Separate before sharing (tasks, interrupts, agents), Make it safe to run twice (settings and OTA on a device), Keep it easy to read, Subtract before you add, Redesign as if it were always there, Move every caller then delete the old way (a token rename in one change), Build the lever, Experience first, Try more than one before committing, Ask only what only the person can answer, Keep the lesson in the structure, Guard the context window — on the web, iOS, Android and embedded ESP-IDF devices with an LVGL screen. Portable — the folder works in any repo. Use before shaping code or data, when debugging, writing or reviewing a test, measuring performance, planning a migration or a multi-step change, after two failed fixes, before declaring a task done, when tempted to ask "should I?", or when the person names a principle — "apply prove it works", "subtract before you add", "test behaviour".
+user-invocable: false
 metadata:
   scope: portable
 ---

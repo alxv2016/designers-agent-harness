@@ -389,6 +389,12 @@ skill.>
 - **The description is the trigger.** The agent decides from the description alone whether to load the body. Name the
   files, commands, error messages and phrases that should load it ("when the build fails on an import", "asked 'is
   this screen right?'"). A vague description never loads.
+- **Choose who loads a skill: the person, the agent, or both.** A skill that starts a piece of work or answers the
+  person's question stays in the `/` menu and loads by its description too — the default. A skill only the person
+  should start — an explanation, help with the kit — sets `disable-model-invocation: true`: it leaves the agent's
+  context and loads only when typed. A reference the agent applies inside other work — the floors, the tokens, the
+  principles, the loop — sets `user-invocable: false`: it leaves the `/` menu and still loads by its description.
+  Both are Claude Code's frontmatter; other agents ignore them `[TD]`.
 - **`scripts/` sits beside `SKILL.md`** and holds every step that can be scripted. The skill says how to run each
   script: which interpreter, and from which directory.
 
@@ -414,7 +420,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships twenty-one skills: seventeen `portable`, and four `project` — `verify-change`, `commit-message`
+The template ships twenty-two skills: eighteen `portable`, and four `project` — `verify-change`, `commit-message`
 and `harness-help` belong to the kit and copy across with it, and `build-run-test` is filled in from the project. A
 project adds its own domain skills as the code grows.
 
@@ -451,6 +457,7 @@ no UI file.
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
 | `storybook` | A component's stories, written once it exists or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest — carried in the skill | `references/storybook.md`, `templates/component.stories.tsx.tpl`, `story_check.py` | `portable` — the folder works in any Storybook project; the themes are the project's `DESIGN.md` |
+| `playwright` | A feature's end-to-end tests, written once it exists: the template's layout, the task and its failure, locators by role and name, web-first assertions awaited, isolation, stubs, axe in each theme, reflow; fixing a failing test without weakening it; Playwright's MCP server — carried in the skill | `references/playwright.md`, `templates/feature.spec.ts.tpl`, `e2e_check.py` | `portable` — the folder works in any repo with Playwright |
 | `principles` | The working principles: proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and a test, cited with the decision it changed — carried in the skill | `references/principles.md` | `portable` — the folder works in any repo |
 | `blast-radius` | What a change could break outside its diff, and the one fact it is safe because of, proven by running real code | — | `portable` — the folder works in any repo |
 | `teach` | `/teach`: how something works and why, from the code and the record, each reason labelled by its source; changes nothing | — | `portable` — the folder works in any repo |
@@ -523,6 +530,10 @@ Each skill must hold the following:
   portable; every prop covered; one concept per story; a JSDoc summary on the component, each prop and each story;
   each theme past the first pinned in a story and kept out of the manifest; play functions by role and name; the MCP
   server set up only after the person's yes; the story check.
+- **`playwright`**: the rules for end-to-end tests in `references/playwright.md` and the spec file's template, so the
+  folder is portable; each test a person's task with its failure; locators by role and name; every web-first
+  assertion awaited; isolation and stubs; axe in each theme and reflow; a failing test fixed at its cause, never
+  weakened; baselines and installs only with the person's yes; the e2e check.
 - **`principles`**: the principles in `references/principles.md`, so the folder is portable; each with when it applies,
   a test and what applying it leaves; "name each principle that changed a decision, with the decision"; the project's
   own rules and the person's decisions win over a principle.
@@ -611,6 +622,7 @@ You are the <role> for <project>.
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
 | `ux-designer` | Builder of UX briefs and research plans, and a reviewer of experiences | A new flow, feature or screen is framed, research is planned, or an experience is reviewed — when asked | `portable` — with the `ux-designer`, `accessibility` and `ux-content` skills; its rubric travels in the skill, its learned items in `.agents/rubrics/ux-designer.md` |
 | `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
+| `playwright` | Builder and healer of end-to-end tests, and a reviewer of spec files | A feature, page or flow is added, a test fails or flakes, tests are asked for, or Playwright's MCP server is set up | `portable` — with the `playwright` and `accessibility` skills |
 | `storybook` | Builder of stories, and a reviewer of story files | A component is created or its props change, stories are asked for, or Storybook's MCP server is set up | `portable` — with the `storybook`, `accessibility` and `design-system` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
@@ -642,6 +654,11 @@ What each one does:
   a summary on each, each theme pinned — adds the JSDoc the component lacks, then runs the story check and the story
   tests; in setup mode, adds Storybook's MCP server after the person's yes; in review mode, reports a story file's
   findings, read-only.
+- **`playwright`**: in write mode, writes a feature's spec from the template — each task and its failure, the
+  keyboard path, axe in each theme, reflow — then runs the e2e check and the tests; in heal mode, reads a failing
+  test's trace, decides whether the app or the test is wrong, and fixes that cause without weakening the test; in
+  setup mode, adds Playwright's MCP server after the person's yes; in review mode, reports a spec's findings,
+  read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -876,6 +893,7 @@ file.
 | UI paths, the `typography` skill | `typography` — the typography check's self-test; once UI paths are set, the UI files against the typography patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
+| Test files and `playwright.config.*`, the `playwright` skill | `playwright` — the e2e check's self-test; every file that imports `@playwright/test`, and the config, against PW1–PW8 | `playwright` in review mode, when asked |
 | UI paths, the `storybook` skill | `storybook` — the story check's self-test; once UI paths are set, the story files against SB1–SB7 | `storybook` in review mode, when asked |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
@@ -1471,6 +1489,7 @@ reasons before it answers.
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `ux-designer` (builder and reviewer) | `sonnet`; `opus` for a new product's flows | `high` | Reasons about people and tasks against named principles; the brief template and the rubric carry the structure |
 | `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
+| `playwright` (builder, healer and reviewer) | `sonnet` | `medium` | Writes and fixes tests to fixed rules; the e2e check and the test runs carry the mechanics |
 | `storybook` (builder and reviewer) | `sonnet` | `medium` | Writes stories from a template and the component's props to fixed rules; the story check and the story tests carry the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
