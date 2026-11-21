@@ -391,7 +391,8 @@ instead of working by hand.**
 - **Settle by prototype what a prototype can settle**; leave to the person what only taste or product direction can.
 - **Keep prototypes cheap** — a scratch page, a branch, a story, a sketch on the board.
 - **Follow the precedent where one exists** — consistency beats novelty.
-- **In the kit:** offer two or three drafts at the `ui-designer` skill's first gate.
+- **In the kit:** the `ui-designer` skill's first gate offers two or three options before the full draft, and the
+  person's pick becomes the draft that takes the yes (its Do 13).
 
 ---
 

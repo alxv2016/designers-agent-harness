@@ -187,6 +187,7 @@ what to write, and the corrected call goes on:
 | The `ux-designer` skill | `scope`, and the doc checks of its references — no script reads an experience | `ux-designer` in review mode, when asked |
 | `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
+| `.agents/rubrics/`, `.agents/evals/`, the `verify-change` skill | `rubrics` (each Learned row `\| L<n> \| YYYY-MM-DD \| … \| … \|`, numbers rising and never reused, no date ahead of today, no empty cell; each judgements line parses with a known kind, route, area and draft — [AGENT_HARNESS §9.3](../docs/AGENT_HARNESS.md#93-learned-items)) | — |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
@@ -210,12 +211,14 @@ what to write, and the corrected call goes on:
 
 | Refuses while | Why |
 | --- | --- |
-| No run; the last run failed; an edit after the last run | The checks did not see this tree |
+| No run; the last run failed; an edit after the last run; a last run made with `--only` | The checks did not see this tree |
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
+| A lesson — a finding, a no, a false alarm — whose route's edit is not in the change, made after the lesson was recorded or named with `--edit`; a `rubric` lesson that added no learned item to its agent's rubric | Written down and changed nothing ([AGENT_HARNESS §9.2](../docs/AGENT_HARNESS.md#92-recording-what-was-learned)) |
+| A skill or an agent changed with no `kit` yes from the person on its diff, or changed since that yes | A tool's permission mode may answer the guard's ask without the person; this holds whatever the mode ([AGENT_HARNESS §11.3](../docs/AGENT_HARNESS.md#113-what-to-gate)) |
 | Two runs on the target with changed code and no finding or decision recorded between, nor one recorded later with `--for-run` naming the later run | A change after the person looked almost always follows something they saw — a lesson for the judgements log ([AGENT_HARNESS §9.4](../docs/AGENT_HARNESS.md#94-the-judgements-log-and-calibration)) |
-| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
+| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft; neither waives the kit gate | §9 |
 
 ```markdown
 ## Verified
@@ -296,8 +299,11 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 | A design token or principle in `DESIGN.md` | Says yes to a specimen — swatches, the type scale, screens before and after — before the token files change | `approve <png> --kind mock` |
 | A motion or a transition | Says yes to its motion study (a GIF or video at real speed) before it is built | `approve <gif> --kind motion` |
 | Copy that is the change | Says yes to the words in place | `approve <file> --kind copy` |
+| A brief, an option, a draft or the built screen they do not want | Says no, and what is wrong | `verify.py decline <file> "<their words>" --kind <kind> --about <area> --route <route>` — the lesson's edit in the same change; `approve` refuses that file unchanged |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py approve <diff> --kind kit` — `finish` holds the hand-over without it |
+| A screen or component with no precedent | Picks one of two or three options before the full draft is drawn — a pick, never the yes | `verify.py decision "option picked: <screen>_option<x>.png — <their words>"` ([DESIGN_GATES §3](skills/ui-designer/references/gates.md#3-recording-a-yes)) |
 | A design they handed over | Says where it is | `verify.py decision "design given: <where>"` |
-| A change of those files with no visible effect | Says so | `verify.py decision "no visible change: <why>"` |
+| A change of those files with no visible effect | Says so | `verify.py decision "no visible change: <why>"` — it waives the look's gates, never the yes on a skill or an agent's diff |
 | Anything the guard asks about | Approves the call, or runs it | The tool's own prompt |
 | A judge flags what the person has settled | Decides | `verify.py decision "<what>"` — judges read it in `status` |
 | The change on the target | Judges the look, feel, motion and words | `verify.py signoff "<their words>"`, kept against the code as it ran; what they report wrong, `verify.py finding` |

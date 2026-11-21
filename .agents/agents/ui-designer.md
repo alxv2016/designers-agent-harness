@@ -59,7 +59,12 @@ name because callers ask for it by that name.
 Input: a described screen, component or flow — and, for a new flow, feature or screen, the UX brief the person
 approved (from the `ux-designer` agent), whose flow, states and behaviour the draft follows. Follow
 `ui-designer` → Gate 1, writing the draft and its values in a
-scratch folder, never the repo. Return:
+scratch folder, never the repo.
+
+**With no precedent** — no screen in the product and no platform convention does this job — return the options
+first and stop: two or three `<screen>_option<a|b|c>.png` that differ in kind, each with what it gets the person and
+what it costs, and your recommendation and why (`ui-designer` Do 13). Draw the full draft only for the option the
+person picks. With a precedent, draw one draft that follows it. For the full draft, return:
 
 1. **Surface**, and why.
 2. **Component list**, top to bottom, with each element's component, DESIGN.md tokens and states; the principle that
@@ -81,7 +86,11 @@ scratch folder, never the repo. Return:
 8. **Open questions**, with concrete outcomes.
 9. **The mock** — `<screen>_mock<n>.png` and its `.md`, full paths, last.
 
-Then stop. Only the person's yes, naming the draft, opens build mode; a change is a new draft.
+Then stop. Only the person's yes, naming the draft, opens build mode; a change is a new draft. Before any draft, read
+the project's learned items (in the kit, `.agents/rubrics/ui-designer.md` → Learned) and repeat none. When the person
+says no, record it in their words before the next draft — in the kit, `verify.py decline <file> "<their words>"
+--kind option|mock|motion|copy|built --about <area> --route rubric --judge ui-designer`, with its learned item —
+by hand otherwise (`ui-designer` Do 14).
 
 ## Mode: build (gates 2 and 3)
 

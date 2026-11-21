@@ -488,8 +488,9 @@ Each skill must hold the following:
 - **`ui-designer`**: the gates themselves, in `references/gates.md`, and the review rubric, in `references/rubric.md`,
   so the folder is portable; the project's
   `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; each yes recorded against its
-  file — by `verify.py` in the kit, by hand without it; the draft's values file and "build from it unchanged"; the
-  review of a UI change in a fixed order, accessibility first.
+  file — by `verify.py` in the kit, by hand without it; two or three options, and the person's pick, before a draft
+  with no precedent; the draft's values file and "build from it unchanged"; the review of a UI change in a fixed
+  order, accessibility first.
 - **`accessibility`**: the floors themselves, in `references/criteria.md` with how to meet and test each on every
   platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
   alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
@@ -735,7 +736,7 @@ person raised it (the agent is the default). The edit the route names lands in t
 | Something a judge should have caught from the diff | `rubric` | An L-item in that judge's rubric (§9.3) |
 | A judge's false alarm | `rubric`, through `verify.py dispute` | A tighter wording of the item it misread |
 | A command the guard let through, or blocked, wrongly | `guard` | A rule and a self-test case, plus a near-miss case that must pass (§11.2) |
-| A step that misled, or a trap in how a task is done — a workflow anti-pattern | `skill` | That skill's Never or Traps, citing the doc § with the reason |
+| A step that misled, or a trap in how a task is done — a workflow anti-pattern | `skill` | That skill's Never or Traps, or the agent's Boundaries, citing the doc § with the reason |
 | Settled and true of the product or the code, what not to do included | `doc` | The owning doc: a rule, a Never, a trap (symptom → cause → fix), or a Decision's alternative that does not work |
 | Seen once, not yet measured or explained | `open-item` | The owning doc's open items, which the open-items curator closes later (§8.2) |
 | Something only the target will ever show | `none` | The Verified block's "Judge on the target" line |
@@ -762,6 +763,19 @@ Anti-patterns — what not to do — have no folder of their own. Each goes wher
   fix holds a lesson, the sentence it replaces goes.
 - **Prove a new check fails on the real past mistake**, then passes on the fix, before trusting it. A check never seen
   to fail may match nothing.
+- **Record the person's no as a lesson, the moment they give it** — `verify.py decline <file> "<their words>" --kind
+  <kind> --about <area> --route <route>`, for a UX brief, an option, a mock, a motion study, the copy or the built
+  screen. Their noes are the richest design signal a harness gets, and the first thing a new draft overwrites; the
+  same file unchanged cannot be approved after it. A no on a design is most often a learned item in the `ui-designer`'s
+  or the `ux-designer`'s rubric, which they read before their next draft (§9.3).
+- **Tag every lesson with what it is about** — `--about` with one of the areas `verify.py` lists (flow, states,
+  structure, words, layout, type, colour, components, motion, gesture, accessibility, code, docs, harness), so
+  calibration shows an area that keeps coming back (§9.4).
+- **`finish` holds a lesson to its route** — it refuses a finding, a no or a false alarm whose route's edit is not in
+  the change, and a `rubric` lesson, which names its agent with `--judge`, that added no learned item to that agent's
+  rubric. The edit counts when it was made after the lesson was recorded — so an unrelated edit to a doc in the same
+  change does not stand in for it — or when the lesson names it with `--edit <path>`, for a fix made first. A lesson
+  written down that changed nothing is the shortfall this closes.
 - **A project lesson goes into the repo, never only into an agent's per-user memory** (§19). Per-user memory (Claude
   Code's auto memory, for one) belongs to one person on one machine: the next agent, the next person and the judges
   never see it, and no review checks it. It holds only what is about the person — their preferences, their role.
@@ -783,7 +797,12 @@ records the finding.
 A made-up example: `| L1 | <date> | the button label vanished on hover in dark mode | a hover colour set without its
 dark-theme value |`.
 
-- **Write "Looks for" as a pattern in the diff, not as the symptom** — a judge reads code, not the target.
+- **Write "Looks for" as a pattern in the diff, not as the symptom** — a judge reads code, not the target. For an
+  item from a no on a draft, it is the pattern in a draft — and what to do instead.
+- **Builders read their learned items before a draft** — the `ui-designer` before a mock, the `ux-designer` before a
+  brief — so a pattern the person said no to is avoided, not only caught later in review.
+- **The check keeps the table readable** — `verify.py run` fails a Learned row that is not `| L<n> | YYYY-MM-DD | … | …
+  |`, a number reused or out of order, a date ahead of today, or an empty cell.
 - **Promote it once a script can find it.** It becomes a `(script)` check in the owning skill, or a check in the loop,
   and the row cites that check.
 - **Fold it in once the owning doc states the rule.** The R-item that checks that rule covers it, and the row leaves.
@@ -792,8 +811,8 @@ dark-theme value |`.
 
 ### 9.4 The judgements log and calibration
 
-`verify.py finding` and `verify.py dispute` each append one JSON line to `.agents/evals/judgements.jsonl`. `verify.py
-calibration` reads the log.
+`verify.py finding`, `decline`, `dispute` and `approve` each append one JSON line to `.agents/evals/judgements.jsonl`.
+`verify.py calibration` reads the log, and `verify.py run` checks each line is well formed.
 
 ```json
 {"date": "<YYYY-MM-DD>", "task": "<task>", "commit": "<short sha>", "kind": "finding", "source": "person", "text": "<what was seen or learned>", "route": "rubric", "judge": "<judge>", "caught": false}
@@ -801,14 +820,22 @@ calibration` reads the log.
 
 | Field | Holds |
 | --- | --- |
-| `kind` | `finding`, or `false-alarm` from `dispute` |
+| `kind` | `finding`; `false-alarm` from `dispute`; `decline`, the person's no; `approval`, their yes |
 | `source` | Who found it, `person` or `agent`; a `finding` line without it is the person's |
 | `route` | One route from §9.2 |
-| `judge`, `caught` | The judge that looked at that part, and whether it caught the finding |
+| `judge`, `caught` | The judge that looked at that part, and whether it caught the finding; for a `rubric` lesson, the agent whose rubric learns it |
+| `text` | What was seen or learned — for a `decline`, the person's words |
+| `about` | The area the lesson is about, or none |
+| `edit` | The file the lesson's edit landed in, when named with `--edit`; or none |
+| `for_run` | For a lesson recorded late, the run on the target that shipped its change |
+| `draft`, `file` | For a `decline` or an `approval`: the kind of draft and the file's name (a `decline` keeps its hash too) |
 
 - **The log is committed.** Calibration then covers every clone and every task, not one machine.
 - **`verify.py calibration` prints, per judge, what it caught, what it missed and its false alarms**, then the findings
-  only a person could see, the lessons the agent recorded, and the count per route.
+  only a person could see, the lessons the agent recorded, the count per route, the person's yeses and noes per kind
+  of draft with how many drafts were approved without a no first, and the lessons per area.
+- **Three lessons in one area is a pattern** — calibration says so, and what they share becomes a check, a principle in
+  the design brief (with the person's yes on a specimen) or a skill's Never (§9.2).
 - **A run on the target with changed code and nothing recorded since the last one stops the hand-over.** The person
   looked at the target, said something, and the agent changed the code: that report is a lesson — a finding, with
   `--judge` when a judge reviewed that part — or a change they asked for, their decision. Without the gate, a task can
@@ -857,15 +884,16 @@ flowchart TD
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
 | `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit |
-| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`) or the built thing (`built`) |
+| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`), the built thing (`built`) or the diff of a change to a skill or an agent (`kit`); refuses a file the person said no to, unchanged |
+| `decline <file> "<their words>" --kind <kind> --about <area> --route <r> [--judge <agent>] [--edit <path>]` | Records the person's no to a draft — a brief, an option, a mock, a motion study, the copy, the built screen — or to a kit change's diff (`kit`), in the task and the judgements log, routed like a lesson (§9.2); a route of `none` needs no edit |
 | `decision "<text>"` | Records the person's word for this task; judges read it in `status` and do not block on it |
 | `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code, and logs every run with how many findings and decisions were recorded by then |
 | `signoff "<text>"` | Records the person's yes on the target, in their words; refuses when nothing ran there or the code changed since |
-| `finding "<text>" --route <r> [--source person\|agent] [--judge <j> --caught yes\|no] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
-| `dispute <judge> "<text>" [--source agent\|person]` | Records a judge's false alarm |
+| `finding "<text>" --route <r> [--source person\|agent] [--about <area>] [--judge <j> --caught yes\|no] [--edit <path>] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
+| `dispute <judge> "<text>" [--source agent\|person] [--about <area>] [--edit <path>]` | Records a judge's false alarm; its rubric changes in the same change |
 | `status` | Prints where the task stands — read this after compaction, not the chat |
-| `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open |
-| `calibration` | Agreement per judge (§9) |
+| `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open — a lesson whose route's edit is not in the change among it |
+| `calibration` | Agreement per judge; the person's yeses and noes per kind of draft; lessons per area, and a repeated area named (§9.4) |
 | `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, the hooks' and the loop's self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
 | `unverified [--hook]` | Whether the tree changed since the last run; as the agents' Stop hook, asks once per tree (§14.1) |
 
@@ -1048,7 +1076,7 @@ The guard judges each simple command by its program and arguments, so text that 
 | Deleting files | ask | `rm` outside the temp directories |
 | Sending data off the machine | ask | `curl` or `wget` with a body or a non-GET method; `nc`, `ssh`, `scp`, `sftp`, `ftp`, `telnet`, `socat`; a remote `rsync`; a fetch from a host outside `ALLOWED_HOSTS` |
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
-| The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
+| The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI; a change to a skill or an agent also waits at `finish` for the person's yes on its diff (`approve --kind kit`) |
 | A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
 | A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec, or a new React and Vite app's `vite.config.ts`, `playwright.config.ts` or `.storybook/main.ts` while it holds no web app spec; denied with what to ask the person. From the shell, where the content cannot be read, a file the rule matches by name alone is asked and one it matches by content is not judged (`NEEDS_DOC` in the settings file) |
 | A web app's tools | ask; deny | Updating visual baselines (`playwright test --update-snapshots`), installing Playwright's browsers, a scaffolder that writes over the repo (`npm create`, `storybook init`), serving on the network (`vite --host`), a global install and a deploy (`netlify deploy`, any `vercel` call) ask, through npm, pnpm, yarn or bun; printing a package registry's token is denied |
@@ -1056,6 +1084,9 @@ The guard judges each simple command by its program and arguments, so text that 
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 
+- **An ask is only as strong as the tool's permission mode.** A mode that answers the guard's asks itself — an
+  automatic mode, a standing allow — lets an edit through without the person. A rule that must hold whatever the mode
+  goes into `finish` as well: a skill or an agent changed with no `kit` yes on its diff is never handed over.
 - **`ALLOWED_HOSTS` has one home: the settings file.** The Codex sandbox's network list repeats it, and `doctor`
   compares the two. List the package registries, the code host and the platform's docs; a subdomain matches its host.
 - **Decide each class once: allowed outright, or asked every time.** A standing "approved for the next few hours"
@@ -1606,6 +1637,8 @@ hand-over.
 | Before a gated command | Says yes, or runs it themselves; never for a credential | The guard (§11) |
 | When the loop fails 3 times in a row | Chooses the next approach | `verify.py run` exits `3` |
 | When a judge and the agent disagree | Settles it | `verify.py decision`, `verify.py dispute`; the verify-change skill |
+| When they say no to a draft | Says what is wrong, in their words | `verify.py decline`, routed — most often a learned item the builder reads before its next draft (§9.2, §9.3) |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py approve <diff> --kind kit`, which `finish` checks whatever the tool's permission mode (§11.3) |
 | On the target | Judges what only a person can: look, feel, motion, words | `verify.py signoff`, which `finish` checks for a gated change that ran there |
 | Closing an open item about the target | Reports what they saw on it | The open-items curator never closes one from a build or a screenshot |
 | Committing and publishing | Asks for each commit and each push | The guard asks for `git commit` and `git push`; the commit-message skill |
@@ -1637,7 +1670,9 @@ in its reference (DESIGN_GATES §2, §4, §5), so they travel with the skill. Th
 - **`start` clears approvals**, so a yes from an earlier task is recorded again before the build, or named in a
   "design given" decision.
 - **The two words that stand in for a draft are decisions** — `verify.py decision "design given: <where>"`, and
-  `"no visible change: <why>"`.
+  `"no visible change: <why>"`. Neither waives the person's yes on a change to a skill or an agent (§11.3).
+- **With no precedent, a pick among two or three options comes first** — recorded as a decision, `"option picked:
+  <file> — <their words>"`; it chooses which option is drawn as the draft and is never the yes on it.
 
 ### 20.2 A skill or agent that does UI work
 

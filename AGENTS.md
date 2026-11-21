@@ -47,7 +47,10 @@ and the code: find out which is intended before changing either
    never only in an agent's own memory ([AGENT_HARNESS §19](docs/AGENT_HARNESS.md#19-memory)).
 9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
    as `metadata: scope:` — the guard holds the file until it has one
-   ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
+   ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)); **and show them the diff of every change to a
+   skill or an agent** — `finish` holds the hand-over until their yes on it, `verify.py approve <diff> --kind kit`,
+   whatever a tool's permission mode answered when the edit was made
+   ([AGENT_HARNESS §11.3](docs/AGENT_HARNESS.md#113-what-to-gate)).
 10. **Make every file, doc section and URL you show the person a link they can click** — `[name](path#L42)` from the
     repo root, `[DOC §n](docs/DOC.md#n-heading)`, `[what it is](https://…)`; never a bare path or URL in backticks
     ([AGENT_HARNESS §10.4](docs/AGENT_HARNESS.md#104-the-hand-over)).

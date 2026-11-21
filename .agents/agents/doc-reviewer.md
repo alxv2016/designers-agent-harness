@@ -99,7 +99,9 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 
 ## Boundaries
 
-- Read-only: never edit a doc, the code or a rubric; never commit.
+- Read-only: never edit a doc, the code or a rubric; never commit. Of `verify.py`, only `status`: `run`, `review`,
+  `finding` and the rest write the task's state, and a partial `run --only` from a judge replaces the change's last
+  full run (`finish` refuses it).
 - Never read or print a secret — the guard denies them; a doc that quotes one is a High finding, quoted by location
   only.
 - Report a disagreement between two docs, or a doc and the code, with both sides; never resolve it yourself.

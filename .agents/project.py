@@ -271,13 +271,17 @@ JUDGES = {}
 
 # The person's yes each kind of change needs before it is handed over: (what, the paths that call for it, the kinds
 # of yes). Kinds given before the build: "mock" (a still of a screen or component), "motion" (a GIF or video of a
-# move), "copy" (the words). Given after: "built" (the built screen beside its mock) — it covers the code as it was
-# at the yes. `verify.py approve <file> --kind <kind>` records each yes with the file's hash.
+# move), "copy" (the words). Given after: "built" (the built screen beside its mock), "kit" (the diff of a change
+# to a skill or an agent) — each covers its gate's files as they were at the yes. `verify.py approve <file> --kind
+# <kind>` records each yes with the file's hash.
 GATES = [
     ("a screen or component", UI_PATHS, ("mock", "built")),
     # A token value is seen on every screen at once: its change is drafted as a specimen (swatches, the type scale,
     # a screen or two before and after) and approved before the token files change.
     ("a design token or principle", (DESIGN_FILE,) + TOKEN_FILES, ("mock",)),
+    # A skill or an agent steers every later task: the person reads the change's diff and says yes before it is
+    # handed over, whatever a tool's permission mode answered when the edit was made (AGENTS.md rule 9).
+    ("a skill or an agent", (".agents/skills/", ".agents/agents/"), ("kit",)),
 ]
 
 # Where the change finally runs, in a few words — the Verified block names it.

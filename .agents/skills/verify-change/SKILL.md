@@ -67,14 +67,20 @@ flowchart TD
    the mock is `--kind built`; after it runs on the target, their sign-off is `verify.py signoff "<what they judged>"`
    in their words. A change with no visible effect needs their word instead: `verify.py decision "no visible change:
    <why>"`; a design they handed over: `verify.py decision "design given: <where>"` (HARNESS §9; AGENT_HARNESS §20).
+   **Their no is recorded too, the moment they give it** — `verify.py decline <file> "<their words>" --kind <kind>
+   --about <area> --route <route>`, usually `--route rubric --judge ui-designer|ux-designer`, before the next draft;
+   `approve` then refuses that file unchanged (AGENT_HARNESS §9.2).
 6. **Record the person's word with `verify.py decision`** the moment they decide something a judge may flag; every
    judge reads `status` first and does not block on it. A rule meant to last also goes into the doc that owns it.
 7. **Treat a judge as evidence, not a verdict on its own** — a finding with no quoted line or output is unsure; read
    it yourself before acting.
 8. **Run it on the target when the change needs it** — The target, below; "build only" from the person wins, and
    anything the guard asks about waits for their yes.
-9. **Record every lesson with `verify.py finding`, routed** — what the person reports, and what the agent learned
-   itself with `--source agent` (AGENT_HARNESS §9.2).
+9. **Record every lesson with `verify.py finding`, routed and tagged** — what the person reports, and what the agent
+   learned itself with `--source agent`; `--about <area>` on every finding, no and false alarm, so calibration shows
+   an area that keeps coming back; a `rubric` lesson names its agent with `--judge` and adds a learned item to that
+   agent's rubric. `finish` refuses a lesson whose route's edit is not in the change — made after the lesson was
+   recorded, or named with `--edit <path>` when the fix came first (AGENT_HARNESS §9.2, §9.3).
 10. **Put a project lesson in the repo, never only in an agent's own memory** — per-user memory is one person's on one
     machine; the next agent and the judges never see it (AGENT_HARNESS §19).
 11. **Hand over only when `verify.py finish` exits 0**, its Verified block filled in.
@@ -86,6 +92,9 @@ flowchart TD
     `verify.py decision` for a change they asked for; your own fix is a finding `--source agent`. `finish` refuses two
     runs of different code with nothing recorded between (AGENT_HARNESS §9.4); a lesson recorded after the later run
     names it, `--for-run N`, as `target` printed it.
+14. **Show the person the diff of every change to a skill or an agent, and record their yes** — `verify.py approve
+    <the diff> --kind kit`; `finish` holds the hand-over without it, and a tool's permission mode answering the
+    guard's ask is not their yes (AGENT_HARNESS §11.3).
 
 ### Never
 
@@ -151,7 +160,7 @@ same change (AGENT_HARNESS §9.2).
 | Checkable by a script or a test | `test` | A test case, or a check in `.agents/project.py` → `CHECKS` |
 | Something a judge should have caught from the diff | `rubric` | A learned item in that judge's rubric |
 | A command the guard let through or blocked wrongly | `guard` | A rule and a self-test case — `.agents/project.py` → `ASK_COMMANDS` and `GUARD_CASES`, or the guard — with a near-miss that must pass |
-| A step that misled, a trap in how a task is done | `skill` | That skill's Never or Traps, citing the doc § that holds the reason |
+| A step that misled, a trap in how a task is done | `skill` | That skill's Never or Traps, or the agent's Boundaries, citing the doc § that holds the reason |
 | Settled and true of the product or the code | `doc` | The owning doc: a rule, a Never, a trap, a Decision ([`docs-authoring-and-sync`](../docs-authoring-and-sync/SKILL.md)) |
 | Seen once, not yet measured or explained | `open-item` | The owning doc's open items ([`open-items-curator`](../../agents/open-items-curator.md)) |
 | Only the target will ever show it | `none` | The Verified block's "Judge on the target" |
@@ -208,6 +217,11 @@ instead of searching the chat for where the task stands.
 - **A fix reported as done is not in the files** → it was chained with `&&` after `V review <judge> blocking`, which
   exits 1, so the edit never ran → record the verdict as its own step, make each edit as its own
   step, and grep that it landed before saying it is fixed.
+- **`finish`: "routed to doc and no doc … changed after it was recorded"** → the fix came before the lesson, or
+  another doc's edit was taken for it → record the lesson first and then make its edit, or name the file with
+  `--edit <path>`; never point it at an unrelated edit.
+- **`finish`: "a skill or an agent changed with no yes"** → the person has not seen the kit change → show them the
+  diff, and record only their own yes: `verify.py approve <diff> --kind kit`.
 - **The guard blocks a command the task needs** → it is a rule from AGENTS.md → ask the person to run or approve it;
   never rephrase the command to get past it.
 - **A harness file was edited and the guard never asked** → a script built the path, a script kept in a file wrote it,

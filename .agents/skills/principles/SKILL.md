@@ -16,7 +16,7 @@ principle; the reference wins over this page — fix the page.
 **With the other skills.** The design skills carry the principles of their own field (HCI, accessibility, motion,
 layout, type); these are the principles of the work itself. Experience first (PRINCIPLES §18) is the tie-breaker the
 `ux-designer` and `ui-designer` skills apply; Try more than one (§19) is how the `ui-designer` skill's first gate offers
-drafts.
+options before a draft with no precedent.
 
 **Portable.** This folder is self-contained and links to nothing outside itself; it names the rest of a kit in
 backticks. It has no script — a principle is applied by judgment, and the checks that enforce one belong to the skills

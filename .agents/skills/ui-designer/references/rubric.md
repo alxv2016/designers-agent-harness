@@ -54,7 +54,7 @@ The record of yeses is `verify.py status` in the kit, and the change's record ot
 
 | Item | Looks for | Review step |
 | --- | --- | --- |
-| R1 | Gate 1, the draft: the record shows the person's yes on a draft file unchanged since, given before the code that built the change — or a "design given" or "no visible change"; a request, silence or a reviewer's pass is never the yes (ui-designer Do 2, Never) | 2 |
+| R1 | Gate 1, the draft: the record shows the person's yes on a draft file unchanged since, given before the code that built the change — or a "design given" or "no visible change"; a request, silence or a reviewer's pass is never the yes; for a screen or component with no precedent, the person's pick among two or three options recorded before that draft, and the pick never taken as the yes (ui-designer Do 2, Do 13, Never) | 2 |
 | R2 | Built from the draft's values: the components, tokens and focus order in `<screen>_mock<n>.md` equal the code; a layout that differs came back as a new draft and a new yes (ui-designer Do 5) | 2 |
 | R3 | Gate 2, the built screen: a yes on the side-by-side, the code unchanged since (ui-designer Do 6) | 2 |
 | R4 | The script checks: the design check (DESIGN.md's pairs and tokens) at 0, and no hit from the token, accessibility, layout, typography, motion and touch checks or the project's lint on an added or changed line (ui-designer review step 1; design-system Checks) | 1 |

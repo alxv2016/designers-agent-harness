@@ -7,20 +7,25 @@ docs/AGENT_HARNESS.md §10).
     verify.py start "<task>"          # a new task: state reset, the last one kept in history/
     verify.py run [--only docs,harness,design,<the project's checks>]
     verify.py review <judge> pass|blocking [--note TEXT]
-    verify.py approve <file> --kind ux|mock|motion|copy|built [--note TEXT]   # the person's yes, naming the file
+    verify.py approve <file> --kind ux|mock|motion|copy|built|kit [--note TEXT]   # the person's yes, naming the file
     verify.py decision "<what the person decided>"   # settled for this task: the judges read it in `status`
     verify.py target --where "<where it ran>" --build "<which build>" [--health-exit N] [--note TEXT]   # every run
     verify.py signoff "<what the person judged on the target>"   # their yes on the target, in their words
     verify.py finding "<what was seen or learned>" --route test|rubric|guard|skill|doc|open-item|none [--for-run N]
-                      [--source person|agent] [--judge JUDGE --caught yes|no]
-    verify.py dispute <judge> "<what the judge flagged that was not a problem>" [--source agent|person]
+                      [--source person|agent] [--about AREA] [--judge AGENT --caught yes|no] [--edit PATH]
+    verify.py decline <file> "<what the person said>" --kind ux|option|mock|motion|copy|built|kit --about AREA
+                      --route ROUTE [--judge AGENT] [--edit PATH]   # the person's no, routed like a lesson
+    verify.py dispute <judge> "<what the judge flagged that was not a problem>" [--source agent|person] [--about AREA]
+                      [--edit PATH]
     verify.py status | finish | calibration | doctor
     verify.py unverified [--hook]     # the tree changed since the last run? --hook: the agents' Stop hook
 
 Run it with python3 from the repo root. The project's checks, judges and gates come from .agents/project.py.
 
-State is .cache/harness/task.json (git-ignored). `finding` and `dispute` also append to .agents/evals/judgements.jsonl
-(committed), which `calibration` reads — never put a token, a key, a password or a person's data in their text.
+State is .cache/harness/task.json (git-ignored). `finding`, `decline`, `dispute` and `approve` also append to
+.agents/evals/judgements.jsonl (committed), which `calibration` reads — never put a token, a key, a password or a
+person's data in their text. `finish` refuses a lesson whose route's edit is not in the change — made after it was
+recorded, or named with --edit — and a rubric lesson that added no learned item to that agent's rubric.
 
 Exit status: 0 pass, 1 a check failed or `finish` found something open, 2 usage, 3 the retry limit is reached — stop
 and ask the person.
@@ -58,11 +63,19 @@ A11Y_SKILL = f"{SKILLS}/accessibility/"
 A11Y_SCRIPTS = f"{A11Y_SKILL}scripts"
 HARNESS_TESTS = (".agents/hooks/guard.py", ".agents/hooks/untrusted.py", ".agents/skills/verify-change/scripts/verify.py")
 ROUTES = ["test", "rubric", "guard", "skill", "doc", "open-item", "none"]
+# What a lesson is about, so calibration can show an area that keeps coming back (AGENT_HARNESS §9.4).
+AREAS = ("flow", "states", "structure", "words", "layout", "type", "colour", "components", "motion", "gesture",
+         "accessibility", "code", "docs", "harness")
+REPEAT_AT = 3  # lessons in one area before calibration asks for a check, a principle or a skill's Never
+RUBRICS = ROOT / ".agents/rubrics"
+LEARNED_ROW = re.compile(r"^\|\s*(L\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*$")
 KINDS_BEFORE = ("ux", "mock", "motion", "copy")  # a draft, approved before the build; `ux` is the UX brief
-KINDS_AFTER = ("built",)                   # the built thing beside its draft, approved after
+KINDS_AFTER = ("built", "kit")            # the built thing beside its draft; a change to a skill or an agent —
+                                          # approved after, and held against the files as they were at the yes
 KIND_NAMES = {"ux": "UX brief", "mock": "mock", "motion": "motion study", "copy": "copy",
-              "built": "built screen beside its mock"}
-# The person's word that waives a gate: no visible change waives them all; a design they gave waives the draft.
+              "built": "built screen beside its mock", "kit": "change to a skill or an agent"}
+# The person's word that waives a gate: no visible change waives every gate but the kit's; a design they gave waives
+# the draft.
 NO_VISIBLE_CHANGE = "no visible change"
 DESIGN_GIVEN = "design given"
 
@@ -91,6 +104,12 @@ JUDGES = {
 
 def judge_ready(name: str) -> bool:
     return (ROOT / ".agents/agents" / f"{name}.md").is_file()
+
+
+def rubric_owners() -> list[str]:
+    """Every agent a lesson can teach: the judges in the plan, and every agent with a rubric file — the ux-designer's
+    learned items live in a rubric though it is asked only on request."""
+    return sorted(set(JUDGES) | {p.stem for p in RUBRICS.glob("*.md")})
 
 
 def git(*args: str) -> str:
@@ -128,9 +147,10 @@ def deployed_fingerprint() -> str:
                         git("rev-parse", "HEAD"))
 
 
-def gated_fingerprint(files: list[str] | None = None) -> str:
-    """The content of the changed files any gate covers — what a `built` yes saw."""
-    paths = tuple(p for _, ps, _ in project.GATES for p in ps)
+def gated_fingerprint(files: list[str] | None = None, kind: str | None = None) -> str:
+    """The content of the changed files the gates cover — of those that ask for `kind`, when given: what a `built` or
+    a `kit` yes saw."""
+    paths = tuple(p for _, ps, kinds in project.GATES for p in ps if kind is None or kind in kinds)
     return content_hash([f for f in (files if files is not None else changed_files()) if project.matches(f, paths)])
 
 
@@ -506,9 +526,164 @@ def check_react_vite(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+def is_test_file(f: str) -> bool:
+    return bool(re.search(r"(^|/)(tests?|e2e|__tests__)/|\.(test|spec)\.[^/]+$|_test\.[^/]+$|(^|/)test_[^/]+$", f))
+
+
+def is_doc_file(f: str) -> bool:
+    return (f.startswith("docs/") or ("/" not in f and f.endswith(".md")) or f == ".agents/HARNESS.md"
+            or bool(re.match(r"\.agents/skills/[^/]+/references/", f)))
+
+
+# Where each route's edit lands (AGENT_HARNESS §9.2): a lesson recorded with a route and no such file in the change
+# was written down and changed nothing.
+ROUTE_PATHS = {
+    "test": lambda f: is_test_file(f) or f == ".agents/project.py" or f.startswith(".agents/hooks/")
+    or bool(re.match(r"\.agents/skills/[^/]+/scripts/", f)) or project.matches(f, [p for s in project.CHECKS.values()
+                                                                                   for p in s.get("when", ())]),
+    "guard": lambda f: f == ".agents/project.py" or f.startswith(".agents/hooks/"),
+    "skill": lambda f: bool(re.match(r"\.agents/skills/[^/]+/SKILL\.md$|\.agents/agents/[^/]+\.md$", f)),
+    "doc": is_doc_file,
+    "open-item": is_doc_file,
+    "rubric": lambda f: f.startswith(".agents/rubrics/") or f.endswith("/references/rubric.md"),
+}
+ROUTE_WHERE = {"test": "test, check or self-test file", "guard": "guard rule or guard case (.agents/project.py, "
+               ".agents/hooks/)", "skill": "skill's SKILL.md or agent's file", "doc": "doc (docs/, a root Markdown file, a skill's "
+               "references/, HARNESS.md)", "open-item": "doc's open items", "rubric": "rubric"}
+
+
+def count_new_rows(diff: str) -> int:
+    """Learned items a diff adds: `+| L<n> | …` lines (a whole file's lines, for a file git does not track yet)."""
+    return sum(1 for line in diff.splitlines() if line.startswith("+") and LEARNED_ROW.match(line[1:]))
+
+
+def new_learned_rows(agent: str) -> int:
+    rel = f".agents/rubrics/{agent}.md"
+    if not (ROOT / rel).is_file():
+        return 0
+    tracked = git("ls-files", "--", rel).strip()
+    diff = git("diff", "HEAD", "--", rel) if tracked else \
+        "\n".join("+" + line for line in (ROOT / rel).read_text().splitlines())
+    return count_new_rows(diff)
+
+
+def lesson_snapshot(route: str, agent: str | None) -> dict:
+    """What a lesson's route could change, as it stood when the lesson was recorded — so `finish` asks for an edit made
+    after it, not one an unrelated change happened to make (kept in the task, never in the log)."""
+    if route == "rubric" and agent:
+        return {"rows_at": new_learned_rows(agent),
+                "seen": {f".agents/rubrics/{agent}.md": file_hash(ROOT / f".agents/rubrics/{agent}.md")}}
+    if route == "none":
+        return {}
+    return {"seen": {f: file_hash(ROOT / f) for f in changed_files() if ROUTE_PATHS[route](f)}}
+
+
+def lesson_problems(task: dict, files: list[str], new_rows=new_learned_rows,
+                    hash_of=lambda f: file_hash(ROOT / f)) -> list[str]:
+    """Each lesson recorded this task — a finding, a false alarm, a no — has the edit its route names in the change,
+    made after the lesson was recorded; one routed to an agent's rubric adds a learned item to that agent's file."""
+    problems = []
+    # Named with --edit: that file, in the change and on the route. Otherwise a file on the route that changed after
+    # the lesson was recorded.
+    edited = lambda x, ok: (x["edit"] in files and ok(x["edit"])) if x.get("edit") else \
+        any(ok(f) and hash_of(f) != x.get("seen", {}).get(f) for f in files)
+    lessons = [x for x in task.get("findings", []) + task.get("declines", []) if x.get("route", "none") != "none"]
+    learned: dict[str, list] = {}
+    for x in lessons:
+        route, agent = x["route"], x.get("judge")
+        if route == "rubric" and agent:
+            if x["kind"] == "false-alarm":
+                if not edited(x, lambda f, a=agent: f == f".agents/rubrics/{a}.md"):
+                    problems.append(f"the false alarm \"{x['text'][:70]}\" is recorded and {agent}'s rubric "
+                                    f"(.agents/rubrics/{agent}.md) did not change since — tighten the item it misread")
+            elif x.get("edit") and x["edit"] != f".agents/rubrics/{agent}.md":
+                problems.append(f"the lesson \"{x['text'][:70]}\" names {x['edit']} as its edit, which is not "
+                                f"{agent}'s rubric (.agents/rubrics/{agent}.md)")
+            else:
+                learned.setdefault(agent, []).append(0 if x.get("edit") else x.get("rows_at", 0))
+            continue
+        if not edited(x, ROUTE_PATHS[route]):
+            problems.append(f"the lesson \"{x['text'][:70]}\" is routed to {route} and no {ROUTE_WHERE[route]} "
+                            "changed after it was recorded — make the edit the route names, or record it again with "
+                            "the right route")
+    for agent, marks in sorted(learned.items()):
+        n, have = len(marks), new_rows(agent) - min(marks)
+        if have < n:
+            problems.append(f"{n} lesson(s) routed to {agent}'s rubric and {have} new learned item(s) in "
+                            f".agents/rubrics/{agent}.md — add an L-item for each (AGENT_HARNESS §9.3)")
+    return problems
+
+
+def rubric_problems(name: str, text: str, today: str | None = None) -> list[str]:
+    """A rubric's Learned table, as AGENT_HARNESS §9.3 has it: `| L<n> | YYYY-MM-DD | from the person | looks for |`,
+    numbers rising and never reused, every cell filled, no date ahead of today."""
+    today = today or datetime.now().date().isoformat()
+    problems, seen, last, inside = [], set(), 0, False
+    for i, line in enumerate(text.splitlines(), 1):
+        if line.startswith("## "):
+            inside = line.strip() == "## Learned"
+            continue
+        if not inside or not line.startswith("|") or re.match(r"^\|\s*(Item|-+)\s*\|", line):
+            continue
+        m = LEARNED_ROW.match(line)
+        if not m:
+            problems.append(f"{name}:{i}: a Learned row is not "
+                            "`| L<n> | YYYY-MM-DD | <from the person> | <looks for> |`")
+            continue
+        item, since, heard, looks = m.groups()
+        n = int(item[1:])
+        if item in seen:
+            problems.append(f"{name}:{i}: {item} is used twice — the next free number, never reused")
+        elif n <= last:
+            problems.append(f"{name}:{i}: {item} comes after L{last} — numbers rise; a retired item leaves its gap")
+        seen.add(item)
+        last = max(last, n)
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", since) or since > today:
+            problems.append(f"{name}:{i}: {item}'s date \"{since}\" is not a real day up to today (YYYY-MM-DD)")
+        if not heard or not looks:
+            problems.append(f"{name}:{i}: {item} needs what the person saw and what in a diff predicts it")
+    return problems
+
+
+def judgement_problems(lines: list[str]) -> list[str]:
+    """Each line of the judgements log parses and carries the fields calibration reads."""
+    problems = []
+    kinds = {"finding", "false-alarm", "decline", "approval"}
+    for i, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            r = json.loads(line)
+        except ValueError:
+            problems.append(f"judgements.jsonl:{i}: not JSON")
+            continue
+        if r.get("kind") not in kinds:
+            problems.append(f"judgements.jsonl:{i}: kind {r.get('kind')!r} is none of {sorted(kinds)}")
+        if r.get("route") not in ROUTES:
+            problems.append(f"judgements.jsonl:{i}: route {r.get('route')!r} is none of {ROUTES}")
+        if r.get("about") not in (None,) + AREAS:
+            problems.append(f"judgements.jsonl:{i}: about {r.get('about')!r} is none of {list(AREAS)}")
+        if r.get("kind") in ("decline", "approval") and r.get("draft") not in KINDS_BEFORE + KINDS_AFTER + ("option",):
+            problems.append(f"judgements.jsonl:{i}: a {r['kind']} names no kind of draft")
+    return problems
+
+
+def check_rubrics(run_dir: Path) -> dict:
+    """The rubrics' Learned tables and the judgements log are written as calibration and the judges read them."""
+    problems = []
+    for p in sorted(RUBRICS.glob("*.md")):
+        problems += rubric_problems(p.relative_to(ROOT).as_posix(), p.read_text(errors="replace"))
+    if JUDGEMENTS.is_file():
+        problems += judgement_problems(JUDGEMENTS.read_text().splitlines())
+    (run_dir / "rubrics.log").write_text("\n".join(problems) + "\n")
+    return {"ok": not problems, "detail": f"{len(problems)} problem(s) in the rubrics' learned items and the "
+                                          "judgements log", "tail": problems[:16]}
+
+
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
            "motion": check_motion, "touch": check_touch, "layout": check_layout,
-           "typography": check_typography, "storybook": check_storybook, "playwright": check_playwright, "ux": check_ux,
+           "typography": check_typography, "storybook": check_storybook, "playwright": check_playwright,
+           "rubrics": check_rubrics, "ux": check_ux,
            "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
@@ -538,6 +713,7 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(TYPE_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "storybook": (ROOT / STORY_CHECK).is_file()
         and any(f.startswith(STORY_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "rubrics": any(f.startswith((".agents/rubrics/", ".agents/evals/", f"{SKILLS}/verify-change/")) for f in files),
         "playwright": (ROOT / PW_CHECK).is_file()
         and any(f.startswith(PW_SKILL) or (not f.startswith(".agents/") and PW_FILES.search(f)) for f in files),
         # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
@@ -619,7 +795,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     task["runs"].append({"n": n, "at": now(), "ok": ok,
                          "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
                          "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
-                         "debug": bool(hits),
+                         "debug": bool(hits), "partial": bool(only),
                          "seconds": round(time.time() - t0)})
     save(task)
     print(f"run {n}: {'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f} s — logs in {run_dir.relative_to(ROOT)}")
@@ -669,10 +845,43 @@ def cmd_approve(args: argparse.Namespace) -> int:
         print(f"approve: no file at {path}", file=sys.stderr)
         return 2
     task = load() or new_task("(unnamed)")
+    no = next((d for d in task.get("declines", []) if d["sha"] == digest), None)
+    if no:
+        print(f"approve: the person said no to {path.name} as it is — \"{no['text']}\"; draw the next draft and show "
+              "them that", file=sys.stderr)
+        return 1
     task["approvals"].append({"kind": args.kind, "file": str(path.resolve()), "sha": digest, "note": args.note,
-                              "at": now(), "code": gated_fingerprint()})
+                              "at": now(), "code": gated_fingerprint(kind=args.kind)})
     save(task)
+    # Logged too, so calibration can set the person's yeses against their noes per kind of draft
+    log_judgement({"kind": "approval", "draft": args.kind, "file": path.name, "source": "person", "route": "none"})
     print(f"approval recorded: {args.kind} {path.name} ({digest})")
+    return 0
+
+
+def cmd_decline(args: argparse.Namespace) -> int:
+    """The person's no to a draft — a UX brief, an option, a mock, a motion study, the copy, the built screen — in
+    their words, with the file's hash, so the same file cannot be approved later, and routed like any lesson, so the
+    next draft and the next task avoid it (AGENT_HARNESS §9.2)."""
+    path = Path(args.file).expanduser()
+    digest = file_hash(path)
+    if digest is None:
+        print(f"decline: no file at {path}", file=sys.stderr)
+        return 2
+    if args.route == "rubric" and not args.judge:
+        print("decline: a rubric lesson names the agent whose rubric learns it — --judge ui-designer, ux-designer, …",
+              file=sys.stderr)
+        return 2
+    task = load() or new_task("(unnamed)")
+    entry = {"kind": "decline", "draft": args.kind, "file": path.name, "sha": digest, "source": "person",
+             "text": args.text, "about": args.about, "route": args.route, "judge": args.judge, "caught": None,
+             "edit": args.edit}
+    task.setdefault("declines", []).append({**entry, **lesson_snapshot(args.route, args.judge)})
+    save(task)
+    log_judgement(entry)
+    print(f"no recorded: {args.kind} {path.name} ({args.about}) → route: {args.route}"
+          + (f" ({args.judge}'s rubric)" if args.judge else "")
+          + " — make the edit the route names in this change, then draw the next draft, n + 1")
     return 0
 
 
@@ -758,16 +967,20 @@ def cmd_finding(args: argparse.Namespace) -> int:
     if args.judge and args.caught is None:
         print("--judge needs --caught yes|no", file=sys.stderr)
         return 2
+    if args.route == "rubric" and not args.judge:
+        print("finding: a rubric lesson names the agent whose rubric learns it — --judge <agent> --caught yes|no",
+              file=sys.stderr)
+        return 2
     task = load() or new_task("(unnamed)")
     runs = len(task.get("target_log", []))
     if args.for_run is not None and not 2 <= args.for_run <= runs:
         print(f"--for-run names a run on the target after the first: 2 to {runs} this task", file=sys.stderr)
         return 2
-    entry = {"kind": "finding", "source": args.source, "text": args.text, "route": args.route, "judge": args.judge,
-             "caught": args.caught == "yes" if args.judge else None}
+    entry = {"kind": "finding", "source": args.source, "text": args.text, "about": args.about, "route": args.route,
+             "judge": args.judge, "caught": args.caught == "yes" if args.judge else None, "edit": args.edit}
     if args.for_run is not None:
         entry["for_run"] = args.for_run  # recorded late: the run on the target that shipped this lesson's change
-    task["findings"].append(entry)
+    task["findings"].append({**entry, **lesson_snapshot(args.route, args.judge)})
     save(task)
     log_judgement(entry)
     print(f"finding recorded ({args.source}) → route: {args.route} — make the edit the route names in this change "
@@ -776,10 +989,10 @@ def cmd_finding(args: argparse.Namespace) -> int:
 
 
 def cmd_dispute(args: argparse.Namespace) -> int:
-    entry = {"kind": "false-alarm", "source": args.source, "text": args.text, "route": "rubric", "judge": args.judge,
-             "caught": None}
+    entry = {"kind": "false-alarm", "source": args.source, "text": args.text, "about": args.about, "route": "rubric",
+             "judge": args.judge, "caught": None, "edit": args.edit}
     task = load() or new_task("(unnamed)")
-    task["findings"].append(entry)
+    task["findings"].append({**entry, **lesson_snapshot("rubric", args.judge)})
     save(task)
     log_judgement(entry)
     print(f"false alarm recorded against {args.judge} → route: rubric — tighten the item it misread")
@@ -800,7 +1013,9 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
     design_given = any(w.startswith(DESIGN_GIVEN) for w in words)
     touched = False
     for what, paths, kinds in project.GATES:
-        if no_visible or not paths or not any(project.matches(f, paths) for f in files):
+        if not paths or not any(project.matches(f, paths) for f in files):
+            continue
+        if no_visible and "kit" not in kinds:  # nothing visible waives a look, never the person's yes on the kit
             continue
         touched = True
         first = first_build(task, paths)
@@ -808,6 +1023,13 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
             if kind in KINDS_BEFORE and design_given:
                 continue
             yes = [a for a in task.get("approvals", []) if a["kind"] == kind]
+            if not yes and kind == "kit":
+                problems.append(f"{what} changed with no yes from the person on the change — show them its diff "
+                                "(git diff -- .agents/skills .agents/agents > <scratch>/kit.diff) and record their "
+                                "yes: "
+                                "verify.py approve <that file> --kind kit; a request or a tool's own approval of an "
+                                "edit is not their yes (AGENTS.md rule 9)")
+                continue
             if not yes:
                 problems.append(f"{what} changed with no yes from the person on its {KIND_NAMES[kind]} — verify.py approve "
                                 f"<file> --kind {kind}, or their word: verify.py decision \"{NO_VISIBLE_CHANGE}: "
@@ -817,8 +1039,9 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
             name = Path(a["file"]).name
             if approval_state(a):
                 problems.append(f"the approved {kind} {name}{approval_state(a)} — show the person the new file")
-            elif kind in KINDS_AFTER and a.get("code") != gated_fingerprint(files):
-                problems.append(f"the code changed after the person's yes on {name} — show them the built thing again")
+            elif kind in KINDS_AFTER and a.get("code") != gated_fingerprint(files, kind):
+                problems.append(f"{what} changed after the person's yes on {name} — show them the "
+                                f"{'diff' if kind == 'kit' else 'built thing'} again")
             elif kind in KINDS_BEFORE and first and a["at"] > first:
                 problems.append(f"the yes on the {kind} {name} came after the first run that built it — the draft is "
                                 "approved before the build (.agents/HARNESS.md §9)")
@@ -857,6 +1080,8 @@ def cmd_status(_: argparse.Namespace) -> int:
               + (f", health check exit {t['health_exit']}" if t.get("health_exit") is not None else ""))
     for s in task.get("signoffs", []):
         print(f"signed off on the target by the person at {s['at']}: {s['text']}{signoff_state(s)}")
+    for d in task.get("declines", []):
+        print(f"the person said no: {d['draft']} {d['file']} — \"{d['text']}\" → {d['route']}")
     for f in task["findings"]:
         print(f"finding ({f['kind']}, {f.get('source', 'person')}): {f['text']} → {f['route']}")
     print(f"debug marker in the tree: {'yes' if debug_hits() else 'no'}")
@@ -876,10 +1101,14 @@ def cmd_finish(_: argparse.Namespace) -> int:
         open_items.append(f"the last run ({last['n']}) failed")
     if last["fingerprint"] != tree_fingerprint():
         open_items.append("the tree changed after the last run — run again")
+    if last.get("partial"):  # a run with --only, whoever made it, never stands for the change's checks
+        open_items.append(f"the last run ({last['n']}) checked only {', '.join(last['checks']) or 'nothing'} — run "
+                          "every check the change needs: verify.py run")
     if debug_hits():
         open_items.append(f"a debug marker is in the tree — /{project.DEBUG_MARKERS}/ (.agents/project.py)")
     open_items += broken_invariants()
     open_items += gate_problems(task, files)
+    open_items += lesson_problems(task, files)
     covered = frozenset(f["for_run"] for f in task.get("findings", []) if f.get("for_run"))
     open_items += unrecorded_redeploys(task.get("target_log", []), covered)
     for judge, wants in JUDGES.items():
@@ -918,11 +1147,14 @@ def cmd_finish(_: argparse.Namespace) -> int:
     print("- Left running: <dev server, simulator, deploy — or nothing>")
     print("## Judge on the target")
     print("- <what only the person can judge: the look, the feel, motion and timing, the words>")
-    routed = [f for f in task["findings"] if f["route"] != "none"]
+    for d in task.get("declines", []):
+        print(f"- The person said no: {d['draft']} {d['file']} — \"{d['text']}\"")
+    routed = [f for f in task["findings"] + task.get("declines", []) if f["route"] != "none"]
     if routed:
         print("## Lessons routed (verify-change → Recording what was learned)")
         for f in routed:
-            print(f"- {f['text']} → {f['route']}")
+            print(f"- {f['text']} → {f['route']}" + (f" ({f['judge']})" if f.get("judge") else "")
+                  + (f" [{f['about']}]" if f.get("about") else ""))
     if open_items:
         print("## Open — not ready to hand over")
         for item in open_items:
@@ -968,8 +1200,8 @@ def cmd_calibration(_: argparse.Namespace) -> int:
     print(f"{len(rows)} judgement(s) in {JUDGEMENTS.relative_to(ROOT)}"
           + ("" if rows else " — verify.py finding / dispute add them"))
     print(f"  {'judge':26} {'caught':>6} {'missed':>6} {'false alarms':>12}")
-    # Every judge in the kit, and any the log names — one no longer in the plan keeps its record.
-    for j in sorted(set(JUDGES) | {r["judge"] for r in rows if r.get("judge")}):
+    # Every judge in the kit, every agent with a rubric, and any the log names — one no longer here keeps its record.
+    for j in sorted(set(rubric_owners()) | {r["judge"] for r in rows if r.get("judge")}):
         mine = [r for r in rows if r.get("judge") == j]
         caught = sum(1 for r in mine if r["kind"] == "finding" and r["caught"])
         missed = sum(1 for r in mine if r["kind"] == "finding" and r["caught"] is False)
@@ -980,9 +1212,55 @@ def cmd_calibration(_: argparse.Namespace) -> int:
     print(f"  lessons the agent recorded: {sum(1 for r in rows if r['kind'] == 'finding' and r.get('source') == 'agent')}")
     routes: dict[str, int] = {}
     for r in rows:
-        routes[r["route"]] = routes.get(r["route"], 0) + 1
+        if r["kind"] != "approval":
+            routes[r["route"]] = routes.get(r["route"], 0) + 1
     print("  by route: " + (", ".join(f"{k} {v}" for k, v in sorted(routes.items())) or "none yet"))
+    print("  the person's word on drafts:")
+    stats = draft_stats(rows)
+    if not stats:
+        print("    none yet — verify.py approve and decline add them")
+    for kind, s in stats.items():
+        print(f"    {KIND_NAMES.get(kind, kind):14} {s['yes']} yes, {s['no']} no — {s['first']} of {s['drafts']} "
+              "approved without a no first")
+    areas, untagged = area_counts(rows)
+    print("  lessons by area: " + (", ".join(f"{a} {n}" for a, n in areas.items()) or "none tagged yet")
+          + (f"; {untagged} untagged" if untagged else ""))
+    for area, n in areas.items():
+        if n >= REPEAT_AT:
+            print(f"  repeats: {area} has {n} lessons — turn what they share into a check, a principle in the design "
+                  "brief (with the person's yes on a specimen) or a skill's Never (AGENT_HARNESS §9.2)")
     return 0
+
+
+def draft_stats(rows: list[dict]) -> dict:
+    """Per kind of draft: the person's yeses and noes, and how many tasks' drafts of that kind got a yes with no
+    no before it."""
+    out: dict[str, dict] = {}
+    by_task: dict[tuple, list] = {}
+    for r in rows:
+        if r.get("kind") in ("approval", "decline") and r.get("draft"):
+            s = out.setdefault(r["draft"], {"yes": 0, "no": 0, "first": 0, "drafts": 0})
+            s["yes" if r["kind"] == "approval" else "no"] += 1
+            by_task.setdefault((r.get("task"), r["draft"]), []).append(r["kind"])
+    for (_, kind), events in by_task.items():
+        if "approval" in events:
+            out[kind]["drafts"] += 1
+            out[kind]["first"] += events.index("approval") == 0
+    return out
+
+
+def area_counts(rows: list[dict]) -> tuple[dict, int]:
+    """Lessons — findings, false alarms, noes — per area, most first, and how many carry no area."""
+    counts: dict[str, int] = {}
+    untagged = 0
+    for r in rows:
+        if r.get("kind") == "approval":
+            continue
+        if r.get("about"):
+            counts[r["about"]] = counts.get(r["about"], 0) + 1
+        else:
+            untagged += 1
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))), untagged
 
 
 def check_sandboxes(check) -> None:
@@ -1142,7 +1420,91 @@ def self_test() -> int:
             bad += 1
             print(f"FAIL redeploys, {name}: {got} gap(s), want {want}")
     redeploys = redeploys + [(n, l, w) for n, l, _, w in late]
-    cases = cases + scopes + redeploys + [("requires", "", "")]
+    # Lessons: each route's edit in the change, a rubric lesson's learned item, the rubrics and the log well formed
+    lesson = lambda route, kind="finding", judge=None: {"kind": kind, "text": "t", "route": route, "judge": judge}
+    rows_for = lambda n: (lambda agent: n)
+    lessons = [
+        ("a doc lesson with a doc changed", {"findings": [lesson("doc")]}, ["docs/X.md"], rows_for(0), 0),
+        ("a doc lesson with no doc changed", {"findings": [lesson("doc")]}, ["src/a.ts"], rows_for(0), 1),
+        ("a skill lesson needs a SKILL.md", {"findings": [lesson("skill")]}, [".agents/skills/x/scripts/a.py"],
+         rows_for(0), 1),
+        ("a skill lesson lands in an agent's file", {"findings": [lesson("skill")]}, [".agents/agents/x.md"],
+         rows_for(0), 0),
+        ("a test lesson with a test", {"findings": [lesson("test")]}, ["e2e/home.spec.ts"], rows_for(0), 0),
+        ("a guard lesson with project.py", {"findings": [lesson("guard")]}, [".agents/project.py"], rows_for(0), 0),
+        ("none needs nothing", {"findings": [lesson("none")]}, [], rows_for(0), 0),
+        ("a no to the ui-designer's rubric with its item", {"declines": [lesson("rubric", "decline", "ui-designer")]},
+         [".agents/rubrics/ui-designer.md"], rows_for(1), 0),
+        ("a no to the rubric with no item added", {"declines": [lesson("rubric", "decline", "ui-designer")]},
+         [".agents/rubrics/ui-designer.md"], rows_for(0), 1),
+        ("two rubric lessons and one item", {"findings": [lesson("rubric", judge="ux-designer")],
+                                             "declines": [lesson("rubric", "decline", "ux-designer")]},
+         [".agents/rubrics/ux-designer.md"], rows_for(1), 1),
+        ("a false alarm needs its rubric changed", {"findings": [lesson("rubric", "false-alarm", "code-reviewer")]},
+         ["docs/X.md"], rows_for(0), 1),
+        ("a doc changed only before the lesson", {"findings": [{**lesson("doc"), "seen": {"docs/X.md": "h1"}}]},
+         ["docs/X.md"], rows_for(0), 1),
+        ("a doc changed again after the lesson", {"findings": [{**lesson("doc"), "seen": {"docs/X.md": "h0"}}]},
+         ["docs/X.md"], rows_for(0), 0),
+        ("a learned item there before the lesson", {"declines": [{**lesson("rubric", "decline", "ui-designer"),
+                                                                  "rows_at": 1}]},
+         [".agents/rubrics/ui-designer.md"], rows_for(1), 1),
+        ("an edit made first and named", {"findings": [{**lesson("doc"), "seen": {"docs/X.md": "h1"},
+                                                         "edit": "docs/X.md"}]}, ["docs/X.md"], rows_for(0), 0),
+        ("a named edit not in the change", {"findings": [{**lesson("doc"), "edit": "docs/Y.md"}]}, ["docs/X.md"],
+         rows_for(0), 1),
+        ("a named edit off the route", {"findings": [{**lesson("skill"), "edit": "docs/X.md"}]}, ["docs/X.md"],
+         rows_for(0), 1),
+        ("a learned item added first and named",
+         {"declines": [{**lesson("rubric", "decline", "ui-designer"), "rows_at": 1,
+                        "edit": ".agents/rubrics/ui-designer.md"}]},
+         [".agents/rubrics/ui-designer.md"], rows_for(1), 0),
+    ]
+    for name, task, files, rows, want in lessons:
+        got = len(lesson_problems(task, files, rows, hash_of=lambda f: "h1"))
+        if got != want:
+            bad += 1
+            print(f"FAIL lessons, {name}: {got} problem(s), want {want}")
+    head = "# R\n\n## Learned\n\n| Item | Since | From the person | Looks for |\n| --- | --- | --- | --- |\n"
+    rubrics = [
+        ("a well-formed table", head + "| L1 | 2026-11-19 | a | b |\n| L3 | 2026-11-20 | c | d |\n", 0),
+        ("an empty table", head, 0),
+        ("a reused number", head + "| L1 | 2026-11-19 | a | b |\n| L1 | 2026-11-20 | c | d |\n", 1),
+        ("a number out of order", head + "| L2 | 2026-11-19 | a | b |\n| L1 | 2026-11-20 | c | d |\n", 1),
+        ("a date ahead of today", head + "| L1 | 2099-01-01 | a | b |\n", 1),
+        ("an empty cell", head + "| L1 | 2026-11-19 |  | b |\n", 1),
+        ("a row that is not an item", head + "| X1 | 2026-11-19 | a | b |\n", 1),
+        ("rows outside Learned are not read", "## Items\n\n| R1 | x | y | z |\n" + head, 0),
+    ]
+    for name, text, want in rubrics:
+        got = len(rubric_problems("r.md", text, today="2026-11-21"))
+        if got != want:
+            bad += 1
+            print(f"FAIL rubrics, {name}: {got} problem(s), want {want}")
+    if count_new_rows("+| L4 | 2026-11-21 | a | b |\n | L3 | 2026-11-20 | c | d |\n+unrelated\n") != 1:
+        bad += 1
+        print("FAIL rubrics, new rows counted from a diff")
+    log = ['{"kind": "finding", "route": "doc", "about": "layout"}', '{"kind": "decline", "route": "rubric", '
+           '"about": "flow", "draft": "ux"}', '{"kind": "approval", "route": "none", "draft": "mock"}', "not json",
+           '{"kind": "finding", "route": "docs"}', '{"kind": "finding", "route": "doc", "about": "vibes"}',
+           '{"kind": "decline", "route": "none"}']
+    if len(judgement_problems(log)) != 4:
+        bad += 1
+        print(f"FAIL judgements, 4 bad lines: {judgement_problems(log)}")
+    stats = draft_stats([{"kind": "decline", "draft": "mock", "task": "a"}, {"kind": "approval", "draft": "mock",
+                         "task": "a"}, {"kind": "approval", "draft": "mock", "task": "b"},
+                         {"kind": "finding", "task": "b"}])
+    if stats != {"mock": {"yes": 2, "no": 1, "first": 1, "drafts": 2}}:
+        bad += 1
+        print(f"FAIL calibration, draft stats: {stats}")
+    areas = area_counts([{"kind": "finding", "about": "layout"}, {"kind": "decline", "about": "layout"},
+                         {"kind": "approval", "about": None}, {"kind": "false-alarm"}])
+    if areas != ({"layout": 2}, 1):
+        bad += 1
+        print(f"FAIL calibration, areas: {areas}")
+    cases = cases + scopes + redeploys + lessons + rubrics + [("requires", "", ""), ("new rows", "", ""),
+                                                               ("judgements", "", ""), ("draft stats", "", ""),
+                                                               ("areas", "", "")]
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
     return 1 if bad else 0
 
@@ -1181,20 +1543,39 @@ def main() -> int:
     f.add_argument("--route", required=True, choices=ROUTES)
     f.add_argument("--source", choices=["person", "agent"], default="person",
                    help="who found it: the person (the default) or the agent during the task")
-    f.add_argument("--judge", choices=sorted(JUDGES))
+    f.add_argument("--about", choices=AREAS, help="what the lesson is about, so a repeated area shows in calibration")
+    f.add_argument("--judge", choices=rubric_owners(), help="the agent that looked at it, whose rubric a rubric "
+                                                            "lesson teaches")
     f.add_argument("--caught", choices=["yes", "no"])
+    f.add_argument("--edit", help="the file the lesson's edit landed in, when it was made before "
+                                   "the lesson was recorded")
     f.add_argument("--for-run", type=int, help="recorded after the code it led to ran on the target: that run's number, "
                                                "as `target` printed it — it closes the gap before that run")
     d = sub.add_parser("dispute")
-    d.add_argument("judge", choices=sorted(JUDGES))
+    d.add_argument("judge", choices=rubric_owners())
     d.add_argument("text")
+    d.add_argument("--about", choices=AREAS)
+    d.add_argument("--edit", help="the file the lesson's edit landed in, when it was made before "
+                                   "the lesson was recorded")
     d.add_argument("--source", choices=["agent", "person"], default="agent",
                    help="who raised the false alarm: the agent (the default) or the person")
+    n = sub.add_parser("decline")
+    n.add_argument("file", help="the draft the person said no to — a UX brief, an option, a mock, a motion study, the "
+                                "copy, the built screen beside its mock")
+    n.add_argument("text", help="what the person said, in their words")
+    n.add_argument("--kind", required=True, choices=list(KINDS_BEFORE + KINDS_AFTER) + ["option"])
+    n.add_argument("--about", required=True, choices=AREAS)
+    n.add_argument("--route", required=True, choices=ROUTES,
+                   help="where the lesson goes — most often rubric, with --judge ui-designer or ux-designer")
+    n.add_argument("--judge", choices=rubric_owners(), help="the agent whose rubric learns it")
+    n.add_argument("--edit", help="the file the lesson's edit landed in, when it was made before "
+                                   "the lesson was recorded")
     for name in ("status", "finish", "calibration", "doctor"):
         sub.add_parser(name)
     args = parser.parse_args()
     return {"start": cmd_start, "run": cmd_run, "review": cmd_review, "approve": cmd_approve,
             "decision": cmd_decision, "target": cmd_target, "signoff": cmd_signoff, "finding": cmd_finding,
+            "decline": cmd_decline,
             "dispute": cmd_dispute, "status": cmd_status, "finish": cmd_finish, "calibration": cmd_calibration,
             "doctor": cmd_doctor, "unverified": cmd_unverified}[args.command](args)
 
