@@ -35,7 +35,7 @@ the target.**
 
 | Gate | Settles | Artifact | Passes when |
 | --- | --- | --- | --- |
-| 1. Draft | Layout, look, words; motion; how a gesture behaves | A mock at the target's sizes with its values file, in the scratchpad; a motion study; a gesture spec and prototype | The person's yes names the draft |
+| 1. Draft | Layout, look, words; motion; how a gesture behaves | A mock at the target's sizes with its values file, in the scratchpad; a motion study; a gesture spec and prototype | The person's yes names the draft — after their pick among options, when nothing in the product or the platform sets a precedent |
 | 2. Built | That the real screen holds the draft and passes the checks | The screen built from the draft's values; its screenshot beside the draft | The checks pass, then the person's yes on the side-by-side |
 | 3. Target | Feel, speed, touch, the real screen | Screenshots, a recording, the walks | The person's sign-off, in their words |
 
@@ -58,6 +58,10 @@ the target.**
 - **The kinds of draft**: a mock (a still), a motion study (a GIF or video at real speed — a still cannot show
   timing), copy (the words in place, when the words are the change), a specimen (tokens), a gesture prototype (tried
   on the device — a video approves timing, not feel), and after the build, the built screen beside its draft.
+- **A no is kept too, in the person's words** — what they said no to, what it is about, and where the lesson goes,
+  so the next draft and the next task avoid it; the same file unchanged is never approved after it (§3).
+- **A pick among options is not a yes** — it chooses which option becomes the draft; the yes still names the full
+  draft (§4).
 - **Two words stand in for a draft**: "design given: <where>" when the person handed the design over, and "no visible
   change: <why>" when a change to UI files shows nothing.
 
@@ -69,6 +73,8 @@ is visible.**
 | Event | With the agent-harness kit | Without it |
 | --- | --- | --- |
 | A yes on a UX brief | `verify.py approve <flow>_ux<n>.md --kind ux` | A line in the change's record: the brief's path, `shasum -a 256 <file>`, the kind, the person's words, the time |
+| A no to a brief, an option, a draft or the built screen | `verify.py decline <file> "<their words>" --kind ux\|option\|mock\|motion\|copy\|built --about <area> --route <route> [--judge <agent>]` | A line in the change's record: the file's path and hash, the kind, their words, what it is about, the lesson's route and its edit |
+| An option picked from several | `verify.py decision "option picked: <screen>_option<x>.png — <their words>"` | The same words in the record, with the option's path |
 | A yes on a draft | `verify.py approve <file> --kind mock\|motion\|copy` | A line in the change's record: the file's path, `shasum -a 256 <file>`, the kind, the person's words, the time |
 | A yes on the built screen | `verify.py approve <side-by-side> --kind built` | The same, for the side-by-side, with the commit or the working tree it showed |
 | A gesture prototype | `verify.py decision "gesture prototype approved on device: <screen> — <their words>"` | The same words in the record |
@@ -112,6 +118,11 @@ type — never as a change to the product.**
 - **Motion and gestures are drafted as themselves** — the motion brief and study (the `motion` skill); the gesture
   spec and a prototype on the device (the `touch-and-gesture` skill).
 - **Ask open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it matters.
+- **With no precedent, options come before the draft** — when no screen in the product and no platform convention
+  already does the job, two or three options that differ in kind (surface, structure or interaction model, never one
+  value), each at the main size in the real tokens with the states that tell them apart, and what each gets the
+  person and costs; the agent recommends one. The person's pick is recorded (§3); only the picked option is drawn as
+  the full draft, and the yes goes on that draft. With a precedent, the draft follows it — consistency beats novelty.
 - **A change is a new draft, `n + 1`, and a new yes.**
 
 ## 5. The build

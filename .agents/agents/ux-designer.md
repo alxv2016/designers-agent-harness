@@ -56,7 +56,10 @@ skill's `templates/ux-brief.md` as `<flow>_ux<n>.md` in a scratch folder, never 
 8. **Open questions**, with concrete options and the research that would settle each.
 9. **The brief** — its full path, last.
 
-Then stop. Only the person's yes, naming the brief, approves it; a change is a new draft. The `ui-designer` agent's
+Then stop. Only the person's yes, naming the brief, approves it; a change is a new draft. Before the brief, read the
+project's learned items (in the kit, `.agents/rubrics/ux-designer.md` → Learned) and repeat none. When the person says
+no, record it in their words before the next draft — in the kit, `verify.py decline <flow>_ux<n>.md "<their words>"
+--kind ux --about <area> --route rubric --judge ux-designer`, with its learned item. The `ui-designer` agent's
 mock mode then drafts the screen from it.
 
 ## Mode: research (a plan — no contact with people)

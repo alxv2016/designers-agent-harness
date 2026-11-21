@@ -63,7 +63,16 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
 11. **Draft copy as copy** — the words in place in the draft, written to the `ux-content` skill's rules (its
     `ux-content-writer` agent writes and reviews them); a change to meaning is the person's.
 12. **Ask the open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it
-    matters; never guess a behaviour the target can show.
+    matters; never guess a behaviour the target can show. This is for one open question inside a design; a whole
+    design with no precedent starts from options (Do 13).
+13. **For a screen or component with no precedent, offer two or three options that differ in kind before the full
+    draft** — surface, structure or interaction model, not one value; each with what it gets the person and what it
+    costs; recommend one. The person picks, then the picked option becomes the full draft and takes the yes; with a
+    precedent, follow it in one draft (DESIGN_GATES §4).
+14. **Learn from every no** — read the project's learned items before a draft and repeat none; when the person says
+    no to an option, a draft or the built screen, record it in their words — what it is about, and the lesson routed,
+    most often a learned item for this skill's review: what in a draft predicts it and what to do instead — before
+    drawing the next (DESIGN_GATES §2, §3).
 
 ### Never
 
@@ -94,11 +103,18 @@ starts at gate 2 — record "design given: <where>" (`V decision "design given: 
 
 Input: a described screen, component or flow. Everything here is written in the scratchpad.
 
-1. **Read what exists** — the approved UX brief for a new flow, feature or screen (the `ux-designer` skill), whose
-   flow, states and behaviour the draft follows; DESIGN.md's principles, tokens and components, the screens nearby; a
-   screenshot of the screen as it is today when it is a change.
+1. **Read what exists** — the approved UX brief for a new flow, feature or screen (the `ux-designer` skill), whose flow,
+   states and behaviour the draft follows; DESIGN.md's principles, tokens and components, the screens nearby; a
+   screenshot of the screen as it is today when it is a change; and the project's learned items — in the agent-harness
+   kit, the Learned table in `.agents/rubrics/ui-designer.md`: each a pattern the person said no to or found wrong, and
+   what in a draft predicts it — the draft repeats none of them (Do 14).
 2. **Choose the surface and each control by what it does** — a screen, a sheet, a dialog, a toast; a typed value is an
    input, a choice of few is a segmented control or radio, an action that cannot be undone asks for a confirmation.
+   - **No precedent — no screen in the product and no platform convention does this job — sketch two or three
+     options first** (Do 13): each `<screen>_option<a|b|c>.png` at the main size, in DESIGN.md's tokens, with the
+     states that tell the options apart and a line on what it gets the person and what it costs. Show them with your
+     recommendation and why, and stop. Record the pick (DESIGN_GATES §3), then carry on from step 3 with the picked
+     option only; the steps below draw it as the full draft.
 3. **List the components top to bottom** — each element's component from DESIGN.md's components (existing ones first),
    its DESIGN.md tokens and states; any off-scale value with its reason, for DESIGN.md's exceptions.
 4. **Write the focus order** — every stop a keyboard or switch user reaches, in order.
@@ -118,7 +134,8 @@ Input: a described screen, component or flow. Everything here is written in the 
    study); **a gesture gets its spec and a prototype on the device** (the `touch-and-gesture` skill → Specifying a
    gesture, Prototyping and building).
 10. **Show the draft and stop.** The gate passes when the person's yes names it, recorded against the file
-    (DESIGN_GATES §3). A change is a new draft, `n + 1`, and a new yes.
+    (DESIGN_GATES §3). A change is a new draft, `n + 1`, and a new yes. **A no is recorded first**, in their words,
+    with what it is about and where the lesson goes (Do 14; DESIGN_GATES §3); then the next draft.
 
 ### Gate 2 — the built screen
 
@@ -131,7 +148,7 @@ Input: a described screen, component or flow. Everything here is written in the 
    `<screen>_side<n>.png`. Read it: every difference from the draft is either fixed or named.
 5. **Ask for a review** — in the kit, the judges `V run` names, the `ui-designer` agent in review mode among them.
 6. **Show the side-by-side and stop.** The gate passes when the checks pass and the person says yes to it, recorded
-   against the file. A layout change goes back to gate 1.
+   against the file. A layout change goes back to gate 1. A no on the built screen is recorded as one (Do 14).
 
 ### Gate 3 — the target
 
@@ -174,6 +191,9 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 
 - [ ] Gate 1: a draft the person said yes to, by name, recorded against its file, before the first repo edit — or
   their recorded "design given" or "no visible change" (Do 2)
+- [ ] With no precedent: two or three options that differ in kind, a recommendation, and the person's pick recorded
+  before the full draft (Do 13)
+- [ ] Every no the person gave is recorded in their words and routed, and no draft repeats a learned item (Do 14)
 - [ ] Gate 2: the screen built from the draft's values; the checks pass; the person said yes to the side-by-side
   (Do 5, Do 6)
 - [ ] Gate 3: the evidence, a screenshot of each changed screen, and what needs the person handed over

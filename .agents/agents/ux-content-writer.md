@@ -56,7 +56,8 @@ Writing the words for a screen or a flow:
 Return a string table — element, string, its accessible name where it differs, its length, and why it is worded so
 where that is not obvious — plus any new word-list entry and any question only the person can answer. Then stop for the
 person's yes. In the agent-harness kit, their yes is recorded as the `ui-designer` skill's copy draft:
-`verify.py approve <the string table> --kind copy`.
+`verify.py approve <the string table> --kind copy`; their no, `verify.py decline <the string table> "<their words>"
+--kind copy --about words --route <route>`, before the next table.
 
 ## Mode: review (read-only)
 

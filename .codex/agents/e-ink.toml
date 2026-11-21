@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "e-ink"
+description = "Designs, builds, tunes and reviews for e-ink displays from the e-ink skill"
+developer_instructions = "Read .agents/agents/e-ink.md and follow it. In design and review mode, edit nothing in the repo; never write a panel's voltage or OTP registers."
+model_reasoning_effort = "high"

@@ -389,6 +389,12 @@ skill.>
 - **The description is the trigger.** The agent decides from the description alone whether to load the body. Name the
   files, commands, error messages and phrases that should load it ("when the build fails on an import", "asked 'is
   this screen right?'"). A vague description never loads.
+- **Choose who loads a skill: the person, the agent, or both.** A skill that starts a piece of work or answers the
+  person's question stays in the `/` menu and loads by its description too — the default. A skill only the person
+  should start — an explanation, help with the kit — sets `disable-model-invocation: true`: it leaves the agent's
+  context and loads only when typed. A reference the agent applies inside other work — the floors, the tokens, the
+  principles, the loop — sets `user-invocable: false`: it leaves the `/` menu and still loads by its description.
+  Both are Claude Code's frontmatter; other agents ignore them `[TD]`.
 - **`scripts/` sits beside `SKILL.md`** and holds every step that can be scripted. The skill says how to run each
   script: which interpreter, and from which directory.
 
@@ -414,8 +420,9 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships sixteen skills. Fifteen are generic and copy across almost unchanged; `build-run-test` is filled
-in from the project. A project adds its own domain skills as the code grows.
+The template ships twenty-three skills: nineteen `portable`, and four `project` — `verify-change`, `commit-message`
+and `harness-help` belong to the kit and copy across with it, and `build-run-test` is filled in from the project. A
+project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
 folder on its own, taking every value from that project's files and linking nothing outside itself; an agent's file
@@ -449,6 +456,13 @@ no UI file.
 | `react-vite-setup` | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app from the templates — the shell, features, components with their stories, `tokens.css` from `DESIGN.md`, three layers of tests — and the layering rules — carried in the skill | `references/react-vite.md`, the templates, `react_vite.py` | `portable` — the folder works in any repo; the facts are the project's spec, the values its `DESIGN.md` |
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
+| `storybook` | A component's stories, written once it exists or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest — carried in the skill | `references/storybook.md`, `templates/component.stories.tsx.tpl`, `story_check.py` | `portable` — the folder works in any Storybook project; the themes are the project's `DESIGN.md` |
+| `e-ink` | Designing and building for e-paper: how the film works, controllers, waveforms, the refresh policy, the toolkit glue, design in 1 bit, components, focus, touch, accessibility, power, testing on the glass, the panel spec — carried in the skill | `references/e-ink.md`, `references/drivers.md`, `references/validation.md`, `templates/panel-spec.md`, `e_ink_check.py` | `portable` — the folder works in any repo with an e-paper screen; the values are the project's panel spec |
+| `playwright` | A feature's end-to-end tests, written once it exists: the template's layout, the task and its failure, locators by role and name, web-first assertions awaited, isolation, stubs, axe in each theme, reflow; fixing a failing test without weakening it; Playwright's MCP server — carried in the skill | `references/playwright.md`, `templates/feature.spec.ts.tpl`, `e2e_check.py` | `portable` — the folder works in any repo with Playwright |
+| `principles` | The working principles: proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and a test, cited with the decision it changed — carried in the skill | `references/principles.md` | `portable` — the folder works in any repo |
+| `blast-radius` | What a change could break outside its diff, and the one fact it is safe because of, proven by running real code | — | `portable` — the folder works in any repo |
+| `teach` | `/teach`: how something works and why, from the code and the record, each reason labelled by its source; changes nothing | — | `portable` — the folder works in any repo |
+| `harness-help` | `/harness-help`: which skill or agent fits, what's next, why the guard asked, how to set up — from the repo's state | — | `project` — it maps this kit |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
@@ -475,8 +489,9 @@ Each skill must hold the following:
 - **`ui-designer`**: the gates themselves, in `references/gates.md`, and the review rubric, in `references/rubric.md`,
   so the folder is portable; the project's
   `DESIGN.md` read first; the three gates (§20.3) as steps that stop for the person; each yes recorded against its
-  file — by `verify.py` in the kit, by hand without it; the draft's values file and "build from it unchanged"; the
-  review of a UI change in a fixed order, accessibility first.
+  file — by `verify.py` in the kit, by hand without it; two or three options, and the person's pick, before a draft
+  with no precedent; the draft's values file and "build from it unchanged"; the review of a UI change in a fixed
+  order, accessibility first.
 - **`accessibility`**: the floors themselves, in `references/criteria.md` with how to meet and test each on every
   platform, so the folder is portable; the rules, each citing its §; "measure against the colour painted"; a plain
   alternative to every gesture, drag and hover; reduced motion that removes travel and keeps driven motion and waits;
@@ -513,6 +528,28 @@ Each skill must hold the following:
 - **`secrets-handling`**: how a product handles its users' secrets in `references/secrets.md`, per platform; the leak
   procedure; the secret scan, which counts and never prints. The agent's own safety stays the guard's and the
   pre-commit hook's.
+- **`storybook`**: the rules for stories in `references/storybook.md` and the story file's template, so the folder is
+  portable; every prop covered; one concept per story; a JSDoc summary on the component, each prop and each story;
+  each theme past the first pinned in a story and kept out of the manifest; play functions by role and name; the MCP
+  server set up only after the person's yes; the story check.
+- **`e-ink`**: the rules for e-paper in `references/e-ink.md` and a panel spec template, so the folder is portable;
+  the panel's spec before a driver or a screen; every screen in its 1-bit partial form first; one refresh per
+  interaction, a partial limit, never two full refreshes back to back; no motion and feedback before the glass; states
+  in 1 bit with focus as a ring outside; no voltage or OTP command; the person judging the glass; the e-ink check.
+- **`playwright`**: the rules for end-to-end tests in `references/playwright.md` and the spec file's template, so the
+  folder is portable; each test a person's task with its failure; locators by role and name; every web-first
+  assertion awaited; isolation and stubs; axe in each theme and reflow; a failing test fixed at its cause, never
+  weakened; baselines and installs only with the person's yes; the e2e check.
+- **`principles`**: the principles in `references/principles.md`, so the folder is portable; each with when it applies,
+  a test and what applying it leaves; "name each principle that changed a decision, with the decision"; the project's
+  own rules and the person's decisions win over a principle.
+- **`blast-radius`**: the one fact a change is safe because of; the evidence ladder from "said so" to "seen on the
+  target"; where a search stops, per platform; a probe that runs the real code, in a scratch folder; read-only on the
+  repo.
+- **`teach`**: how from the code, why from the record in a fixed order, each reason labelled; the smallest complete
+  answer first; diagrams built up a part at a time; loaded only when the person types it; changes nothing.
+- **`harness-help`**: the state that changes an answer, read-only; a map from task to skill or agent, with the files
+  winning over the map; a prompt handed back, never the work started; loaded only when the person types it.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -577,6 +614,9 @@ You are the <role> for <project>.
   drafts in a mode that edits nothing, and builds only from a named, approved draft (§20.2). A builder of docs outlines
   in a mode that edits nothing, writes from an outline the person agreed or a request specific enough to write from,
   and hands its work to the `doc-reviewer`; a doc's facts, not its look, are what the person settles.
+- **A new agent goes into every table that names the agents, in the same change** — `AGENTS.md`'s, the kit's
+  README, §8.2's table and its bullets, §18.2's models, the harness page's models, and a Codex TOML. A table that
+  misses one tells the next reader the agent does not exist.
 
 ### 8.2 The harness's agents
 
@@ -588,6 +628,9 @@ You are the <role> for <project>.
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
 | `ux-designer` | Builder of UX briefs and research plans, and a reviewer of experiences | A new flow, feature or screen is framed, research is planned, or an experience is reviewed — when asked | `portable` — with the `ux-designer`, `accessibility` and `ux-content` skills; its rubric travels in the skill, its learned items in `.agents/rubrics/ux-designer.md` |
 | `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
+| `e-ink` | Builder of e-paper specs, screens, drivers and waveforms, and a reviewer | A product has an e-paper screen, a screen or driver is built for one, a waveform is tuned, or ghosting is fixed | `portable` — with the `e-ink`, `accessibility`, `design-system` and `ui-designer` skills |
+| `playwright` | Builder and healer of end-to-end tests, and a reviewer of spec files | A feature, page or flow is added, a test fails or flakes, tests are asked for, or Playwright's MCP server is set up | `portable` — with the `playwright` and `accessibility` skills |
+| `storybook` | Builder of stories, and a reviewer of story files | A component is created or its props change, stories are asked for, or Storybook's MCP server is set up | `portable` — with the `storybook`, `accessibility` and `design-system` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
 | Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
@@ -614,6 +657,19 @@ What each one does:
   errors, the principle behind each decision — in the scratchpad and stops for the yes; in research mode, plans a study
   and analyses what the person brings back, never contacting people; in review mode, walks the top tasks and scores the
   experience X1–X14, read-only.
+- **`storybook`**: in write mode, writes a component's stories from the template — every prop, one concept per story,
+  a summary on each, each theme pinned — adds the JSDoc the component lacks, then runs the story check and the story
+  tests; in setup mode, adds Storybook's MCP server after the person's yes; in review mode, reports a story file's
+  findings, read-only.
+- **`e-ink`**: in spec mode, writes the panel's spec from its datasheet and measurements; in design mode, drafts in
+  both refresh forms through the `ui-designer`'s gates; in build mode, builds the driver, the refresh policy, the
+  toolkit glue or components; in tune mode, measures waveform presets for the person to judge on the glass; in review
+  mode, reports findings, read-only.
+- **`playwright`**: in write mode, writes a feature's spec from the template — each task and its failure, the
+  keyboard path, axe in each theme, reflow — then runs the e2e check and the tests; in heal mode, reads a failing
+  test's trace, decides whether the app or the test is wrong, and fixes that cause without weakening the test; in
+  setup mode, adds Playwright's MCP server after the person's yes; in review mode, reports a spec's findings,
+  read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -690,7 +746,7 @@ person raised it (the agent is the default). The edit the route names lands in t
 | Something a judge should have caught from the diff | `rubric` | An L-item in that judge's rubric (§9.3) |
 | A judge's false alarm | `rubric`, through `verify.py dispute` | A tighter wording of the item it misread |
 | A command the guard let through, or blocked, wrongly | `guard` | A rule and a self-test case, plus a near-miss case that must pass (§11.2) |
-| A step that misled, or a trap in how a task is done — a workflow anti-pattern | `skill` | That skill's Never or Traps, citing the doc § with the reason |
+| A step that misled, or a trap in how a task is done — a workflow anti-pattern | `skill` | That skill's Never or Traps, or the agent's Boundaries, citing the doc § with the reason |
 | Settled and true of the product or the code, what not to do included | `doc` | The owning doc: a rule, a Never, a trap (symptom → cause → fix), or a Decision's alternative that does not work |
 | Seen once, not yet measured or explained | `open-item` | The owning doc's open items, which the open-items curator closes later (§8.2) |
 | Something only the target will ever show | `none` | The Verified block's "Judge on the target" line |
@@ -708,8 +764,28 @@ Anti-patterns — what not to do — have no folder of their own. Each goes wher
 
 - **Record the agent's own lessons, not only the person's.** A trap the agent fell into, a step that misled it, a rule
   it had to work out — each costs the next task the same time unless it is written down.
-- **After the retry limit, record the approach that failed and why** before asking the person. Three failures are the
-  task's most useful lesson and the first thing compaction drops; `verify.py run` prints the command when it exits `3`.
+- **After the retry limit, record the approach that failed and why** before asking the person, with the one premise
+  the failed attempts shared and the observation that would test it. Three failures are the task's most useful lesson
+  and the first thing compaction drops; `verify.py run` prints the command when it exits `3`.
+- **Route a lesson to the highest level that can hold it.** A structure or a type that makes the mistake impossible
+  comes first, then a check whose error names the fix, then a test, and words — a rubric item, a skill line, a doc
+  rule — last. Nothing fails when an agent skips a sentence, so words are for what needs judgment; once a structural
+  fix holds a lesson, the sentence it replaces goes.
+- **Prove a new check fails on the real past mistake**, then passes on the fix, before trusting it. A check never seen
+  to fail may match nothing.
+- **Record the person's no as a lesson, the moment they give it** — `verify.py decline <file> "<their words>" --kind
+  <kind> --about <area> --route <route>`, for a UX brief, an option, a mock, a motion study, the copy or the built
+  screen. Their noes are the richest design signal a harness gets, and the first thing a new draft overwrites; the
+  same file unchanged cannot be approved after it. A no on a design is most often a learned item in the `ui-designer`'s
+  or the `ux-designer`'s rubric, which they read before their next draft (§9.3).
+- **Tag every lesson with what it is about** — `--about` with one of the areas `verify.py` lists (flow, states,
+  structure, words, layout, type, colour, components, motion, gesture, accessibility, code, docs, harness), so
+  calibration shows an area that keeps coming back (§9.4).
+- **`finish` holds a lesson to its route** — it refuses a finding, a no or a false alarm whose route's edit is not in
+  the change, and a `rubric` lesson, which names its agent with `--judge`, that added no learned item to that agent's
+  rubric. The edit counts when it was made after the lesson was recorded — so an unrelated edit to a doc in the same
+  change does not stand in for it — or when the lesson names it with `--edit <path>`, for a fix made first. A lesson
+  written down that changed nothing is the shortfall this closes.
 - **A project lesson goes into the repo, never only into an agent's per-user memory** (§19). Per-user memory (Claude
   Code's auto memory, for one) belongs to one person on one machine: the next agent, the next person and the judges
   never see it, and no review checks it. It holds only what is about the person — their preferences, their role.
@@ -731,7 +807,12 @@ records the finding.
 A made-up example: `| L1 | <date> | the button label vanished on hover in dark mode | a hover colour set without its
 dark-theme value |`.
 
-- **Write "Looks for" as a pattern in the diff, not as the symptom** — a judge reads code, not the target.
+- **Write "Looks for" as a pattern in the diff, not as the symptom** — a judge reads code, not the target. For an
+  item from a no on a draft, it is the pattern in a draft — and what to do instead.
+- **Builders read their learned items before a draft** — the `ui-designer` before a mock, the `ux-designer` before a
+  brief — so a pattern the person said no to is avoided, not only caught later in review.
+- **The check keeps the table readable** — `verify.py run` fails a Learned row that is not `| L<n> | YYYY-MM-DD | … | …
+  |`, a number reused or out of order, a date ahead of today, or an empty cell.
 - **Promote it once a script can find it.** It becomes a `(script)` check in the owning skill, or a check in the loop,
   and the row cites that check.
 - **Fold it in once the owning doc states the rule.** The R-item that checks that rule covers it, and the row leaves.
@@ -740,8 +821,8 @@ dark-theme value |`.
 
 ### 9.4 The judgements log and calibration
 
-`verify.py finding` and `verify.py dispute` each append one JSON line to `.agents/evals/judgements.jsonl`. `verify.py
-calibration` reads the log.
+`verify.py finding`, `decline`, `dispute` and `approve` each append one JSON line to `.agents/evals/judgements.jsonl`.
+`verify.py calibration` reads the log, and `verify.py run` checks each line is well formed.
 
 ```json
 {"date": "<YYYY-MM-DD>", "task": "<task>", "commit": "<short sha>", "kind": "finding", "source": "person", "text": "<what was seen or learned>", "route": "rubric", "judge": "<judge>", "caught": false}
@@ -749,14 +830,22 @@ calibration` reads the log.
 
 | Field | Holds |
 | --- | --- |
-| `kind` | `finding`, or `false-alarm` from `dispute` |
+| `kind` | `finding`; `false-alarm` from `dispute`; `decline`, the person's no; `approval`, their yes |
 | `source` | Who found it, `person` or `agent`; a `finding` line without it is the person's |
 | `route` | One route from §9.2 |
-| `judge`, `caught` | The judge that looked at that part, and whether it caught the finding |
+| `judge`, `caught` | The judge that looked at that part, and whether it caught the finding; for a `rubric` lesson, the agent whose rubric learns it |
+| `text` | What was seen or learned — for a `decline`, the person's words |
+| `about` | The area the lesson is about, or none |
+| `edit` | The file the lesson's edit landed in, when named with `--edit`; or none |
+| `for_run` | For a lesson recorded late, the run on the target that shipped its change |
+| `draft`, `file` | For a `decline` or an `approval`: the kind of draft and the file's name (a `decline` keeps its hash too) |
 
 - **The log is committed.** Calibration then covers every clone and every task, not one machine.
 - **`verify.py calibration` prints, per judge, what it caught, what it missed and its false alarms**, then the findings
-  only a person could see, the lessons the agent recorded, and the count per route.
+  only a person could see, the lessons the agent recorded, the count per route, the person's yeses and noes per kind
+  of draft with how many drafts were approved without a no first, and the lessons per area.
+- **Three lessons in one area is a pattern** — calibration says so, and what they share becomes a check, a principle in
+  the design brief (with the person's yes on a specimen) or a skill's Never (§9.2).
 - **A run on the target with changed code and nothing recorded since the last one stops the hand-over.** The person
   looked at the target, said something, and the agent changed the code: that report is a lesson — a finding, with
   `--judge` when a judge reviewed that part — or a change they asked for, their decision. Without the gate, a task can
@@ -805,15 +894,17 @@ flowchart TD
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
 | `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit |
-| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`) or the built thing (`built`) |
+| `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`), the built thing (`built`) or the diff of a change to a skill or an agent (`kit`); refuses a file the person said no to, unchanged |
+| `kitdiff <file>` | Writes the whole diff of the paths a `kit` gate covers — tracked changes and every new file in full — for the person to read before their `kit` yes |
+| `decline <file> "<their words>" --kind <kind> --about <area> --route <r> [--judge <agent>] [--edit <path>]` | Records the person's no to a draft — a brief, an option, a mock, a motion study, the copy, the built screen — or to a kit change's diff (`kit`), in the task and the judgements log, routed like a lesson (§9.2); a route of `none` needs no edit |
 | `decision "<text>"` | Records the person's word for this task; judges read it in `status` and do not block on it |
 | `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code, and logs every run with how many findings and decisions were recorded by then |
 | `signoff "<text>"` | Records the person's yes on the target, in their words; refuses when nothing ran there or the code changed since |
-| `finding "<text>" --route <r> [--source person\|agent] [--judge <j> --caught yes\|no] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
-| `dispute <judge> "<text>" [--source agent\|person]` | Records a judge's false alarm |
+| `finding "<text>" --route <r> [--source person\|agent] [--about <area>] [--judge <j> --caught yes\|no] [--edit <path>] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
+| `dispute <judge> "<text>" [--source agent\|person] [--about <area>] [--edit <path>]` | Records a judge's false alarm; its rubric changes in the same change |
 | `status` | Prints where the task stands — read this after compaction, not the chat |
-| `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open |
-| `calibration` | Agreement per judge (§9) |
+| `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open — a lesson whose route's edit is not in the change among it |
+| `calibration` | Agreement per judge; the person's yeses and noes per kind of draft; lessons per area, and a repeated area named (§9.4) |
 | `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, the hooks' and the loop's self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
 | `unverified [--hook]` | Whether the tree changed since the last run; as the agents' Stop hook, asks once per tree (§14.1) |
 
@@ -841,10 +932,13 @@ file.
 | UI paths, the `typography` skill | `typography` — the typography check's self-test; once UI paths are set, the UI files against the typography patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
+| `EINK_PATHS`, the `e-ink` skill | `e-ink` — the e-ink check's self-test; once e-paper UI paths are set, those files against EK1–EK7 | `e-ink` in review mode, when asked |
+| Test files and `playwright.config.*`, the `playwright` skill | `playwright` — the e2e check's self-test; every file that imports `@playwright/test`, and the config, against PW1–PW8 | `playwright` in review mode, when asked |
+| UI paths, the `storybook` skill | `storybook` — the story check's self-test; once UI paths are set, the story files against SB1–SB7 | `storybook` in review mode, when asked |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
-| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` — not the judgements log | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
 - **A check or a judge joins the plan only once it exists.** The script tests for the agent's file or the check's
@@ -994,7 +1088,7 @@ The guard judges each simple command by its program and arguments, so text that 
 | Deleting files | ask | `rm` outside the temp directories |
 | Sending data off the machine | ask | `curl` or `wget` with a body or a non-GET method; `nc`, `ssh`, `scp`, `sftp`, `ftp`, `telnet`, `socat`; a remote `rsync`; a fetch from a host outside `ALLOWED_HOSTS` |
 | Generated and managed files | ask | Build directories, installed dependencies, lock files, generated config |
-| The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI |
+| The harness itself | ask | The settings file, skills, agents, rubrics, hooks, git hooks, adapters, CI; a change to a skill or an agent also waits at `finish` for the person's yes on its diff (`approve --kind kit`) |
 | A new skill or agent | deny until corrected, then ask | Written with no `scope:` of `portable` or `project` in its frontmatter, denied with the question "portable or project?" for the person; written with one, asked with the scope named; created from the shell, asked with the question (§7.3) |
 | A file that needs a doc first | deny until corrected | A new ESP-IDF project's `CMakeLists.txt`, `sdkconfig.defaults` or `main/idf_component.yml` while `docs/` holds no hardware spec, or a new React and Vite app's `vite.config.ts`, `playwright.config.ts` or `.storybook/main.ts` while it holds no web app spec; denied with what to ask the person. From the shell, where the content cannot be read, a file the rule matches by name alone is asked and one it matches by content is not judged (`NEEDS_DOC` in the settings file) |
 | A web app's tools | ask; deny | Updating visual baselines (`playwright test --update-snapshots`), installing Playwright's browsers, a scaffolder that writes over the repo (`npm create`, `storybook init`), serving on the network (`vite --host`), a global install and a deploy (`netlify deploy`, any `vercel` call) ask, through npm, pnpm, yarn or bun; printing a package registry's token is denied |
@@ -1002,6 +1096,11 @@ The guard judges each simple command by its program and arguments, so text that 
 | Branch operations that rewrite the kit | ask | A switch, merge, rebase, cherry-pick or revert that changes the kit trees a sandbox cannot write (`.agents/skills`, `.agents/agents`, `.claude`) |
 | Everything else | allow | Reading, building, testing, running, the dev server, a request to `localhost` |
 
+- **An ask is only as strong as the tool's permission mode.** A mode that answers the guard's asks itself — an
+  automatic mode, a standing allow — lets an edit through without the person. A rule that must hold whatever the mode
+  goes into `finish` as well: a skill or an agent changed with no `kit` yes on its diff is never handed over. The
+  diff the person reads comes from `verify.py kitdiff`, because `git diff` leaves out a file git does not track yet —
+  a new skill would be approved unseen.
 - **`ALLOWED_HOSTS` has one home: the settings file.** The Codex sandbox's network list repeats it, and `doctor`
   compares the two. List the package registries, the code host and the platform's docs; a subdomain matches its host.
 - **Decide each class once: allowed outright, or asked every time.** A standing "approved for the next few hours"
@@ -1435,6 +1534,9 @@ reasons before it answers.
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `ux-designer` (builder and reviewer) | `sonnet`; `opus` for a new product's flows | `high` | Reasons about people and tasks against named principles; the brief template and the rubric carry the structure |
 | `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
+| `e-ink` (builder and reviewer) | `sonnet` | `high` | Designs and builds against the glass's limits; a miss costs a round on the panel |
+| `playwright` (builder, healer and reviewer) | `sonnet` | `medium` | Writes and fixes tests to fixed rules; the e2e check and the test runs carry the mechanics |
+| `storybook` (builder and reviewer) | `sonnet` | `medium` | Writes stories from a template and the component's props to fixed rules; the story check and the story tests carry the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
 between the ends. Cached input costs a small fraction of fresh input. The provider's pricing page has the current
@@ -1550,6 +1652,8 @@ hand-over.
 | Before a gated command | Says yes, or runs it themselves; never for a credential | The guard (§11) |
 | When the loop fails 3 times in a row | Chooses the next approach | `verify.py run` exits `3` |
 | When a judge and the agent disagree | Settles it | `verify.py decision`, `verify.py dispute`; the verify-change skill |
+| When they say no to a draft | Says what is wrong, in their words | `verify.py decline`, routed — most often a learned item the builder reads before its next draft (§9.2, §9.3) |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py kitdiff <file>`, then `verify.py approve <file> --kind kit`, which `finish` checks whatever the tool's permission mode (§11.3) |
 | On the target | Judges what only a person can: look, feel, motion, words | `verify.py signoff`, which `finish` checks for a gated change that ran there |
 | Closing an open item about the target | Reports what they saw on it | The open-items curator never closes one from a build or a screenshot |
 | Committing and publishing | Asks for each commit and each push | The guard asks for `git commit` and `git push`; the commit-message skill |
@@ -1581,7 +1685,9 @@ in its reference (DESIGN_GATES §2, §4, §5), so they travel with the skill. Th
 - **`start` clears approvals**, so a yes from an earlier task is recorded again before the build, or named in a
   "design given" decision.
 - **The two words that stand in for a draft are decisions** — `verify.py decision "design given: <where>"`, and
-  `"no visible change: <why>"`.
+  `"no visible change: <why>"`. Neither waives the person's yes on a change to a skill or an agent (§11.3).
+- **With no precedent, a pick among two or three options comes first** — recorded as a decision, `"option picked:
+  <file> — <their words>"`; it chooses which option is drawn as the draft and is never the yes on it.
 
 ### 20.2 A skill or agent that does UI work
 

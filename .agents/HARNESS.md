@@ -172,7 +172,7 @@ what to write, and the corrected call goes on:
 
 | Touched | Checks | Judges |
 | --- | --- | --- |
-| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` — not the judgements log | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
 | The code (`CODE_PATHS`; when empty, everything outside docs, the harness and `GENERATED`) | `docs` (code comments cite docs); each `CHECKS` entry whose `when` matches — `<build, test, lint>` | `code-reviewer`, `doc-reviewer` |
 | `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES`, the `design-system` skill | `design` (the design check of DESIGN.md and its self-test, which checks the starter brief too; the token check once `TOKEN_FILES` is set) | `ui-designer` for all but the skill |
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
@@ -180,11 +180,15 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `layout` skill | `layout` (the layout check's self-test; the layout check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `typography` skill | `typography` (the typography check's self-test; the typography check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| Test files (`e2e/`, `tests/`, `*.spec.*`, `*.test.*`, `playwright.config.*`), the `playwright` skill | `playwright` (the e2e check's self-test; every file that imports `@playwright/test`, and the config, against PW1–PW8) | `playwright` in review mode, when asked |
+| `EINK_PATHS`, the `e-ink` skill | `e-ink` (the e-ink check's self-test; the e-paper UI files against EK1–EK7 once `EINK_PATHS` is set) | `e-ink` in review mode, when asked |
+| `UI_PATHS`, the `storybook` skill | `storybook` (the story check's self-test; the story files under `UI_PATHS` against SB1–SB7 once `UI_PATHS` is set) | `storybook` in review mode, when asked |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` (the setup script's self-test; the layering rules W1–W5 in a React and Vite app — a `package.json` with React beside a `vite.config`) | `code-reviewer` for code |
 | The `ux-designer` skill | `scope`, and the doc checks of its references — no script reads an experience | `ux-designer` in review mode, when asked |
 | `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
+| `.agents/rubrics/`, `.agents/evals/`, the `verify-change` skill | `rubrics` (each Learned row `\| L<n> \| YYYY-MM-DD \| … \| … \|`, numbers rising and never reused, no date ahead of today, no empty cell; each judgements line parses with a known kind, route, area and draft — [AGENT_HARNESS §9.3](../docs/AGENT_HARNESS.md#93-learned-items)) | — |
 | `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
@@ -192,7 +196,8 @@ what to write, and the corrected call goes on:
 - **Every check exits 1 over its baseline** — a count over it, a test that fails.
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
-  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
+  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. The judgements log
+  is none of them: a yes or a lesson recorded after a review appends to it and leaves the review standing.
 - **Three failures in a row of a counted check — `"counts": True` in `CHECKS`, the build and the tests — exit 3.** A
   lint, a doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
@@ -208,12 +213,14 @@ what to write, and the corrected call goes on:
 
 | Refuses while | Why |
 | --- | --- |
-| No run; the last run failed; an edit after the last run | The checks did not see this tree |
+| No run; the last run failed; an edit after the last run; a last run made with `--only` | The checks did not see this tree |
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
+| A lesson — a finding, a no, a false alarm — whose route's edit is not in the change, made after the lesson was recorded or named with `--edit`; a `rubric` lesson that added no learned item to its agent's rubric | Written down and changed nothing ([AGENT_HARNESS §9.2](../docs/AGENT_HARNESS.md#92-recording-what-was-learned)) |
+| A skill or an agent changed with no `kit` yes from the person on its diff, or changed since that yes | A tool's permission mode may answer the guard's ask without the person; this holds whatever the mode ([AGENT_HARNESS §11.3](../docs/AGENT_HARNESS.md#113-what-to-gate)) |
 | Two runs on the target with changed code and no finding or decision recorded between, nor one recorded later with `--for-run` naming the later run | A change after the person looked almost always follows something they saw — a lesson for the judgements log ([AGENT_HARNESS §9.4](../docs/AGENT_HARNESS.md#94-the-judgements-log-and-calibration)) |
-| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
+| A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft; neither waives the kit gate | §9 |
 
 ```markdown
 ## Verified
@@ -277,6 +284,9 @@ Each agent's frontmatter sets `model` and `effort`; Codex's TOML repeats the eff
 | `code-reviewer`, `ui-designer` | `sonnet` | `high` | Applies rules to a diff, or designs against them; a miss costs a round on the target |
 | `doc-reviewer`, `open-items-curator` | `sonnet` | `medium` | Mostly scripts and greps, then light judgment |
 | `doc-writer` | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
+| `storybook` | `sonnet` | `medium` | Writes stories to fixed rules; the story check and the story tests carry the mechanics |
+| `e-ink` | `sonnet` | `high` | Designs and builds against the glass's limits — refresh, ghosting, 1 bit — where a miss costs a round on the panel |
+| `playwright` | `sonnet` | `medium` | Writes and fixes end-to-end tests to fixed rules; the e2e check and the test runs carry the mechanics |
 | `target-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
 
 Move a judge up a tier when calibration shows it missing findings it has items for (AGENT_HARNESS §18.2).
@@ -292,8 +302,11 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 | A design token or principle in `DESIGN.md` | Says yes to a specimen — swatches, the type scale, screens before and after — before the token files change | `approve <png> --kind mock` |
 | A motion or a transition | Says yes to its motion study (a GIF or video at real speed) before it is built | `approve <gif> --kind motion` |
 | Copy that is the change | Says yes to the words in place | `approve <file> --kind copy` |
+| A brief, an option, a draft or the built screen they do not want | Says no, and what is wrong | `verify.py decline <file> "<their words>" --kind <kind> --about <area> --route <route>` — the lesson's edit in the same change; `approve` refuses that file unchanged |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py kitdiff <file>`, then `verify.py approve <file> --kind kit` — `finish` holds the hand-over without it |
+| A screen or component with no precedent | Picks one of two or three options before the full draft is drawn — a pick, never the yes | `verify.py decision "option picked: <screen>_option<x>.png — <their words>"` ([DESIGN_GATES §3](skills/ui-designer/references/gates.md#3-recording-a-yes)) |
 | A design they handed over | Says where it is | `verify.py decision "design given: <where>"` |
-| A change of those files with no visible effect | Says so | `verify.py decision "no visible change: <why>"` |
+| A change of those files with no visible effect | Says so | `verify.py decision "no visible change: <why>"` — it waives the look's gates, never the yes on a skill or an agent's diff |
 | Anything the guard asks about | Approves the call, or runs it | The tool's own prompt |
 | A judge flags what the person has settled | Decides | `verify.py decision "<what>"` — judges read it in `status` |
 | The change on the target | Judges the look, feel, motion and words | `verify.py signoff "<their words>"`, kept against the code as it ran; what they report wrong, `verify.py finding` |

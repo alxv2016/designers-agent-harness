@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "storybook"
+description = "Writes, reviews and sets up a component's Storybook stories from the storybook skill"
+developer_instructions = "Read .agents/agents/storybook.md and follow it. In review mode, edit nothing; in setup mode, ask before installing."
+model_reasoning_effort = "medium"

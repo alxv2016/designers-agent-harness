@@ -33,7 +33,7 @@ A result without evidence counts as unsure.
 | R3 | Coupled changes: a setting, schema, token or API changed with its callers, types, migrations, tests and the other platforms | 3 |
 | R4 | What must never ship: a `DEBUG_MARKERS` line, a switch off its shipping value (`INVARIANTS`), a secret in code or a log line (`.agents/project.py`; AGENTS.md → Safety) | 4 |
 | R5 | Errors and the person's data: failures handled and shown, nothing the user owns lost or sent where they did not ask | 5 |
-| R6 | Tests: new behaviour tested where the project tests that kind of thing; a fixed bug with a test that fails without the fix | 6 |
+| R6 | Tests: new behaviour tested where the project tests that kind of thing; a fixed bug with a test that fails without the fix; each new or changed test passes the two imagined edits — it fails if the behaviour breaks (no expected value computed by the code under test, no assertion on data the test built) and keeps passing if only the internals change (no private helper, call order or internal state asserted; UI found by role and accessible name) (PRINCIPLES §4) | 6 |
 | R7 | Docs in the same change: no doc outside the diff still states the old behaviour or value (GUIDELINES §7) | 7 |
 | R8 | Comments: local mechanics explained in place, briefly; a decision, a value's provenance or a rule shared across files cited as `DOC §n` — the comment may carry the argument too, never instead of the citation; no `§` without its doc name, no line number (GUIDELINES §4.8) | 8 |
 

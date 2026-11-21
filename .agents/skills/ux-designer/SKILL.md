@@ -88,8 +88,10 @@ person's yes on a brief, and the `ux-designer` agent applies this skill.
 
 Input: a feature, a flow or a screen to design. Everything here is written in the scratchpad.
 
-1. **Read what exists** — the product's principles in `DESIGN.md`, the flows and screens around this one, any
-   research, analytics or support issues; the person's own words about the problem.
+1. **Read what exists** — the product's principles in `DESIGN.md`, the flows and screens around this one, any research,
+   analytics or support issues; the person's own words about the problem; and the project's learned items — in the
+   agent-harness kit, the Learned table in `.agents/rubrics/ux-designer.md`: each a flow, structure or behaviour the
+   person said no to or found wrong — the brief repeats none of them.
 2. **Name the outcome, the people, their job and context**; mark each as research or assumption (UX_METHODS §3).
 3. **List the top tasks with their frequency and risk** (UX_METHODS §4).
 4. **Map the flow** — entries, steps, decisions, exits, back; a Mermaid flowchart when it branches.
@@ -101,8 +103,10 @@ Input: a feature, a flow or a screen to design. Everything here is written in th
    are the checklist (UX_REVIEW_RUBRIC §3).
 9. **Write the open questions with concrete options**, and the research that would settle each.
 10. **Show the brief and stop.** The person's yes names `<flow>_ux<n>.md` — with the kit, `verify.py approve
-    <flow>_ux<n>.md --kind ux`. A change is a new draft and a new yes. Then the `ui-designer` skill drafts the screen
-    from it.
+    <flow>_ux<n>.md --kind ux`. A change is a new draft and a new yes. A no is recorded first, in their words — with
+    the kit, `verify.py decline <flow>_ux<n>.md "<their words>" --kind ux --about flow|states|structure|words --route
+    rubric --judge ux-designer`, and its learned item written — then the next draft. Then the `ui-designer` skill
+    drafts the screen from it.
 
 ### Planning research
 

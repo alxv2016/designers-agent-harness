@@ -46,7 +46,8 @@ in full, not only the hunks.
 5. **Errors and the person's data** — failures handled and shown, not swallowed; nothing the user owns lost or sent
    where they did not ask (R5).
 6. **Tests** — the behaviour the change adds has a test where the project tests that kind of thing; a fixed bug has a
-   test that fails without the fix (R6).
+   test that fails without the fix; each new or changed test survives the two imagined edits — break the behaviour
+   and it fails, change only the internals and it passes (R6; the `principles` skill, PRINCIPLES §4).
 7. **Docs in the same change** — `git grep` `docs/` for every name the diff changes; a doc outside the diff that
    states the old behaviour or value is a finding (R7; GUIDELINES §7).
 8. **Comments** — local mechanics explained in the comment itself, briefly; a decision, a measured value's provenance

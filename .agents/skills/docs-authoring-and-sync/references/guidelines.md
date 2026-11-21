@@ -356,7 +356,7 @@ section; a citation to another doc names it.
 | Element | Rule |
 | --- | --- |
 | Headings | `#` syntax only — never a bold paragraph as a heading (lint MD036) |
-| Code blocks | Always tag the language: `ts`, `js`, `css`, `json`, `yaml`, `swift`, `kotlin`, `python`, `sh`, `text` (lint MD040) |
+| Code blocks | Always tag the language: `ts`, `js`, `css`, `json`, `yaml`, `swift`, `kotlin`, `python`, `sh`, `text` (lint MD040). A block at column 0 ends the list it follows, so put the bullet's whole sentence before it and start the next bullet after it — never a continuation line under the block |
 | Tables | For any item with 2+ attributes. Keep cells short; a long reason goes in a bullet below |
 | Identifiers | Backticks for tokens, components, symbols, files, settings and literal values |
 | Repo links | Relative: `[tokens.css](../src/styles/tokens.css)` |
