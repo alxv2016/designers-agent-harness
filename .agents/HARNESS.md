@@ -172,7 +172,7 @@ what to write, and the corrected call goes on:
 
 | Touched | Checks | Judges |
 | --- | --- | --- |
-| `docs/`, the root's Markdown, `.agents/` | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` — not the judgements log | `docs` (doc lint, anchors and § citations — with no nameless `§` or line number in code and the kit's scripts — links, the doc scaffolder's self-test) | `doc-reviewer` |
 | The code (`CODE_PATHS`; when empty, everything outside docs, the harness and `GENERATED`) | `docs` (code comments cite docs); each `CHECKS` entry whose `when` matches — `<build, test, lint>` | `code-reviewer`, `doc-reviewer` |
 | `DESIGN.md`, `UI_PATHS`, `TOKEN_FILES`, the `design-system` skill | `design` (the design check of DESIGN.md and its self-test, which checks the starter brief too; the token check once `TOKEN_FILES` is set) | `ui-designer` for all but the skill |
 | `UI_PATHS`, the `accessibility` skill | `a11y` (the contrast script's and the accessibility check's self-tests; the accessibility check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
@@ -195,7 +195,8 @@ what to write, and the corrected call goes on:
 - **Every check exits 1 over its baseline** — a count over it, a test that fails.
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
-  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
+  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. The judgements log
+  is none of them: a yes or a lesson recorded after a review appends to it and leaves the review standing.
 - **Three failures in a row of a counted check — `"counts": True` in `CHECKS`, the build and the tests — exit 3.** A
   lint, a doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's

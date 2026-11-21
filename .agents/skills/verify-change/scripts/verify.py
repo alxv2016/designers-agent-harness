@@ -85,7 +85,9 @@ HARNESS = (".agents/hooks/", ".agents/githooks/", ".agents/project.py", ".agents
 
 
 def is_kit_or_doc(f: str) -> bool:
-    return project.is_doc(f) or f.startswith(".agents/")
+    """The docs and the kit — not the judgements log, which a yes or a lesson appends to after a review: it is data
+    the rubrics check reads, and a line in it leaves the doc-reviewer's pass standing."""
+    return f != JUDGEMENTS.relative_to(ROOT).as_posix() and (project.is_doc(f) or f.startswith(".agents/"))
 
 
 def is_design(f: str) -> bool:
@@ -1481,6 +1483,9 @@ def self_test() -> int:
         if got != want:
             bad += 1
             print(f"FAIL rubrics, {name}: {got} problem(s), want {want}")
+    if is_kit_or_doc(".agents/evals/judgements.jsonl") or not is_kit_or_doc(".agents/rubrics/ui-designer.md"):
+        bad += 1
+        print("FAIL judges, the judgements log is no file of the doc-reviewer's; a rubric is")
     if count_new_rows("+| L4 | 2026-11-21 | a | b |\n | L3 | 2026-11-20 | c | d |\n+unrelated\n") != 1:
         bad += 1
         print("FAIL rubrics, new rows counted from a diff")
@@ -1503,6 +1508,7 @@ def self_test() -> int:
         bad += 1
         print(f"FAIL calibration, areas: {areas}")
     cases = cases + scopes + redeploys + lessons + rubrics + [("requires", "", ""), ("new rows", "", ""),
+                                                               ("log", "", ""),
                                                                ("judgements", "", ""), ("draft stats", "", ""),
                                                                ("areas", "", "")]
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")

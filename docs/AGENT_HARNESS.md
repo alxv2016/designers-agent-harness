@@ -926,7 +926,7 @@ file.
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
-| `docs/`, the root's Markdown, `.agents/` | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
+| `docs/`, the root's Markdown, `.agents/` — not the judgements log | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
 - **A check or a judge joins the plan only once it exists.** The script tests for the agent's file or the check's

@@ -58,9 +58,10 @@ flowchart TD
 4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
    verdict is fixed and asked again, and each item it raised that you fix is logged as a catch — `verify.py finding
    "<what>" --source agent --route <route> --judge <judge> --caught yes`; a pass stands until that judge's own files
-   change — ask again only the judges `finish` names. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the
-   `ui-designer`'s items are in its skill's `references/rubric.md`, its learned ones in that file) and opens its report
-   with `Verdict: pass | blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9).
+   change — not the judgements log, which a yes or a lesson appends to — ask again only the judges `finish` names.
+   Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its skill's
+   `references/rubric.md`, its learned ones in that file) and opens its report with `Verdict: pass | blocking`; that
+   word is the one `review` records (AGENT_HARNESS §8, §9).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    ux|mock|motion|copy` the moment they give it, naming the file** — `ux` for a UX brief, which comes before the
    mock for a new flow (the `ux-designer` skill). After the build, their yes on the built screen beside
