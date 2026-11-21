@@ -420,7 +420,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships twenty-two skills: eighteen `portable`, and four `project` — `verify-change`, `commit-message`
+The template ships twenty-three skills: nineteen `portable`, and four `project` — `verify-change`, `commit-message`
 and `harness-help` belong to the kit and copy across with it, and `build-run-test` is filled in from the project. A
 project adds its own domain skills as the code grows.
 
@@ -457,6 +457,7 @@ no UI file.
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
 | `storybook` | A component's stories, written once it exists or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest — carried in the skill | `references/storybook.md`, `templates/component.stories.tsx.tpl`, `story_check.py` | `portable` — the folder works in any Storybook project; the themes are the project's `DESIGN.md` |
+| `e-ink` | Designing and building for e-paper: how the film works, controllers, waveforms, the refresh policy, the toolkit glue, design in 1 bit, components, focus, touch, accessibility, power, testing on the glass, the panel spec — carried in the skill | `references/e-ink.md`, `references/drivers.md`, `references/validation.md`, `templates/panel-spec.md`, `e_ink_check.py` | `portable` — the folder works in any repo with an e-paper screen; the values are the project's panel spec |
 | `playwright` | A feature's end-to-end tests, written once it exists: the template's layout, the task and its failure, locators by role and name, web-first assertions awaited, isolation, stubs, axe in each theme, reflow; fixing a failing test without weakening it; Playwright's MCP server — carried in the skill | `references/playwright.md`, `templates/feature.spec.ts.tpl`, `e2e_check.py` | `portable` — the folder works in any repo with Playwright |
 | `principles` | The working principles: proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and a test, cited with the decision it changed — carried in the skill | `references/principles.md` | `portable` — the folder works in any repo |
 | `blast-radius` | What a change could break outside its diff, and the one fact it is safe because of, proven by running real code | — | `portable` — the folder works in any repo |
@@ -531,6 +532,10 @@ Each skill must hold the following:
   portable; every prop covered; one concept per story; a JSDoc summary on the component, each prop and each story;
   each theme past the first pinned in a story and kept out of the manifest; play functions by role and name; the MCP
   server set up only after the person's yes; the story check.
+- **`e-ink`**: the rules for e-paper in `references/e-ink.md` and a panel spec template, so the folder is portable;
+  the panel's spec before a driver or a screen; every screen in its 1-bit partial form first; one refresh per
+  interaction, a partial limit, never two full refreshes back to back; no motion and feedback before the glass; states
+  in 1 bit with focus as a ring outside; no voltage or OTP command; the person judging the glass; the e-ink check.
 - **`playwright`**: the rules for end-to-end tests in `references/playwright.md` and the spec file's template, so the
   folder is portable; each test a person's task with its failure; locators by role and name; every web-first
   assertion awaited; isolation and stubs; axe in each theme and reflow; a failing test fixed at its cause, never
@@ -623,6 +628,7 @@ You are the <role> for <project>.
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
 | `ux-designer` | Builder of UX briefs and research plans, and a reviewer of experiences | A new flow, feature or screen is framed, research is planned, or an experience is reviewed — when asked | `portable` — with the `ux-designer`, `accessibility` and `ux-content` skills; its rubric travels in the skill, its learned items in `.agents/rubrics/ux-designer.md` |
 | `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
+| `e-ink` | Builder of e-paper specs, screens, drivers and waveforms, and a reviewer | A product has an e-paper screen, a screen or driver is built for one, a waveform is tuned, or ghosting is fixed | `portable` — with the `e-ink`, `accessibility`, `design-system` and `ui-designer` skills |
 | `playwright` | Builder and healer of end-to-end tests, and a reviewer of spec files | A feature, page or flow is added, a test fails or flakes, tests are asked for, or Playwright's MCP server is set up | `portable` — with the `playwright` and `accessibility` skills |
 | `storybook` | Builder of stories, and a reviewer of story files | A component is created or its props change, stories are asked for, or Storybook's MCP server is set up | `portable` — with the `storybook`, `accessibility` and `design-system` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
@@ -655,6 +661,10 @@ What each one does:
   a summary on each, each theme pinned — adds the JSDoc the component lacks, then runs the story check and the story
   tests; in setup mode, adds Storybook's MCP server after the person's yes; in review mode, reports a story file's
   findings, read-only.
+- **`e-ink`**: in spec mode, writes the panel's spec from its datasheet and measurements; in design mode, drafts in
+  both refresh forms through the `ui-designer`'s gates; in build mode, builds the driver, the refresh policy, the
+  toolkit glue or components; in tune mode, measures waveform presets for the person to judge on the glass; in review
+  mode, reports findings, read-only.
 - **`playwright`**: in write mode, writes a feature's spec from the template — each task and its failure, the
   keyboard path, axe in each theme, reflow — then runs the e2e check and the tests; in heal mode, reads a failing
   test's trace, decides whether the app or the test is wrong, and fixes that cause without weakening the test; in
@@ -885,6 +895,7 @@ flowchart TD
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
 | `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit |
 | `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`), the built thing (`built`) or the diff of a change to a skill or an agent (`kit`); refuses a file the person said no to, unchanged |
+| `kitdiff <file>` | Writes the whole diff of the paths a `kit` gate covers — tracked changes and every new file in full — for the person to read before their `kit` yes |
 | `decline <file> "<their words>" --kind <kind> --about <area> --route <r> [--judge <agent>] [--edit <path>]` | Records the person's no to a draft — a brief, an option, a mock, a motion study, the copy, the built screen — or to a kit change's diff (`kit`), in the task and the judgements log, routed like a lesson (§9.2); a route of `none` needs no edit |
 | `decision "<text>"` | Records the person's word for this task; judges read it in `status` and do not block on it |
 | `target --where … --build … [--health-exit N]` | Records what ran on the target, against a fingerprint of the deployed code, and logs every run with how many findings and decisions were recorded by then |
@@ -921,6 +932,7 @@ file.
 | UI paths, the `typography` skill | `typography` — the typography check's self-test; once UI paths are set, the UI files against the typography patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
+| `EINK_PATHS`, the `e-ink` skill | `e-ink` — the e-ink check's self-test; once e-paper UI paths are set, those files against EK1–EK7 | `e-ink` in review mode, when asked |
 | Test files and `playwright.config.*`, the `playwright` skill | `playwright` — the e2e check's self-test; every file that imports `@playwright/test`, and the config, against PW1–PW8 | `playwright` in review mode, when asked |
 | UI paths, the `storybook` skill | `storybook` — the story check's self-test; once UI paths are set, the story files against SB1–SB7 | `storybook` in review mode, when asked |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
@@ -1086,7 +1098,9 @@ The guard judges each simple command by its program and arguments, so text that 
 
 - **An ask is only as strong as the tool's permission mode.** A mode that answers the guard's asks itself — an
   automatic mode, a standing allow — lets an edit through without the person. A rule that must hold whatever the mode
-  goes into `finish` as well: a skill or an agent changed with no `kit` yes on its diff is never handed over.
+  goes into `finish` as well: a skill or an agent changed with no `kit` yes on its diff is never handed over. The
+  diff the person reads comes from `verify.py kitdiff`, because `git diff` leaves out a file git does not track yet —
+  a new skill would be approved unseen.
 - **`ALLOWED_HOSTS` has one home: the settings file.** The Codex sandbox's network list repeats it, and `doctor`
   compares the two. List the package registries, the code host and the platform's docs; a subdomain matches its host.
 - **Decide each class once: allowed outright, or asked every time.** A standing "approved for the next few hours"
@@ -1520,6 +1534,7 @@ reasons before it answers.
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `ux-designer` (builder and reviewer) | `sonnet`; `opus` for a new product's flows | `high` | Reasons about people and tasks against named principles; the brief template and the rubric carry the structure |
 | `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
+| `e-ink` (builder and reviewer) | `sonnet` | `high` | Designs and builds against the glass's limits; a miss costs a round on the panel |
 | `playwright` (builder, healer and reviewer) | `sonnet` | `medium` | Writes and fixes tests to fixed rules; the e2e check and the test runs carry the mechanics |
 | `storybook` (builder and reviewer) | `sonnet` | `medium` | Writes stories from a template and the component's props to fixed rules; the story check and the story tests carry the mechanics |
 
@@ -1638,7 +1653,7 @@ hand-over.
 | When the loop fails 3 times in a row | Chooses the next approach | `verify.py run` exits `3` |
 | When a judge and the agent disagree | Settles it | `verify.py decision`, `verify.py dispute`; the verify-change skill |
 | When they say no to a draft | Says what is wrong, in their words | `verify.py decline`, routed — most often a learned item the builder reads before its next draft (§9.2, §9.3) |
-| A change to a skill or an agent | Reads its diff and says yes | `verify.py approve <diff> --kind kit`, which `finish` checks whatever the tool's permission mode (§11.3) |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py kitdiff <file>`, then `verify.py approve <file> --kind kit`, which `finish` checks whatever the tool's permission mode (§11.3) |
 | On the target | Judges what only a person can: look, feel, motion, words | `verify.py signoff`, which `finish` checks for a gated change that ran there |
 | Closing an open item about the target | Reports what they saw on it | The open-items curator never closes one from a build or a screenshot |
 | Committing and publishing | Asks for each commit and each push | The guard asks for `git commit` and `git push`; the commit-message skill |

@@ -48,9 +48,9 @@ and the code: find out which is intended before changing either
 9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
    as `metadata: scope:` — the guard holds the file until it has one
    ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)); **and show them the diff of every change to a
-   skill or an agent** — `finish` holds the hand-over until their yes on it, `verify.py approve <diff> --kind kit`,
-   whatever a tool's permission mode answered when the edit was made
-   ([AGENT_HARNESS §11.3](docs/AGENT_HARNESS.md#113-what-to-gate)).
+   skill or an agent** — `finish` holds the hand-over until their yes on it — the whole diff from `verify.py kitdiff
+   <file>`, then `verify.py approve <file> --kind kit` — whatever a tool's permission mode answered when the edit was
+   made ([AGENT_HARNESS §11.3](docs/AGENT_HARNESS.md#113-what-to-gate)).
 10. **Make every file, doc section and URL you show the person a link they can click** — `[name](path#L42)` from the
     repo root, `[DOC §n](docs/DOC.md#n-heading)`, `[what it is](https://…)`; never a bare path or URL in backticks
     ([AGENT_HARNESS §10.4](docs/AGENT_HARNESS.md#104-the-hand-over)).
@@ -85,6 +85,7 @@ Scope is `portable` or `project`
 | [`ux-designer`](.agents/skills/ux-designer/SKILL.md) | **Read first for a new flow, feature or screen.** How the experience works — people, tasks, flows, structure, interaction models, states, errors — from HCI's principles and the laws of UX; the UX brief before the mock; research plans; the review of an experience | `portable` |
 | [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
 | [`react-vite-setup`](.agents/skills/react-vite-setup/SKILL.md) | Setting up a React, Vite and TypeScript web app from the web app spec in `docs/` — the shell, features, components with their stories, tokens from DESIGN.md, Vitest, Storybook and Playwright tests — and adding a feature or a component to one | `portable` |
+| [`e-ink`](.agents/skills/e-ink/SKILL.md) | Any screen, component or driver for an e-paper panel: the panel spec, waveforms, the refresh policy, design in 1 bit, no motion, paging, focus rings and input during a refresh, touch on lift, accessibility and testing on the glass; the e-ink check | `portable` |
 | [`playwright`](.agents/skills/playwright/SKILL.md) | A feature's end-to-end tests, right after it is added: the template's layout, each task and its failure, locators by role and name, web-first assertions awaited, stubs, axe in each theme, reflow; fixing a failing or flaky test; Playwright's MCP server; the e2e check | `portable` |
 | [`storybook`](.agents/skills/storybook/SKILL.md) | A component's stories, right after it is created or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest; the story check | `portable` |
 | [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
@@ -109,6 +110,7 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 | [`doc-writer`](.agents/agents/doc-writer.md) | Creates and writes docs in `docs/` to the guidelines, from verified facts; modes outline, write and rewrite | `portable` |
 | [`ux-designer`](.agents/agents/ux-designer.md) | Frames flows as UX briefs, plans research and reviews experiences from the ux-designer skill, beside the `ui-designer`; modes frame, research and review | `portable` |
 | [`ux-content-writer`](.agents/agents/ux-content-writer.md) | Writes and reviews the words on screens from the ux-content skill; modes write, review and rewrite | `portable` |
+| [`e-ink`](.agents/agents/e-ink.md) | Designs, builds, tunes and reviews for e-paper from the e-ink skill; modes spec, design, build, tune and review | `portable` |
 | [`playwright`](.agents/agents/playwright.md) | Writes, fixes and reviews a feature's end-to-end tests from the playwright skill, after a feature is added or on request; modes write, heal, setup and review | `portable` |
 | [`storybook`](.agents/agents/storybook.md) | Writes, reviews and sets up a component's stories from the storybook skill, after a component is created or on request; modes write, setup and review | `portable` |
 | [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
@@ -215,6 +217,9 @@ not of the product: the target and the person's sign-off are what show it works.
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [PRINCIPLES](.agents/skills/principles/references/principles.md) | The working principles — proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and its test — generic, any project; kept in the principles skill |
+| [E_INK_VALIDATION](.agents/skills/e-ink/references/validation.md) | The evidence behind the e-ink skill — the test bench, what was measured on the SSD2677 and SSD1677, what was seen on the glass, what is host-tested, what is not yet validated, and confidence by technique — kept in the e-ink skill |
+| [E_INK_DRIVERS](.agents/skills/e-ink/references/drivers.md) | How to write an e-paper controller driver, in code — the bus and BUSY, detection, the SSD1677 and the SSD2677 (no custom waveforms) in full with their pitfalls, the budgeted scan engine, bringing up a new controller — generic; kept in the e-ink skill |
+| [E_INK](.agents/skills/e-ink/references/e-ink.md) | How to design and build for e-paper — the film, controllers, waveforms, refresh, design in 1 bit, components, focus, touch, accessibility, power, testing, the panel spec — generic, any e-paper device; kept in the e-ink skill |
 | [PLAYWRIGHT](.agents/skills/playwright/references/playwright.md) | How end-to-end tests are written, kept and fixed — the spec file, locators, web-first assertions, isolation, stubs, accessibility and reflow, baselines, traces, CI, Playwright's MCP server and test agents — generic, any project with Playwright; kept in the playwright skill |
 | [STORYBOOK](.agents/skills/storybook/references/storybook.md) | How stories are written for people, tests and agents — the layout, props, one concept, summaries, themes, play functions, the manifest, Storybook's MCP server — generic, any Storybook project; kept in the storybook skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |

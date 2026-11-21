@@ -77,6 +77,10 @@ DESIGN_FILE = "DESIGN.md"
 #   ESP-IDF: {"paths": ("components/ui_*/", "main/"), "names": ("<Product>",)}
 UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0}
 
+# The UI drawn on an e-paper panel (patterns as above) — the e-ink skill's check reads only these, since what it flags
+# (motion, translucency, shadows, hairlines) is fine on an LCD. Empty: the check runs only its self-test.
+EINK_PATHS = ()
+
 # Where the design tokens live in code — the values DESIGN.md decides, in the platform's format. A screen takes its
 # values from these files, never from a literal (the design-system skill). Empty: the token check and the design
 # check's token-drift half do not run.

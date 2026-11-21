@@ -89,6 +89,7 @@ The skills load by their description; name one only to insist on it. The full in
 | Design, build or review a screen or component | [`ui-designer`](../ui-designer/SKILL.md) skill and agent — the three gates |
 | Write stories for a component, or set up Storybook's MCP server | [`storybook`](../storybook/SKILL.md) skill and agent |
 | Write, fix or review end-to-end tests, or set up Playwright's MCP server | [`playwright`](../playwright/SKILL.md) skill and agent |
+| Design or build for an e-paper (e-ink) screen, or tune its waveform | [`e-ink`](../e-ink/SKILL.md) skill and agent |
 | Write the words on a screen | [`ux-content`](../ux-content/SKILL.md), the [`ux-content-writer`](../../agents/ux-content-writer.md) |
 | Decide or change a design token | [`design-system`](../design-system/SKILL.md) |
 | Meet the accessibility floors | [`accessibility`](../accessibility/SKILL.md) |

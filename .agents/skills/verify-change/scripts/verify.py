@@ -17,6 +17,7 @@ docs/AGENT_HARNESS.md §10).
                       --route ROUTE [--judge AGENT] [--edit PATH]   # the person's no, routed like a lesson
     verify.py dispute <judge> "<what the judge flagged that was not a problem>" [--source agent|person] [--about AREA]
                       [--edit PATH]
+    verify.py kitdiff <file>          # the whole diff of the skills and agents, new files too, for a kit yes
     verify.py status | finish | calibration | doctor
     verify.py unverified [--hook]     # the tree changed since the last run? --hook: the agents' Stop hook
 
@@ -438,6 +439,22 @@ def check_storybook(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+EINK_SKILL = f"{SKILLS}/e-ink/"
+EINK_CHECK = f"{EINK_SKILL}scripts/e_ink_check.py"
+EINK_PATHS = tuple(getattr(project, "EINK_PATHS", ()))
+
+
+def check_eink(run_dir: Path) -> dict:
+    """The e-ink check's self-test; then the e-paper UI files (EINK_PATHS) against its patterns."""
+    results = [sh([sys.executable, EINK_CHECK, "--test"], run_dir / "e-ink.selftest.log")]
+    ui = sh([sys.executable, EINK_CHECK], run_dir / "e-ink.ui.log") if EINK_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": f"the e-ink check {'clean' if ok else 'failing'}"
+                                + ("" if EINK_PATHS else " — self-test only; EINK_PATHS is empty"),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 PW_SKILL = f"{SKILLS}/playwright/"
 PW_CHECK = f"{PW_SKILL}scripts/e2e_check.py"
 PW_FILES = re.compile(r"(?:^|/)(?:e2e|tests?)/|\.(?:spec|test)\.[cm]?[jt]sx?$|(?:^|/)playwright\.config\.[cm]?[jt]s$")
@@ -685,7 +702,7 @@ def check_rubrics(run_dir: Path) -> dict:
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
            "motion": check_motion, "touch": check_touch, "layout": check_layout,
            "typography": check_typography, "storybook": check_storybook, "playwright": check_playwright,
-           "rubrics": check_rubrics, "ux": check_ux,
+           "rubrics": check_rubrics, "e-ink": check_eink, "ux": check_ux,
            "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
@@ -716,6 +733,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         "storybook": (ROOT / STORY_CHECK).is_file()
         and any(f.startswith(STORY_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "rubrics": any(f.startswith((".agents/rubrics/", ".agents/evals/", f"{SKILLS}/verify-change/")) for f in files),
+        "e-ink": (ROOT / EINK_CHECK).is_file()
+        and any(f.startswith(EINK_SKILL) or project.matches(f, EINK_PATHS) for f in files),
         "playwright": (ROOT / PW_CHECK).is_file()
         and any(f.startswith(PW_SKILL) or (not f.startswith(".agents/") and PW_FILES.search(f)) for f in files),
         # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
@@ -858,6 +877,26 @@ def cmd_approve(args: argparse.Namespace) -> int:
     # Logged too, so calibration can set the person's yeses against their noes per kind of draft
     log_judgement({"kind": "approval", "draft": args.kind, "file": path.name, "source": "person", "route": "none"})
     print(f"approval recorded: {args.kind} {path.name} ({digest})")
+    return 0
+
+
+def cmd_kitdiff(args: argparse.Namespace) -> int:
+    """The whole diff of the paths a `kit` gate covers — changes to tracked files and every new file in full — for
+    the person to read before their `kit` yes; `git diff` alone leaves new files out (AGENT_HARNESS §11.3)."""
+    paths = [p for _, ps, kinds in project.GATES if "kit" in kinds for p in ps]
+    if not paths:
+        print("kitdiff: no gate asks for a kit yes (.agents/project.py → GATES)", file=sys.stderr)
+        return 2
+    new = [f for f in git("ls-files", "--others", "--exclude-standard", "--", *paths).splitlines() if f]
+    text = git("diff", "HEAD", "--", *paths)
+    for f in new:  # git exits 1 when the files differ; its output is the diff
+        text += subprocess.run(["git", "diff", "--no-index", "--", "/dev/null", f], cwd=ROOT, capture_output=True,
+                               text=True).stdout
+    out = Path(args.out).expanduser()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text)
+    changed = len(re.findall(r"^diff --git ", text, re.M))
+    print(f"kit diff: {changed} file(s), {len(new)} new, in {out}" + (" — new: " + ", ".join(new) if new else ""))
     return 0
 
 
@@ -1026,11 +1065,10 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
                 continue
             yes = [a for a in task.get("approvals", []) if a["kind"] == kind]
             if not yes and kind == "kit":
-                problems.append(f"{what} changed with no yes from the person on the change — show them its diff "
-                                "(git diff -- .agents/skills .agents/agents > <scratch>/kit.diff) and record their "
-                                "yes: "
-                                "verify.py approve <that file> --kind kit; a request or a tool's own approval of an "
-                                "edit is not their yes (AGENTS.md rule 9)")
+                problems.append(f"{what} changed with no yes from the person on the change — write its whole diff, "
+                                "new files included (verify.py kitdiff <scratch>/kit.diff), show them, and record "
+                                "their yes: verify.py approve <that file> --kind kit; a request or a tool's own "
+                                "approval of an edit is not their yes (AGENTS.md rule 9)")
                 continue
             if not yes:
                 problems.append(f"{what} changed with no yes from the person on its {KIND_NAMES[kind]} — verify.py approve "
@@ -1565,6 +1603,8 @@ def main() -> int:
                                    "the lesson was recorded")
     d.add_argument("--source", choices=["agent", "person"], default="agent",
                    help="who raised the false alarm: the agent (the default) or the person")
+    k = sub.add_parser("kitdiff")
+    k.add_argument("out", help="where to write the diff the person reads before their kit yes")
     n = sub.add_parser("decline")
     n.add_argument("file", help="the draft the person said no to — a UX brief, an option, a mock, a motion study, the "
                                 "copy, the built screen beside its mock")
@@ -1581,7 +1621,7 @@ def main() -> int:
     args = parser.parse_args()
     return {"start": cmd_start, "run": cmd_run, "review": cmd_review, "approve": cmd_approve,
             "decision": cmd_decision, "target": cmd_target, "signoff": cmd_signoff, "finding": cmd_finding,
-            "decline": cmd_decline,
+            "decline": cmd_decline, "kitdiff": cmd_kitdiff,
             "dispute": cmd_dispute, "status": cmd_status, "finish": cmd_finish, "calibration": cmd_calibration,
             "doctor": cmd_doctor, "unverified": cmd_unverified}[args.command](args)
 

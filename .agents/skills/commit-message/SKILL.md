@@ -81,6 +81,8 @@ skill follows it.
 
 - **The subject reads as the whole body in `git log --oneline`** → no blank line after the subject → always leave
   line 2 empty.
+- **A count in the verification line is off by one** → it was written from memory → copy every count (self-test
+  cases, checks, files) from `verify.py finish`'s Verified block, run last.
 - **`git commit -m` with a long body loses the wrapping or the blank line** → write the message to a file and use
   `git commit -F <file>`.
 - **A `§n` in the message drifts from the doc** → a heading was renumbered in the same change → cite the final

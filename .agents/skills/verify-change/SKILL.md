@@ -93,9 +93,10 @@ flowchart TD
     `verify.py decision` for a change they asked for; your own fix is a finding `--source agent`. `finish` refuses two
     runs of different code with nothing recorded between (AGENT_HARNESS §9.4); a lesson recorded after the later run
     names it, `--for-run N`, as `target` printed it.
-14. **Show the person the diff of every change to a skill or an agent, and record their yes** — `verify.py approve
-    <the diff> --kind kit`; `finish` holds the hand-over without it, and a tool's permission mode answering the
-    guard's ask is not their yes (AGENT_HARNESS §11.3).
+14. **Show the person the diff of every change to a skill or an agent, and record their yes** — `verify.py kitdiff
+    <file>` writes it whole, new files included, then `verify.py approve <file> --kind kit`; `finish` holds the
+    hand-over without it, and a tool's permission mode answering the guard's ask is not their yes (AGENT_HARNESS
+    §11.3).
 
 ### Never
 
@@ -222,7 +223,8 @@ instead of searching the chat for where the task stands.
   another doc's edit was taken for it → record the lesson first and then make its edit, or name the file with
   `--edit <path>`; never point it at an unrelated edit.
 - **`finish`: "a skill or an agent changed with no yes"** → the person has not seen the kit change → show them the
-  diff, and record only their own yes: `verify.py approve <diff> --kind kit`.
+  whole diff (`verify.py kitdiff <file>` — `git diff` leaves new files out), and record only their own yes:
+  `verify.py approve <file> --kind kit`.
 - **The guard blocks a command the task needs** → it is a rule from AGENTS.md → ask the person to run or approve it;
   never rephrase the command to get past it.
 - **A harness file was edited and the guard never asked** → a script built the path, a script kept in a file wrote it,

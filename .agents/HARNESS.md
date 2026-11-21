@@ -181,6 +181,7 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `layout` skill | `layout` (the layout check's self-test; the layout check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `typography` skill | `typography` (the typography check's self-test; the typography check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | Test files (`e2e/`, `tests/`, `*.spec.*`, `*.test.*`, `playwright.config.*`), the `playwright` skill | `playwright` (the e2e check's self-test; every file that imports `@playwright/test`, and the config, against PW1–PW8) | `playwright` in review mode, when asked |
+| `EINK_PATHS`, the `e-ink` skill | `e-ink` (the e-ink check's self-test; the e-paper UI files against EK1–EK7 once `EINK_PATHS` is set) | `e-ink` in review mode, when asked |
 | `UI_PATHS`, the `storybook` skill | `storybook` (the story check's self-test; the story files under `UI_PATHS` against SB1–SB7 once `UI_PATHS` is set) | `storybook` in review mode, when asked |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` (the setup script's self-test; the layering rules W1–W5 in a React and Vite app — a `package.json` with React beside a `vite.config`) | `code-reviewer` for code |
@@ -284,6 +285,7 @@ Each agent's frontmatter sets `model` and `effort`; Codex's TOML repeats the eff
 | `doc-reviewer`, `open-items-curator` | `sonnet` | `medium` | Mostly scripts and greps, then light judgment |
 | `doc-writer` | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `storybook` | `sonnet` | `medium` | Writes stories to fixed rules; the story check and the story tests carry the mechanics |
+| `e-ink` | `sonnet` | `high` | Designs and builds against the glass's limits — refresh, ghosting, 1 bit — where a miss costs a round on the panel |
 | `playwright` | `sonnet` | `medium` | Writes and fixes end-to-end tests to fixed rules; the e2e check and the test runs carry the mechanics |
 | `target-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
 
@@ -301,7 +303,7 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 | A motion or a transition | Says yes to its motion study (a GIF or video at real speed) before it is built | `approve <gif> --kind motion` |
 | Copy that is the change | Says yes to the words in place | `approve <file> --kind copy` |
 | A brief, an option, a draft or the built screen they do not want | Says no, and what is wrong | `verify.py decline <file> "<their words>" --kind <kind> --about <area> --route <route>` — the lesson's edit in the same change; `approve` refuses that file unchanged |
-| A change to a skill or an agent | Reads its diff and says yes | `verify.py approve <diff> --kind kit` — `finish` holds the hand-over without it |
+| A change to a skill or an agent | Reads its diff and says yes | `verify.py kitdiff <file>`, then `verify.py approve <file> --kind kit` — `finish` holds the hand-over without it |
 | A screen or component with no precedent | Picks one of two or three options before the full draft is drawn — a pick, never the yes | `verify.py decision "option picked: <screen>_option<x>.png — <their words>"` ([DESIGN_GATES §3](skills/ui-designer/references/gates.md#3-recording-a-yes)) |
 | A design they handed over | Says where it is | `verify.py decision "design given: <where>"` |
 | A change of those files with no visible effect | Says so | `verify.py decision "no visible change: <why>"` — it waives the look's gates, never the yes on a skill or an agent's diff |
