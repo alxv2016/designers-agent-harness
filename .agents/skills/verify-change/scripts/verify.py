@@ -402,6 +402,20 @@ def check_typography(run_dir: Path) -> dict:
             "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
 
 
+STORY_SKILL = f"{SKILLS}/storybook/"
+STORY_CHECK = f"{STORY_SKILL}scripts/story_check.py"
+
+
+def check_storybook(run_dir: Path) -> dict:
+    """The story check's self-test; then the story files under UI_PATHS against the story layout."""
+    results = [sh([sys.executable, STORY_CHECK, "--test"], run_dir / "storybook.selftest.log")]
+    ui = sh([sys.executable, STORY_CHECK], run_dir / "storybook.ui.log") if project.UI_PATHS else None
+    results += [ui] if ui else []
+    ok = all(code == 0 for code, _ in results)
+    return {"ok": ok, "detail": ui_detail("the story check", ok, ui and ui[1]),
+            "tail": [] if ok else [line for code, out in results if code != 0 for line in tail(out, 16)]}
+
+
 ESP_SKILL = f"{SKILLS}/esp-idf-setup/"
 ESP_SCRIPT = f"{ESP_SKILL}scripts/esp_idf.py"
 ESP_PATHS = ("main/", "components/", "CMakeLists.txt")
@@ -479,7 +493,7 @@ def check_react_vite(run_dir: Path) -> dict:
 
 BUILTIN = {"docs": check_docs, "harness": check_harness, "design": check_design, "a11y": check_a11y,
            "motion": check_motion, "touch": check_touch, "layout": check_layout,
-           "typography": check_typography, "ux": check_ux,
+           "typography": check_typography, "storybook": check_storybook, "ux": check_ux,
            "esp-idf": check_esp_idf, "react-vite": check_react_vite, "secrets": check_secrets, "scope": check_scope}
 CHECKS = {**BUILTIN, **{name: project_check(name) for name in project.CHECKS}}
 WAIT = {name for name, spec in project.CHECKS.items() if spec.get("wait")}
@@ -507,6 +521,8 @@ def plan(files: list[str], only: set[str] | None) -> list[str]:
         and any(f.startswith(LAYOUT_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         "typography": (ROOT / TYPE_CHECK).is_file()
         and any(f.startswith(TYPE_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
+        "storybook": (ROOT / STORY_CHECK).is_file()
+        and any(f.startswith(STORY_SKILL) or project.matches(f, project.UI_PATHS) for f in files),
         # the app's paths only in an ESP-IDF app: a web app's `components/` is not one
         "esp-idf": (ROOT / ESP_SCRIPT).is_file()
         and any(f.startswith(ESP_SKILL) or ((ROOT / "main/app_features.def").is_file()

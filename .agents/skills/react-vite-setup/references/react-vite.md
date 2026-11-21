@@ -192,8 +192,13 @@ browser, a person's path through the app in every browser and size the spec name
 **Storybook is the components' documentation: every component in `src/components/` has a story file beside it, each
 state a story, rendered with the app's own tokens in each theme, and every story runs as a test.**
 
-- **A story per state.** `button.stories.tsx` holds `Rest`, `Disabled` and the rest of the brief's states for the
-  `Button`; a play function checks what the component does.
+- **The `storybook` skill owns how a story is written; this skill owns Storybook's place in the app** — installed,
+  configured, loading the tokens, its theme switch, run as tests in CI. Stories for a new component, and Storybook's
+  MCP server, are the `storybook` skill's.
+- **A story per concept.** `button.stories.tsx` holds `Default`, `Disabled` and the rest of the brief's states for the
+  `Button`, each with a JSDoc summary, laid out as the `storybook` skill's template; a play function checks what the
+  component does, and a story per theme past the first pins it with `globals`, so the accessibility test runs there
+  too.
 - **Docs pages are written for every component** (`tags: ['autodocs']`): its props, its stories and their source.
   `src/stories/Introduction.mdx` says where values and code live.
 - **The preview loads `tokens.css` and `global.css`**, and its theme toolbar lists the brief's themes, setting

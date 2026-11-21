@@ -638,6 +638,17 @@ def theme_items(themes: list[str]) -> tuple[str, str]:
     return items, theme_slug(themes[0])
 
 
+def theme_stories(themes: list[str]) -> str:
+    """A story per theme past the first, pinning it with `globals`, so each story file's accessibility test also runs
+    in that theme; kept out of the agents' manifest (the storybook skill, STORYBOOK §6)."""
+    out = []
+    for t in themes[1:]:
+        name = "".join(w.capitalize() for w in theme_slug(t).split("-")) or "Theme"
+        out.append(f"\n/** The default in the {t} theme, for the eye and the accessibility test */\n"
+                   f"export const {name}: Story = {{ globals: {{ theme: '{theme_slug(t)}' }}, tags: ['!manifest'] }}")
+    return "".join(out)
+
+
 def render(text: str, values: dict, flags: dict, where: str = "template") -> str:
     """`@@if name` / `@@if !name` / `@@else` / `@@endif` keep or drop lines; `{{name}}` takes its value. A name with
     no value is an error, so a template never ships a hole."""
@@ -717,6 +728,7 @@ def generate(root: Path, facts: dict, versions: dict, spec: Path, dry: bool) -> 
         "deps": dependency_lines(versions, dev=False), "dev_deps": dependency_lines(versions, dev=True),
         "playwright_projects": playwright_projects(facts["browsers"], facts["viewports"]),
         "ci_browsers": " ".join(engines_with_chromium(facts["browsers"])), "theme_items": items, "first_theme": first,
+        "theme_stories": theme_stories(themes),
     }
     writes = []
     for src in sorted((TEMPLATES / "project").rglob("*")):
@@ -903,7 +915,7 @@ def layering_hits(root: Path) -> list[str]:
                 and p.stem != "index" and COMPONENT_EXPORT.search(text)
                 and not (p.parent / f"{p.stem}.stories.tsx").is_file()):
             hits.append(f"W4 {rel}: no {p.stem}.stories.tsx beside it — every component is documented and tested "
-                        "by its stories")
+                        "by its stories; write them with the storybook skill")
     for p in files + [root / f for f in ("index.html",) + ENV_FILES if (root / f).is_file()]:
         rel = p.relative_to(root).as_posix()
         for n, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
@@ -1114,6 +1126,8 @@ def self_test() -> int:
         expect("one browser, two sizes", texts["playwright.config.ts"].count("devices['Desktop Chrome']"), 2)
         expect("spec cited", f"WEB_APP_SPEC {SEC}1" in texts["playwright.config.ts"], True)
         expect("themes in the toolbar", "{ value: 'dark', title: 'Dark' }" in texts[".storybook/preview.tsx"], True)
+        expect("the dark theme pinned in a story", "export const Dark: Story = { globals: { theme: 'dark' }, tags: "
+               "['!manifest'] }" in texts["src/components/ui/button.stories.tsx"], True)
         expect("tokens written", "--color-bg-canvas: #ffffff;" in texts["src/styles/tokens.css"], True)
         expect("ci browsers", "playwright install --with-deps chromium" in texts[".github/workflows/web.yml"], True)
         expect("ci expressions kept", "${{ github.ref }}" in texts[".github/workflows/web.yml"], True)

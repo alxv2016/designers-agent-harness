@@ -180,6 +180,7 @@ what to write, and the corrected call goes on:
 | `UI_PATHS`, the `touch-and-gesture` skill | `touch` (the touch check's self-test; the touch check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `layout` skill | `layout` (the layout check's self-test; the layout check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
 | `UI_PATHS`, the `typography` skill | `typography` (the typography check's self-test; the typography check on the UI files once `UI_PATHS` is set) | `ui-designer` for `UI_PATHS` |
+| `UI_PATHS`, the `storybook` skill | `storybook` (the story check's self-test; the story files under `UI_PATHS` against SB1–SB7 once `UI_PATHS` is set) | `storybook` in review mode, when asked |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` (the setup script's self-test; the layering rules E1–E5 once `main/app_features.def` exists) | `code-reviewer` for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` (the setup script's self-test; the layering rules W1–W5 in a React and Vite app — a `package.json` with React beside a `vite.config`) | `code-reviewer` for code |
 | The `ux-designer` skill | `scope`, and the doc checks of its references — no script reads an experience | `ux-designer` in review mode, when asked |
@@ -277,6 +278,7 @@ Each agent's frontmatter sets `model` and `effort`; Codex's TOML repeats the eff
 | `code-reviewer`, `ui-designer` | `sonnet` | `high` | Applies rules to a diff, or designs against them; a miss costs a round on the target |
 | `doc-reviewer`, `open-items-curator` | `sonnet` | `medium` | Mostly scripts and greps, then light judgment |
 | `doc-writer` | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
+| `storybook` | `sonnet` | `medium` | Writes stories to fixed rules; the story check and the story tests carry the mechanics |
 | `target-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
 
 Move a judge up a tier when calibration shows it missing findings it has items for (AGENT_HARNESS §18.2).

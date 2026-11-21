@@ -51,8 +51,9 @@ flowchart TD
    parallel, records the run and counts failures (HARNESS §4).
 3. **Stop at exit 3** — three failed builds or tests in a row (the checks marked `"counts": True`) mean the plan is
    wrong, not the last edit; a lint, a doc check or a blocking review does not count.
-   Record the approach that failed and why (Recording what was learned), report each failure, and ask the person
-   (AGENT_HARNESS §1, Do 6).
+   Record the approach that failed and why (Recording what was learned), write down the one premise the failed
+   attempts shared and the observation that would test it, report each failure, and ask the person (AGENT_HARNESS §1,
+   Do 6; §9.2).
 4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
    verdict is fixed and asked again, and each item it raised that you fix is logged as a catch — `verify.py finding
    "<what>" --source agent --route <route> --judge <judge> --caught yes`; a pass stands until that judge's own files
@@ -116,7 +117,8 @@ flowchart TD
    wrong, and what you learned, routed (Recording what was learned).
 8. `V finish` — the Verified block's draft; exit 1 lists what is still open. On exit 0, fill in the `<…>` lines and
    hand over, every file, screenshot, doc section and URL a link the person can click
-   ([AGENT_HARNESS §10.4](../../../docs/AGENT_HARNESS.md#104-the-hand-over)).
+   ([AGENT_HARNESS §10.4](../../../docs/AGENT_HARNESS.md#104-the-hand-over)), and name each principle from the
+   [`principles`](../principles/SKILL.md) skill that changed a decision, with the decision.
 
 ### The target
 
@@ -160,8 +162,14 @@ same change (AGENT_HARNESS §9.2).
   it when the code it guarded is gone; after a false alarm, **narrow** its "Looks for" (AGENT_HARNESS §9.3).
 - **An anti-pattern goes where the mistake would be made** — a product or code mistake in the doc that owns the
   topic, with the skill's one-line Never citing it; a workflow mistake in the skill; a command in the guard.
+- **Choose the highest route that can hold the lesson** — a structure or a type that makes the mistake impossible, then
+  a check whose error names the fix (`test`, `guard`), then a test, and words last (`rubric`, `skill`, `doc`); a
+  lesson that is structural keeps no sentence beside it (AGENT_HARNESS §9.2).
+- **Prove a new check fails on the real past mistake**, then passes on the fix, before recording it — a check never
+  seen to fail may match nothing (AGENT_HARNESS §9.2).
 - **A failed approach is recorded at exit 3** with `V finding "<approach, why it failed>" --source agent --route
-  doc|skill|open-item` — the task's most useful lesson, and the one the chat loses first.
+  doc|skill|open-item`, with the premise the attempts shared — the task's most useful lesson, and the one the chat
+  loses first.
 - `V calibration` shows, per judge, what it caught, missed and raised in error; the findings only the person could
   see; the count per route.
 

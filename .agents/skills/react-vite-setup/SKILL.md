@@ -93,8 +93,9 @@ a browser install or a visual baseline update, and `verify.py run` runs the laye
 ### Adding a component
 
 1. In `DESIGN.md`'s components first when it is new to the product.
-2. `src/components/ui/<name>.tsx`, `<name>.module.css` (every value a token) and `<name>.stories.tsx` — a story per
-   state, a play function for what it does.
+2. `src/components/ui/<name>.tsx` and `<name>.module.css` (every value a token); then `<name>.stories.tsx`, written
+   with the `storybook` skill (or its agent) — every prop, one concept per story, each theme pinned, a play function
+   for what it does.
 3. `R check`, then `npm run test:stories`.
 
 ## Checks

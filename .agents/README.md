@@ -61,8 +61,8 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 16 skills, each a `SKILL.md` with its `scripts/` |
-| [`agents/`](agents/) | The 8 agents, one prompt each |
+| [`skills/`](skills/) | The 21 skills, each a `SKILL.md` with its `scripts/` |
+| [`agents/`](agents/) | The 9 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
 | [`githooks/`](githooks/) | The pre-commit hook; CI runs the same rules on every push |
@@ -82,6 +82,15 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`docs-authoring-and-sync`](skills/docs-authoring-and-sync/SKILL.md) | Creating docs, writing them and keeping them true to the code. Portable: it carries the documentation guidelines (`references/guidelines.md`), a template per doc type, the scaffolder (`new_doc.py`) and the doc checks | `doc-writer`, `doc-reviewer`, `open-items-curator` | `portable` |
 | [`commit-message`](skills/commit-message/SKILL.md) | The repo's commit format, and stating honestly what was verified | — (loaded by task) | `project` |
 
+### Thinking and understanding — how the work is judged, explained and found
+
+| Skill | What it is for | Loaded by | Scope |
+| --- | --- | --- | --- |
+| [`principles`](skills/principles/SKILL.md) | The working principles — prove it on the real thing, fix the root cause, test the behaviour, explain the number, the data shape first, subtract before you add, ask only what only the person can answer, and the rest — each with when it applies and a test; cited in the hand-over with the decision each changed, and the names the person steers with. Portable: it carries them (`references/principles.md`); no script | — (loaded by task, or by name) | `portable` |
+| [`blast-radius`](skills/blast-radius/SKILL.md) | What a change could break outside its diff — tokens across themes, stored keys on devices and browsers, wire formats, shared state — and the one fact it is safe because of, proven by a probe that runs real code. Portable; no script — each probe is written for the change | — (loaded by task) | `portable` |
+| [`teach`](skills/teach/SKILL.md) | `/teach` only: how something works and why, from the code and the record — the owning doc, the design brief, the git history — each reason labelled by its source, diagrams built up a part at a time; changes nothing. Portable; no script | — (the person types `/teach`) | `portable` |
+| [`harness-help`](skills/harness-help/SKILL.md) | `/harness-help` only: which skill or agent fits, what's next on the task, why the guard asked, how to set up or adapt the kit — the repo's state read first, a prompt handed back, nothing started | — (the person types `/harness-help`) | `project` |
+
 ### Design
 
 | Skill | What it is for | Loaded by | Scope |
@@ -96,6 +105,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`ux-designer`](skills/ux-designer/SKILL.md) | How an experience works: people, tasks, flows, structure, interaction models, states and errors, from HCI's heuristics, golden rules, interaction principles, Norman's principles and models, and every law on Laws of UX; research and evaluation methods; the UX brief the person approves before a new flow's mock. Portable: it carries the principles (`references/hci.md`), the methods (`references/methods.md`), the rubric and the brief template; no script | `ux-designer`, `ui-designer` | `portable` |
 | [`esp-idf-setup`](skills/esp-idf-setup/SKILL.md) | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF, the spec and the questions that fill it, the project generated from the templates (`main`, `app_shell`, `app_hooks`, the board, LVGL on request), the layering check (`esp_idf.py`). Portable: it carries the principles (`references/esp-idf.md`) and the templates, and takes every fact from the project's spec | — | `portable` |
 | [`react-vite-setup`](skills/react-vite-setup/SKILL.md) | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app generated from the templates (the shell, features, components with their stories, `tokens.css` from DESIGN.md, Vitest, Storybook and Playwright tests, CI), the layering check (`react_vite.py`). Portable: it carries the principles (`references/react-vite.md`) and the templates, and takes every fact from the project's spec and every value from its DESIGN.md | — | `portable` |
+| [`storybook`](skills/storybook/SKILL.md) | A component's stories, right after it is created or its props change: the template's layout, every prop covered, one concept per story, JSDoc summaries, light and dark pinned with `globals`, play functions by role and name, the accessibility test; Storybook's MCP server, the components manifest and agents' instructions; the story check (`story_check.py`, SB1–SB7). Portable: it carries the rules (`references/storybook.md`) and the story template, and takes the themes from the project's DESIGN.md | `storybook` | `portable` |
 | [`ux-content`](skills/ux-content/SKILL.md) | The words on every screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content, strings ready for translation; the string check (`ux_lint.py`, web, iOS, Android and C/C++ LVGL). Portable: it carries the rules (`references/ux-content.md`), and takes the voice, case and word list from the project's DESIGN.md | `ui-designer`, `ux-content-writer` | `portable` |
 | [`secrets-handling`](skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets, per platform; bench and CI credentials; after a leak; the secret scan (`secret_scan.py`, counts only). Portable: it carries the rules (`references/secrets.md`); each project keeps its own secret inventory | — | `portable` |
 
@@ -109,6 +119,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`doc-writer`](agents/doc-writer.md) | Docs in `docs/`: a new doc scaffolded for its type, a new section, a rewrite — from verified facts and the person's answers | outline, write, rewrite | sonnet / medium | `portable` |
 | [`ux-designer`](agents/ux-designer.md) | How an experience works: a UX brief for a new flow, feature or screen, a research plan, or a review of an experience scored X1–X14 — beside the `ui-designer`, which draws the screens. Portable: it needs the `ux-designer`, `accessibility` and `ux-content` skills | `portable` |
 | [`ux-content-writer`](agents/ux-content-writer.md) | The words on screens: a string table for a screen or flow, a review of a diff's strings, the approved words applied — from the ux-content skill and the project's voice | write, review, rewrite | sonnet / medium | `portable` |
+| [`storybook`](agents/storybook.md) | A component's stories, written right after it is created or its props change, or on request — from the storybook skill, every theme pinned, then the story check and the story tests; Storybook's MCP server set up after the person's yes; a story file reviewed | write, setup, review | sonnet / medium | `portable` |
 
 ### Reviewers — read-only; each scores a diff against its rubric and returns a verdict
 

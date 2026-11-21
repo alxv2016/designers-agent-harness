@@ -414,8 +414,9 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships sixteen skills. Fifteen are generic and copy across almost unchanged; `build-run-test` is filled
-in from the project. A project adds its own domain skills as the code grows.
+The template ships twenty-one skills: seventeen `portable`, and four `project` — `verify-change`, `commit-message`
+and `harness-help` belong to the kit and copy across with it, and `build-run-test` is filled in from the project. A
+project adds its own domain skills as the code grows.
 
 **Scope** is each skill's and agent's `metadata: scope:` label. `portable` — it works copied into any repo: a skill's
 folder on its own, taking every value from that project's files and linking nothing outside itself; an agent's file
@@ -449,6 +450,11 @@ no UI file.
 | `react-vite-setup` | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app from the templates — the shell, features, components with their stories, `tokens.css` from `DESIGN.md`, three layers of tests — and the layering rules — carried in the skill | `references/react-vite.md`, the templates, `react_vite.py` | `portable` — the folder works in any repo; the facts are the project's spec, the values its `DESIGN.md` |
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
+| `storybook` | A component's stories, written once it exists or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest — carried in the skill | `references/storybook.md`, `templates/component.stories.tsx.tpl`, `story_check.py` | `portable` — the folder works in any Storybook project; the themes are the project's `DESIGN.md` |
+| `principles` | The working principles: proof, shaping code and data, sequencing change, the experience, when to ask the person — each with when it applies and a test, cited with the decision it changed — carried in the skill | `references/principles.md` | `portable` — the folder works in any repo |
+| `blast-radius` | What a change could break outside its diff, and the one fact it is safe because of, proven by running real code | — | `portable` — the folder works in any repo |
+| `teach` | `/teach`: how something works and why, from the code and the record, each reason labelled by its source; changes nothing | — | `portable` — the folder works in any repo |
+| `harness-help` | `/harness-help`: which skill or agent fits, what's next, why the guard asked, how to set up — from the repo's state | — | `project` — it maps this kit |
 | `build-run-test` | Build, run on the target, test, screenshots, the Verified block's evidence | `quiet.py`; the project's target scripts | `project` — filled in per project |
 | `<domain>-rules` | The platform's rules condensed from its doc (a service, a framework, hardware), with bring-up and diagnosis steps | Grep checks for its rules | `project` — added when needed |
 | `app-architecture` | The code's layering; how to add a feature, a screen or a module | A layering checker | `project` — added when needed |
@@ -513,6 +519,20 @@ Each skill must hold the following:
 - **`secrets-handling`**: how a product handles its users' secrets in `references/secrets.md`, per platform; the leak
   procedure; the secret scan, which counts and never prints. The agent's own safety stays the guard's and the
   pre-commit hook's.
+- **`storybook`**: the rules for stories in `references/storybook.md` and the story file's template, so the folder is
+  portable; every prop covered; one concept per story; a JSDoc summary on the component, each prop and each story;
+  each theme past the first pinned in a story and kept out of the manifest; play functions by role and name; the MCP
+  server set up only after the person's yes; the story check.
+- **`principles`**: the principles in `references/principles.md`, so the folder is portable; each with when it applies,
+  a test and what applying it leaves; "name each principle that changed a decision, with the decision"; the project's
+  own rules and the person's decisions win over a principle.
+- **`blast-radius`**: the one fact a change is safe because of; the evidence ladder from "said so" to "seen on the
+  target"; where a search stops, per platform; a probe that runs the real code, in a scratch folder; read-only on the
+  repo.
+- **`teach`**: how from the code, why from the record in a fixed order, each reason labelled; the smallest complete
+  answer first; diagrams built up a part at a time; loaded only when the person types it; changes nothing.
+- **`harness-help`**: the state that changes an answer, read-only; a map from task to skill or agent, with the files
+  winning over the map; a prompt handed back, never the work started; loaded only when the person types it.
 - **`build-run-test`**: how to install and run the toolchain; the quiet build; what may run on the target without
   asking and what asks; "a request to look authorises looking only"; report what was seen apart from what is
   suspected; mark debug lines and take them out; on a regression, build the last known-good commit first, then bisect.
@@ -577,6 +597,9 @@ You are the <role> for <project>.
   drafts in a mode that edits nothing, and builds only from a named, approved draft (§20.2). A builder of docs outlines
   in a mode that edits nothing, writes from an outline the person agreed or a request specific enough to write from,
   and hands its work to the `doc-reviewer`; a doc's facts, not its look, are what the person settles.
+- **A new agent goes into every table that names the agents, in the same change** — `AGENTS.md`'s, the kit's
+  README, §8.2's table and its bullets, §18.2's models, the harness page's models, and a Codex TOML. A table that
+  misses one tells the next reader the agent does not exist.
 
 ### 8.2 The harness's agents
 
@@ -588,6 +611,7 @@ You are the <role> for <project>.
 | `doc-writer` | Builder | A doc is needed or asked for; it hands its work to the `doc-reviewer` | `portable` — with the `docs-authoring-and-sync` skill |
 | `ux-designer` | Builder of UX briefs and research plans, and a reviewer of experiences | A new flow, feature or screen is framed, research is planned, or an experience is reviewed — when asked | `portable` — with the `ux-designer`, `accessibility` and `ux-content` skills; its rubric travels in the skill, its learned items in `.agents/rubrics/ux-designer.md` |
 | `ux-content-writer` | Builder, and a reviewer of strings | A screen's words are written or changed, or a diff's strings are reviewed | `portable` — with the `ux-content` and `accessibility` skills |
+| `storybook` | Builder of stories, and a reviewer of story files | A component is created or its props change, stories are asked for, or Storybook's MCP server is set up | `portable` — with the `storybook`, `accessibility` and `design-system` skills |
 | `target-runner` | Runner | The change needs the target | `project` — the steps are `build-run-test`'s |
 | `open-items-curator` | Curator | After a session on the target, or when asked what is still open | `project` |
 | Domain judges (`security-reviewer`, `api-reviewer`, `content-reviewer`) | Judge | Their paths change, once their agent file exists | `project` |
@@ -614,6 +638,10 @@ What each one does:
   errors, the principle behind each decision — in the scratchpad and stops for the yes; in research mode, plans a study
   and analyses what the person brings back, never contacting people; in review mode, walks the top tasks and scores the
   experience X1–X14, read-only.
+- **`storybook`**: in write mode, writes a component's stories from the template — every prop, one concept per story,
+  a summary on each, each theme pinned — adds the JSDoc the component lacks, then runs the story check and the story
+  tests; in setup mode, adds Storybook's MCP server after the person's yes; in review mode, reports a story file's
+  findings, read-only.
 - **`target-runner`**: confirms the ask (which build, which target, which screens), finds the target and checks nothing
   else holds it, builds through the quiet wrapper, runs it, runs the health check, and takes the evidence: screenshots,
   logs, console errors. It opens each picture and says what it shows, sets debug switches back, says what is left
@@ -708,8 +736,15 @@ Anti-patterns — what not to do — have no folder of their own. Each goes wher
 
 - **Record the agent's own lessons, not only the person's.** A trap the agent fell into, a step that misled it, a rule
   it had to work out — each costs the next task the same time unless it is written down.
-- **After the retry limit, record the approach that failed and why** before asking the person. Three failures are the
-  task's most useful lesson and the first thing compaction drops; `verify.py run` prints the command when it exits `3`.
+- **After the retry limit, record the approach that failed and why** before asking the person, with the one premise
+  the failed attempts shared and the observation that would test it. Three failures are the task's most useful lesson
+  and the first thing compaction drops; `verify.py run` prints the command when it exits `3`.
+- **Route a lesson to the highest level that can hold it.** A structure or a type that makes the mistake impossible
+  comes first, then a check whose error names the fix, then a test, and words — a rubric item, a skill line, a doc
+  rule — last. Nothing fails when an agent skips a sentence, so words are for what needs judgment; once a structural
+  fix holds a lesson, the sentence it replaces goes.
+- **Prove a new check fails on the real past mistake**, then passes on the fix, before trusting it. A check never seen
+  to fail may match nothing.
 - **A project lesson goes into the repo, never only into an agent's per-user memory** (§19). Per-user memory (Claude
   Code's auto memory, for one) belongs to one person on one machine: the next agent, the next person and the judges
   never see it, and no review checks it. It holds only what is about the person — their preferences, their role.
@@ -841,6 +876,7 @@ file.
 | UI paths, the `typography` skill | `typography` — the typography check's self-test; once UI paths are set, the UI files against the typography patterns | `ui-designer` in review mode, for UI paths |
 | `main/`, `components/`, `CMakeLists.txt`, the `esp-idf-setup` skill | `esp-idf` — the setup script's self-test; in an ESP-IDF app, the layering rules E1–E5 | `code-reviewer`, for code |
 | `src/`, the `react-vite-setup` skill | `react-vite` — the setup script's self-test; in a React and Vite app, the layering rules W1–W5 | `code-reviewer`, for code |
+| UI paths, the `storybook` skill | `storybook` — the story check's self-test; once UI paths are set, the story files against SB1–SB7 | `storybook` in review mode, when asked |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
 | The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
@@ -1435,6 +1471,7 @@ reasons before it answers.
 | `doc-writer` (builder) | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
 | `ux-designer` (builder and reviewer) | `sonnet`; `opus` for a new product's flows | `high` | Reasons about people and tasks against named principles; the brief template and the rubric carry the structure |
 | `ux-content-writer` (builder and reviewer) | `sonnet` | `medium` | Writes and checks words against fixed rules and the product's voice; the string check carries the mechanics |
+| `storybook` (builder and reviewer) | `sonnet` | `medium` | Writes stories from a template and the component's props to fixed rules; the story check and the story tests carry the mechanics |
 
 The tiers cost in this order, cheapest first: `haiku`, `sonnet`, `opus`, `fable`, with an order of magnitude or more
 between the ends. Cached input costs a small fraction of fresh input. The provider's pricing page has the current
