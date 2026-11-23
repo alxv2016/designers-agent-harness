@@ -6,20 +6,26 @@ or `DESIGN.md` in a repo without the kit — scripts/_config.py) stays true to i
     python3 .agents/skills/design-system/scripts/design_check.py --file F     # another brief, such as the template
     python3 .agents/skills/design-system/scripts/design_check.py --test       # the check's own cases
 
-It reads two kinds of table in DESIGN.md:
+It reads DESIGN.md's YAML front matter in Google's DESIGN.md format, through design_md.py — every token's name, and
+each colour's hex per theme, `colors.<theme>.<role>` as `color.<role>` (DESIGN_BRIEF §1, §15) — and two kinds of
+table:
 
-  - a token table — a header row `| Token | <Theme> | <Theme> | … |`, then rows `` | `color.x` | `#hex` | `#hex` | … ``
-    (one value per theme). Any table whose header starts `| Token |` names tokens: colour, type, space, radius, motion.
-    The colour table may add a `Kind` column — `| Token | Kind | Light | Dark | Use |` — giving each role its kinds
-    (`surface`, `text`, `non-text`, `fill`, `on-fill`, `scrim`, `exempt`; several, comma-separated), which D1 and D4 read.
+  - the colour table — `| Token | Kind | Use |`, giving each role its kinds (`surface`, `text`, `non-text`, `fill`,
+    `on-fill`, `scrim`, `exempt`; several, comma-separated), which D1 and D4 read.
+  - in a brief still written in tables, a token table — a header row `| Token | <Theme> | <Theme> | … |`, then rows
+    `` | `color.x` | `#hex` | `#hex` | … `` (one value per theme), read as the front matter is; its colour table may
+    carry the `Kind` column too (`| Token | Kind | Light | Dark | Use |`). Any table whose header starts `| Token |`
+    names tokens.
   - the contrast-pairs table — a header row `| Foreground | Background | Floor | <Theme> | <Theme> |`, then rows
     `` | `color.fg` | `color.bg` | 4.5 | 16.88 | 16.75 | `` — the ratio written for each theme.
 
   D1 contrast pair under its floor — a pair's computed ratio, in some theme, is below its floor; or a pair is
      written with a floor under its kind's: 4.5 for a text or on-fill foreground, 3 for non-text; or its background is
      translucent, so it has no fixed colour to measure
+  D0 front matter unreadable — the YAML uses what design_md.py does not read (a flow mapping, an anchor, a block
+     scalar, a tab, a key written twice), reported with its line (DESIGN_BRIEF §1)
   D2 ratio written wrong — the ratio written in DESIGN.md differs from the computed one by more than 0.05, or names a
-     colour token that is not in a token table
+     colour token that DESIGN.md does not give
   D3 token missing from the token files — a token DESIGN.md names, or a colour value it gives, is not in TOKEN_FILES
      (skipped while TOKEN_FILES is empty). A name matches in any spelling: `color.text.primary`,
      `--color-text-primary`, `colorTextPrimary`, `color_text_primary`, `kColorTextPrimary`. A colour matches only
@@ -27,13 +33,13 @@ It reads two kinds of table in DESIGN.md:
      it (`0x6B7280`, any case, an integer suffix allowed, so `lv_color_hex(0x6B7280)` too) — never a longer or
      shorter number (DESIGN_BRIEF §15). Prints how many token files it read; TOKEN_FILES naming no file that
      exists is one hit.
-  D4 contrast pair missing — a pair the kinds call for has no row. A token table with a `Kind` column gives each
+  D4 contrast pair missing — a pair the kinds call for has no row. A table with a `Kind` column gives each
      colour role one or more kinds (`text, fill`): every `text` and `non-text` role needs a row on every `surface`,
      and every `on-fill` role a row on every `fill`; `scrim` and `exempt` roles are not paired. With no `Kind`
      column, the names decide: `color.text.*` (but `disabled` and `on-*`) on every `color.bg.*`.
-  D5 theme value missing — a colour token gives a hex value in one theme column and none in another, so a theme is
-     half made (DESIGN_BRIEF §5). A table's themes are its columns that hold a colour in some row, so a `Use` or
-     `Usage` column is never one
+  D5 theme value missing — a colour token gives a hex value in one theme and none in another, so a theme is half
+     made (DESIGN_BRIEF §5). The front matter's themes are its theme sub-maps; a table's are its columns that hold a
+     colour in some row, so a `Use` or `Usage` column is never one
   D6 translucent surface or fill — a role of kind `surface` or `fill` has an alpha value, so its painted colour
      depends on what is under it and no pair can be checked; only `scrim` and `exempt` roles may be translucent
      (DESIGN_BRIEF §4)
@@ -53,6 +59,7 @@ ROOT = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_outp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _config as project  # noqa: E402 — .agents/project.py when present, else the skill's defaults
 from _config import ratio  # noqa: E402 — the accessibility skill's formula when it sits beside this one
+from design_md import YamlError, front_matter, themes, tokens  # noqa: E402 — Google's front matter, stdlib only
 
 HEX = re.compile(r"^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
@@ -70,13 +77,36 @@ BLANKS: list[str] = []  # D5: "line: token has no <theme> value"; filled by pars
 KINDS: dict[str, set] = {}  # colour role → its kinds, from a `Kind` column; filled by parse()
 
 
+def from_front_matter(text: str, colours: dict, names: set) -> None:
+    """The tokens of a DESIGN.md in Google's format: every name, and each colour's hex per theme; D5 for a colour
+    some theme gives and another does not (DESIGN_BRIEF §15). A colour with no theme holds in every theme."""
+    data, _ = front_matter(text)
+    if not data:
+        return
+    every = themes(data)
+    plain: dict[str, str] = {}
+    for t in tokens(data):
+        names.add(t["name"])
+        if t["group"] == "colors" and t["value"] and HEX.match(t["value"]):
+            if t["theme"]:
+                colours.setdefault(t["name"], {})[t["theme"]] = t["value"]
+            else:
+                plain[t["name"]] = t["value"]
+    for name, value in plain.items():
+        colours.setdefault(name, {}).update({th: value for th in every or ["all"]})
+    for name, values in sorted(colours.items()):
+        BLANKS.extend(f"front matter: {name} has no {th} value" for th in every if th not in values)
+
+
 def parse(text: str) -> tuple[dict, list, set]:
-    """(colour token → {theme: hex}, contrast rows, every token name) from DESIGN.md's tables; the kinds into KINDS."""
+    """(colour token → {theme: hex}, contrast rows, every token name) from DESIGN.md's front matter and its tables;
+    the kinds into KINDS. Theme names are lower case, so a `Light` column and a `light` sub-map are one theme."""
     KINDS.clear()
     colours: dict[str, dict[str, str]] = {}
     pairs: list[tuple[int, str, str, float, dict[str, str]]] = []
     names: set[str] = set()
     BLANKS.clear()
+    from_front_matter(text, colours, names)
     header, kind, fence, table = [], None, False, []
 
     def close(rows: list) -> None:
@@ -105,7 +135,7 @@ def parse(text: str) -> tuple[dict, list, set]:
             names.add(name)
             if "Kind" in header and header.index("Kind") < len(row):
                 KINDS[name] = {k.strip() for k in row[header.index("Kind")].split(",") if k.strip()}
-            values = {header[i]: unquote(c) for i, c in enumerate(row[1:], 1)
+            values = {header[i].lower(): unquote(c) for i, c in enumerate(row[1:], 1)
                       if i < len(header) and HEX.match(unquote(c))}
             if values:
                 colours[name] = values
@@ -115,7 +145,7 @@ def parse(text: str) -> tuple[dict, list, set]:
                 floor = float(row[2])
             except ValueError:
                 continue
-            written = {header[i]: c for i, c in enumerate(row[3:], 3) if i < len(header)}
+            written = {header[i].lower(): c for i, c in enumerate(row[3:], 3) if i < len(header)}
             pairs.append((n, unquote(row[0]), unquote(row[1]), floor, written))
     close(table)
     return colours, pairs, names
@@ -126,7 +156,7 @@ def check_pairs(colours: dict, pairs: list, where: str) -> tuple[list[str], list
     for n, fg, bg, floor, written in pairs:
         missing = [t for t in (fg, bg) if t not in colours]
         if missing:
-            wrong.append(f"{where}:{n}: {', '.join(missing)} is not in a token table")
+            wrong.append(f"{where}:{n}: {', '.join(missing)} is not a colour the brief gives")
             continue
         for theme, text in written.items():
             if theme not in colours[fg] or theme not in colours[bg]:
@@ -257,11 +287,26 @@ def self_test() -> int:
     cases += [(len(check_pairs(c, pr, "t")[0]) == 1, "kinds: a text role written with floor 3 is caught")]
     c, pr, _ = parse(kinded.replace("| `color.page` | surface | `#FFFFFF` | `#000000` |",
                                     "| `color.page` | surface | `#FFFFFF` | |"))
-    cases += [(len(BLANKS) == 1 and "Dark" in BLANKS[0], "D5: a colour with no dark value is caught")]
+    cases += [(len(BLANKS) == 1 and "dark" in BLANKS[0], "D5: a colour with no dark value is caught")]
     c, pr, _ = parse(kinded.replace("| `color.page` | surface | `#FFFFFF` |", "| `color.page` | surface | `#FFFFFF80` |"))
     cases += [(len(translucent(c)) == 1, "D6: a translucent surface is caught")]
     c, pr, _ = parse(kinded.replace("| `color.line` | non-text | `#767676` |", "| `color.line` | scrim | `#00000066` |"))
     cases += [(not translucent(c), "D6: a translucent scrim passes")]
+    google = ("---\nname: Demo\ncolors:\n  light:\n    ink: \"#000000\"\n    page: \"#FFFFFF\"\n"
+              "  dark:\n    ink: \"#FFFFFF\"\n    page: \"#000000\"\nspacing:\n  md: 12px\n---\n\n"
+              "| Token | Kind | Use |\n| --- | --- | --- |\n| `color.ink` | text | x |\n| `color.page` | surface | x |\n\n"
+              "| Foreground | Background | Floor | Light | Dark |\n| --- | --- | --- | --- | --- |\n"
+              "| `color.ink` | `color.page` | 4.5 | 21.00 | 21.00 |\n")
+    c, pr, nm = parse(google)
+    under, wrong = check_pairs(c, pr, "t")
+    cases += [(not under and not wrong and not missing_pairs(c, pr) and not BLANKS
+               and nm == {"color.ink", "color.page", "space.md"},
+               "front matter: colours by theme, kinds from the table, a passing pair passes")]
+    parse(google.replace('    ink: "#FFFFFF"\n', ""))
+    cases += [(len(BLANKS) == 1 and "color.ink has no dark" in BLANKS[0],
+               "front matter: D5 a colour with no dark value")]
+    c, pr, _ = parse(google.replace("21.00 | 21.00", "21.00 | 20.00"))
+    cases += [(len(check_pairs(c, pr, "t")[1]) == 1, "front matter: a wrong ratio in dark is caught")]
     cases += [(all(abs(ratio(f, b) - project._wcag_ratio(f, b)) < 1e-9
                    for f, b in (("#585E69", "#F4F5F7"), ("#00000080", "#ffffff"), ("#7EA2FF", "#23304F"))),
                "the skill's own contrast formula agrees with the accessibility skill's")]
@@ -277,6 +322,8 @@ def self_test() -> int:
                                     "| `color.dim` | scrim | `#00000066` | `#00000099` | x |")
                      + "| `color.ink` | `color.dim` | 4.5 | 1.00 | 1.00 |\n")
         cases += [(brief_hits(f) >= 1, "D1: text written on a scrim is reported")]
+        f.write_text("---\ncolors: {a: 1}\n---\n")
+        cases += [(brief_hits(f) == 1, "D0: a front matter the reader refuses is one hit, not a crash")]
         f.write_text(kinded.replace("| Token | Kind | Light | Dark | Use |", "| Token | Kind | Light | Dark | Usage |"))
         cases += [(brief_hits(f) == 0, "D5: a column named Usage is not a theme")]
         kept, project.TOKEN_FILES = project.TOKEN_FILES, ("no/such/tokens.h",)
@@ -301,6 +348,12 @@ def self_test() -> int:
         cases += [((code_hits(brief, named, code, "t") == []) == ok, what)]
     cases += [(code_hits({"color.bg": {"Light": "#FFF"}}, {"color.bg"}, "kColorBg = 0xFFFFFF;", "t") == [],
                "D3: #FFF matches its C spelling 0xFFFFFF")]
+    import contextlib
+    import io
+    import design_md
+    with contextlib.redirect_stdout(io.StringIO()) as said:
+        reader = design_md.self_test()
+    cases += [(reader == 0, f"design_md.py's own self-test: {said.getvalue().strip().splitlines()[-1]}")]
     template = Path(__file__).resolve().parent.parent / "references" / "templates" / "DESIGN.md"
     if template.is_file():
         cases += [(brief_hits(template) == 0, "the DESIGN.md template passes the design check")]
@@ -315,7 +368,11 @@ def brief_hits(path: Path, code: bool = False, quiet: bool = True) -> int:
     """Every D-check on one brief; the count of hits. `code` adds D3 against TOKEN_FILES."""
     say = (lambda *a: None) if quiet else report
     where = path.name if quiet else str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
-    colours, pairs, names = parse(path.read_text())
+    try:
+        colours, pairs, names = parse(path.read_text())
+    except YamlError as e:
+        say("D0", "front matter unreadable", [f"{where}: {e}"])
+        return 1
     blanks = list(BLANKS)
     under, wrong = check_pairs(colours, pairs, where)
     say("D1", "contrast pair under its floor", under)

@@ -64,10 +64,11 @@ get the rules, the skills and the commit gate.
    `doctor` lists what is wired and what is still a placeholder.
 3. **Open the repo in your coding agent** and approve its hooks when it asks (Claude Code: `/hooks`; Codex: trust the
    project).
-4. **Make [DESIGN.md](DESIGN.md) yours** — it ships as a demo: five principles and a full token set in light and
-   dark, every contrast pair passing. Replace the principles and values with your product's, keeping its table
-   shapes; the design check proves your contrast pairs and, once you point it at your token files, that the code
-   carries every token. The bootstrap prompt can draft it with you from your design file.
+4. **Make [DESIGN.md](DESIGN.md) yours** — it ships as a demo in [Google's DESIGN.md
+   format](https://github.com/google-labs-code/design.md): every token in its YAML front matter, in light and dark, five
+   principles, and every contrast pair passing. Replace the principles and values with your product's, keeping its keys
+   and Google's section names. The design check proves your contrast pairs and, once you point it at your token files,
+   that the code carries every token. The bootstrap prompt can draft it with you from your design file.
 5. **Run the bootstrap prompt** — copy it from [docs/AGENT_HARNESS.md §17.1](docs/AGENT_HARNESS.md#171-the-prompt),
    fill in "About the project", and paste it to the agent. It fills in `.agents/project.py`, `AGENTS.md` and the
    project's skills, and stops for you after each phase.
@@ -130,7 +131,7 @@ write.
 | Path | Holds | You fill in |
 | --- | --- | --- |
 | [AGENTS.md](AGENTS.md) | The brief every agent loads first | The `<…>` placeholders — the bootstrap prompt does it |
-| [DESIGN.md](DESIGN.md) | The design brief: principles, colour roles per theme, contrast pairs, type, space, radius, motion, layout, components, exceptions | Your principles and values over the demo's |
+| [DESIGN.md](DESIGN.md) | The design brief, in Google's DESIGN.md format: every token in YAML front matter per theme; principles, colour roles and contrast pairs, type, layout, elevation, shapes, motion, voice, components, do's and don'ts, accessibility, exceptions | Your principles and values over the demo's |
 | [.agents/project.py](.agents/project.py) | The one settings file: checks, UI paths, the design brief and token files, secrets, allowed hosts, commands that ask | Every list — commented examples for web, mobile and Python |
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |

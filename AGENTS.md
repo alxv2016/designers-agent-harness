@@ -18,10 +18,12 @@ and the code: find out which is intended before changing either
 
 ## Project
 
+Where each part of the project lives.
+
 | Path | Holds |
 | --- | --- |
 | `<src/>` | `<the app's source>` |
-| [`DESIGN.md`](DESIGN.md) | The design brief: the product's principles and every design token by role, per theme |
+| [`DESIGN.md`](DESIGN.md) | The design brief, in Google's DESIGN.md format: the product's principles, and every design token by role, per theme, in its YAML front matter |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |
 | `.agents/` | The agent kit: skills, agents, rubrics, hooks, the project settings ([.agents/README.md](.agents/README.md)) |
 
@@ -41,7 +43,8 @@ and the code: find out which is intended before changing either
    ([`design-system`](.agents/skills/design-system/SKILL.md)).
 5. **Change docs in the same commit as the code they describe**, and grep `docs/` for a name and its behaviour before
    changing it ([`docs-authoring-and-sync`](.agents/skills/docs-authoring-and-sync/SKILL.md)).
-6. **Never renumber a doc section** — the kit and code comments cite `§n`; add under the next free number.
+6. **Never renumber a doc section** — the kit and code comments cite `§n`; add under the next free number. DESIGN.md's
+   sections are Google's, unnumbered, and cited by name: `DESIGN.md → Motion`.
 7. **Commit only when the person asks**, in the repo's format ([`commit-message`](.agents/skills/commit-message/SKILL.md)).
 8. **Keep a lesson in the repo** — `verify.py finding`, routed to a check, a rubric, a guard rule, a skill or a doc;
    never only in an agent's own memory ([AGENT_HARNESS §19](docs/AGENT_HARNESS.md#19-memory)).
@@ -226,7 +229,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [PLAYWRIGHT](.agents/skills/playwright/references/playwright.md) | How end-to-end tests are written, kept and fixed — the spec file, locators, web-first assertions, isolation, stubs, accessibility and reflow, baselines, traces, CI, Playwright's MCP server and test agents — generic, any project with Playwright; kept in the playwright skill |
 | [STORYBOOK](.agents/skills/storybook/references/storybook.md) | How stories are written for people, tests and agents — the layout, props, one concept, summaries, themes, play functions, the manifest, Storybook's MCP server — generic, any Storybook project; kept in the storybook skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
-| [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
+| [DESIGN](DESIGN.md) | The design brief, in Google's DESIGN.md format: tokens per theme in its front matter, principles, contrast pairs, voice, components, accessibility floors, exceptions |
 
-Sync rules: a doc changes in the same commit as the code it describes; a heading keeps its number; every doc is listed
-in [README.md](README.md#documentation).
+Sync rules: a doc changes in the same commit as the code it describes; a heading keeps its number (DESIGN.md's, its
+name); every doc is listed in [README.md](README.md#documentation).

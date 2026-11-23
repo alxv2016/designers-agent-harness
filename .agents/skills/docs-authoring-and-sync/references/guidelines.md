@@ -62,9 +62,9 @@ material under the next free number.
    - A project without an agent kit yet still keeps procedures out of docs: put them in the skill file that will
      become the kit, and link it.
 8. **Documentation is `docs/`, the design brief, and the rules kept in the kit.** `docs/` holds what the product is and
-   how it works; `DESIGN.md` at the root holds what it should look and feel like (§3.1); the kit holds what an agent
-   applies while doing a task — these guidelines, the harness's own policy (`.agents/HARNESS.md`) and any rules a skill
-   keeps in its `references/` — and docs cite those as they cite a doc (`GUIDELINES §n`, `DESIGN §n`, `HARNESS §n`).
+   how it works; `DESIGN.md` at the root holds what it should look and feel like (§3.1). The kit holds what an agent
+   applies while doing a task: these guidelines, the harness's own policy (`.agents/HARNESS.md`) and any rules a skill
+   keeps in its `references/`. Docs cite those as they cite a doc (`GUIDELINES §n`, `HARNESS §n`).
    Material fed in from outside for one session — chat logs, private notes, a vendor's email — is not documentation: no
    doc, skill, agent or code comment cites it, and a fact a reader needs from it is written into the doc that owns the
    topic. Design files, platform specifications, vendor API docs and research findings are **sources**, cited with a tag
@@ -101,7 +101,9 @@ A doc that mixes types opens with the type most readers come for.
   goes in a project doc that links to it; the project-wide doc never links back.
 - **The design brief is `DESIGN.md` at the repo root**, titled `# <Project> — Design`, beside `README.md` and
   `AGENTS.md`: people and agents look for it there by name. It holds the product's principles and every design token
-  by role with its value per theme, follows these guidelines like any doc, and is cited `DESIGN §n`.
+  by role with its value per theme, in Google's DESIGN.md format. Its tokens sit in YAML front matter above the title.
+  Its sections keep the names and order of Google's spec and are never numbered, so it is cited by section name
+  (`DESIGN.md → Colors`). Every other rule here holds for it.
 - **Rules kept in a skill are cited by their title**: these guidelines, in the docs-authoring-and-sync skill's
   `references/guidelines.md`, are `DOCUMENTATION_GUIDELINES` (or `GUIDELINES`), and follow every rule here.
 - Renaming an existing doc or its title changes links — check inbound links first (§7).
@@ -112,7 +114,7 @@ Every doc starts with these, in order. Omit an item only when it doesn't apply.
 
 | Item | Form | Example |
 | --- | --- | --- |
-| Title | `# <Project> — <Topic>` | |
+| Title | `# <Project> — <Topic>`; DESIGN.md's YAML front matter comes above it (§3.1) | |
 | Status banner | Blockquote with a bold status, when the doc isn't a normal spec | `> **STATUS: NOT IMPLEMENTED.**` · `> **STATUS: PARKED.**` · `**Working document.**` |
 | Purpose | 1–4 lines: what it covers and who needs it | |
 | Source of truth | The files, tokens, design files or specifications it describes; which wins where two overlap | "The token files win for values, the design file for intent, this doc for the reason" |
@@ -146,7 +148,8 @@ Pick the blocks a doc needs and keep them in this order. **Omit empty blocks** �
 
 ### 3.4 Numbering and headings
 
-- **Number sections** (`## 1.`, `### 1.1`) so docs, the kit and code comments can cite `§n`.
+- **Number sections** (`## 1.`, `### 1.1`) so docs, the kit and code comments can cite `§n`. DESIGN.md is the one
+  exception: its sections keep Google's names, unnumbered, and are cited by name (§3.1).
 - **Numbers run in order, without gaps or duplicates.** Don't split one section across two headings ("— continued").
 - **Add material under the next free number instead of renumbering.** If a renumber is unavoidable, update every
   inbound `§n` in the same change (§7).
@@ -158,7 +161,8 @@ Pick the blocks a doc needs and keep them in this order. **Omit empty blocks** �
 
 - **Add a contents table when a doc is over ~150 lines.** Place it at the end of the opening block, before the first
   `---`.
-- **Use exactly three columns**: `| § | Section | Look here for |`.
+- **Use exactly three columns**: `| § | Section | Look here for |`. DESIGN.md, with no section numbers, drops the `§`
+  column: `| Section | Look here for |`.
 
 | Column | Contents |
 | --- | --- |
@@ -322,15 +326,16 @@ section; a citation to another doc names it.
 
 - **Explain local mechanics in the comment itself, briefly** — what this line does and why here, when the code alone
   does not say it. That needs no doc.
-- **Cite the doc, by name and section, for anything that is a decision, a measured value's provenance, or a rule
-  shared across files** — `# the 300 ms ceiling: DESIGN §6`, `// GUIDELINES §4.5`. The reason lives in the doc once;
-  every file that follows it points there. A comment may also carry the full argument at the declaration (§4.2), as
-  long as it cites the doc that holds the decision.
+- **Cite the doc, by name and section, for anything that is a decision, a measured value's provenance, or a rule shared
+  across files** — `# the 300 ms ceiling: DESIGN.md → Motion`, `// GUIDELINES §4.5`. The reason lives in the doc once;
+  every file that follows it points there. A comment may also carry the full argument at the declaration (§4.2), as long
+  as it cites the doc that holds the decision.
 - **Never give a citation without its doc name, and never cite a line number** — a bare `§4` in code is ambiguous the
   moment a second doc exists, and a line number drifts with the next edit. Cite file and symbol for code, `DOC §n` for
   a doc.
 - **Keep the anchor check in the loop** (`check_anchors.py`, run by the docs check), so a citation to a heading that
-  moved, a `§` with no doc name, or a line number fails the run instead of waiting to be noticed.
+  moved, a `§` with no doc name, or a line number fails the run instead of waiting to be noticed. It resolves
+  `DESIGN.md → <Section>` against DESIGN.md's headings too.
 
 ---
 

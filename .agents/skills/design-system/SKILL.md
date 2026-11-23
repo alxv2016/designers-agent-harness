@@ -11,8 +11,10 @@ metadata:
 How a screen takes its values: from tokens, by role, decided in one place. That place is the project's own
 **`DESIGN.md`** at the repo root — its design brief, which the person writes or updates for their product. It holds the
 product's principles, every token by role with its value in each theme, the contrast pairs, the components, the
-floors above AA and the exceptions; this page names each by what it holds (in the starter's numbering: §1, §2–§7,
-§2.2, §8, §9, §10 — a brief numbered otherwise is cited by its own numbers). The values in any example DESIGN.md are
+floors above AA and the exceptions, in Google's DESIGN.md format — every value in its YAML front matter, the sections
+in Google's order (Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Motion, Voice & Content Strategy,
+Components, Do's and Don'ts), then Accessibility, Exceptions and Open items; this page names each by its section
+(DESIGN_BRIEF §1). The values in any example DESIGN.md are
 not this skill's; it reads whatever brief the project has. How a brief is written, and why, is kept in this skill at
 [references/brief.md](references/brief.md) (cited `DESIGN_BRIEF §n`); this page indexes it in one-line rules and holds
 the steps and the checks. The product's DESIGN.md wins over the reference, and the reference over this page — fix
@@ -35,7 +37,7 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 - A screen needs a value the scale does not have.
 - Setting up DESIGN.md for a new project, or moving styles from a design file into code.
 - Carrying tokens to a device: the C/C++ token header, the LVGL styles, the compiled fonts, the panel's colour depth.
-- The design check (`D1`–`D6`) or the token check (`T1`) fails.
+- The design check (`D0`–`D6`) or the token check (`T1`) fails.
 
 ## Rules
 
@@ -48,8 +50,8 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 3. **Use semantic roles at the call site** — `color.text.secondary`, `space.lg`, not `grey-600` or `16px`; a primitive
    ramp lives only in the token files (DESIGN_BRIEF §3).
 4. **Decide a token in DESIGN.md, then carry it to the token files, in the same change** (DESIGN_BRIEF §3, §15).
-5. **Make a theme a second column of values for the same roles, complete in every cell**, with dark accents re-chosen
-   by lightness on the same hue (DESIGN_BRIEF §5).
+5. **Make a theme a second set of values for the same roles — a sub-map holding every role**, with dark accents
+   re-chosen by lightness on the same hue (DESIGN_BRIEF §5).
 6. **Give a new colour role its kind in DESIGN.md's colour roles, then every pair its kind calls for in its contrast
    pairs, with its floor and its ratio per theme**, before any screen uses it (DESIGN_BRIEF §4).
 7. **Give every interactive state its token** — rest, hover, pressed, focus, disabled, selected; never an opacity
@@ -108,7 +110,8 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 ### Setting up DESIGN.md for a new project
 
 1. Copy the starter: `cp .agents/skills/design-system/references/templates/DESIGN.md DESIGN.md` — it passes the
-   design check as it stands; keep its section numbers and table shapes (DESIGN_BRIEF §1).
+   design check as it stands; keep its front matter's keys, Google's section names and order, and its tables
+   (DESIGN_BRIEF §1).
 2. Write the principles with the person: five or fewer, each a rule, what it means in practice, and why.
 3. Replace the example values with the product's — from the design file, or drafted and approved as a specimen. Give
    every colour role its kind; the check lists each pair the kinds call for that has no row.
@@ -126,7 +129,7 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 Run from the repo root:
 
 ```sh
-python3 .agents/skills/design-system/scripts/design_check.py              # D1–D6: DESIGN.md against its floors and the code
+python3 .agents/skills/design-system/scripts/design_check.py              # D0–D6: DESIGN.md, its floors, the code
 python3 .agents/skills/design-system/scripts/design_check.py --file F     # another brief, such as the starter
 python3 .agents/skills/design-system/scripts/token_check.py               # T1: colour literals in UI files
 python3 .agents/skills/design-system/scripts/design_check.py --test       # each check's own cases
@@ -135,6 +138,8 @@ python3 .agents/skills/design-system/scripts/token_check.py --test
 
 Each run prints how many files it read; a run that read none says so and proves nothing.
 
+- [ ] (script) **D0 front matter unreadable** — the YAML is block mappings the reader can read: no flow mapping, anchor,
+  tag, block scalar, tab or key written twice — 0 hits
 - [ ] (script) **D1 contrast pair under its floor** — every contrast pair, in every theme; no floor under its
   kind's; none on a translucent background — 0 hits
 - [ ] (script) **D2 ratio written wrong** — each ratio within 0.05 of the computed one — 0 hits
@@ -142,7 +147,7 @@ Each run prints how many files it read; a run that read none says so and proves 
   its exact digits (`#6B7280` in CSS, `0x6B7280` in C and C++), is in the token files — 0 hits; skipped while there
   are none
 - [ ] (script) **D4 contrast pair missing** — every pair the colour kinds call for has a row in the contrast pairs — 0 hits
-- [ ] (script) **D5 theme value missing** — every colour has a value in every theme column — 0 hits
+- [ ] (script) **D5 theme value missing** — every colour has a value in every theme — 0 hits
 - [ ] (script) **D6 translucent surface or fill** — 0 hits
 - [ ] (script) **T1 colour literal outside the tokens** — `token_check.py`; in C and C++, a number in a colour's
   place (`lv_color_hex(0x…)`, `lv_color_make(…)`, `LV_COLOR_MAKE(…)`, `lv_palette_*`, a colour-named call) — 0 hits

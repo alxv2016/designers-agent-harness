@@ -84,7 +84,7 @@ project fills in; §15.1 lists where each one goes.
 | 20.3 | [The three design gates](#203-the-three-design-gates) | Mock, built, target: what each settles and when it passes |
 | 21 | [Open items](#21-open-items) | Agent behaviours recorded but not rechecked against the tools' docs |
 | 22 | [A design change, end to end](#22-a-design-change-end-to-end) | One change walked from the ask to the commit: what the agent runs and what the person sees |
-| 23 | [The design brief: DESIGN.md](#23-the-design-brief-designmd) | What `DESIGN.md` holds, the table shapes the design check reads, how agents use it |
+| 23 | [The design brief: DESIGN.md](#23-the-design-brief-designmd) | What `DESIGN.md` holds in Google's DESIGN.md format, what the design check reads, how agents use it |
 | 24 | [Quality scores and taste](#24-quality-scores-and-taste) | The score beside each verdict: dimensions, anchors, weights, proxies, the bar; the person's taste moving anchors and weights; a recurring taste promoted to a floor |
 
 ---
@@ -1278,11 +1278,13 @@ rules its judges score — almost all of it in one settings file.
 
 ### 15.1 Generic and per-project parts
 
+What each part keeps as it ships, and what a project fills in.
+
 | Part | Copy as is | Fill in per project |
 | --- | --- | --- |
 | `.agents/project.py` | The helpers at its foot | Every list: `PROJECT_NAME`, `DOC_PREFIX`, `PROJECT_WIDE_DOCS`, `CODE_PATHS`, `UI_PATHS`, `DESIGN_FILE`, `TOKEN_FILES`, `GENERATED`, `MANAGED`, `VENDORED`, `SECRET_FILES`, `ALLOWED_HOSTS`, `ASK_COMMANDS`, `DENY_COMMANDS`, `NEEDS_DOC`, `DEBUG_MARKERS`, `INVARIANTS`, `CHECKS`, `JUDGES`, `GATES`, `TARGET`, `GUARD_CASES` |
 | `AGENTS.md` | The section skeleton (§6), the Harness and Safety text | Project, environment, conventions, validation per change type, the doc table |
-| `DESIGN.md` | Its sections and table shapes (§23) | The principles and every value — the template's are a demo |
+| `DESIGN.md` | Its front matter's keys, its sections and the tables the check reads (§23) | The principles and every value — the template's are a demo |
 | `.agents/HARNESS.md` | Its sections and the generic rows | The project's rows: its secrets, gates, hosts, checks and judges |
 | `verify.py` | All of it | Nothing — its lists are in the settings file |
 | `guard.py` | All of it | Nothing — a tool runner that takes a command string, if the project has one |
@@ -1347,8 +1349,8 @@ marked. A new project starts there, so the controls are in place before the firs
   clone it reports what is still a placeholder.
 - **Run the bootstrap prompt** (§17.1). It fills in the settings file, `AGENTS.md`, `.agents/HARNESS.md` and
   `build-run-test` from your answers and stops for you after each phase.
-- **Write your `DESIGN.md` over the demo** — your principles and your values, in its table shapes; the design check
-  proves the contrast pairs from the first commit (§23).
+- **Write your `DESIGN.md` over the demo** — your principles and your values, in its front matter and sections; the
+  design check proves the contrast pairs from the first commit (§23).
 - **Fill in the UI paths and the token files as soon as they exist.** Until then the screen gate, the token check and
   the design check's code half stay off, and `doctor` says so.
 
@@ -1774,13 +1776,20 @@ ask: "Give the settings rows more breathing room and a bigger tap target." `V` i
 `DESIGN.md` at the repo root is the design brief: what the product should look and feel like, as `AGENTS.md` is how to
 work in the repo. It holds the product's principles and every design token by role with its value in each theme, and
 the design skills and the `ui-designer` read it before any UI work. Agents design from it, and a script keeps it honest.
+It is written in [Google's DESIGN.md format](https://github.com/google-labs-code/design.md), the open specification for
+a design system in plain text: YAML front matter holds every token value, with a sub-map per theme
+(`colors.light`, `colors.dark`), and Markdown sections in Google's order say how to apply them — so Google's tools and
+any agent that knows the format read it as they find it.
 
 | Section | Holds |
 | --- | --- |
-| Principles | Five or fewer rules every screen follows, each with what it means in practice and why; numbered, so the lower number wins a tie |
-| Colour | Each role (`color.text.secondary`) with one value per theme; the contrast pairs a screen paints, with each pair's floor and its ratio per theme |
-| Type, space, radius, elevation, motion, layout | Each scale's tokens, values with units, and what each step is for |
+| Front matter | Every token value: `colors` per theme, `typography`, `spacing`, `rounded`, `motion`, and the product's own groups (`size`, `breakpoint`, `elevation`, `layer`, `duration`, `easing`, …) |
+| Overview | The product in a line, and five or fewer principles every screen follows, each with why; numbered, so the lower number wins a tie |
+| Colors | Each role (`color.text.secondary`) with its kind and use; the contrast pairs a screen paints, with each pair's floor and its ratio per theme |
+| Typography, Layout, Elevation & Depth, Shapes, Motion | What each token is for, and the rules that apply it |
+| Voice & Content Strategy | How the product speaks: voice, case and its word list |
 | Components | What each is for, its states, and what it is not for |
+| Do's and Don'ts | Each principle in practice |
 | Accessibility | The floors the product meets, and any it sets above WCAG AA |
 | Exceptions | Values allowed off the scale, where, and why |
 | Open items | What is not settled, and what would settle it |
@@ -1788,24 +1797,30 @@ the design skills and the `ui-designer` read it before any UI work. Agents desig
 - **`DESIGN.md` decides; the token files carry.** A token is decided in `DESIGN.md` — its value and its reason — and
   carried to the platform's token files (`TOKEN_FILES`), generated from it or kept in step by hand. A screen takes its
   values from the token files, never from a literal.
-- **It is a doc like any other** — it follows DOCUMENTATION_GUIDELINES, keeps stable numbers, and is cited
-  `DESIGN §n`. It lives at the root, not in `docs/`, because people and agents look for it there by name.
-- **Its tables have fixed shapes, because a script reads them.** A token table's header starts `| Token |`, then one
-  column per theme; the colour table adds a `Kind` column (`| Token | Kind | Light | Dark | Use |`) giving each role's
-  kinds — `surface`, `text`, `non-text`, `fill`, `on-fill`, `scrim`, `exempt`. The contrast-pairs table's header is
-  `| Foreground | Background | Floor | <theme> | <theme> |`, with the ratio written per theme.
+- **It is a doc like any other, with Google's sections in place of numbers** — it follows DOCUMENTATION_GUIDELINES,
+  but its headings keep Google's names and order, unnumbered, because Google's tools find a section by its name; it
+  is cited by section name, `DESIGN.md → Motion`. It lives at the root, not in `docs/`, because people and agents
+  look for it there by name.
+- **A script reads the front matter and two tables, so their shapes are fixed.** The front matter is block YAML,
+  read with Python's standard library; a path names a token, with Google's group names in code's words —
+  `colors.dark.text.secondary` is `color.text.secondary` in dark. The colour table, `| Token | Kind | Use |`, gives each
+  role's kinds — `surface`, `text`, `non-text`, `fill`, `on-fill`, `scrim`, `exempt`. The contrast-pairs table's
+  header is `| Foreground | Background | Floor | <theme> | <theme> |`, with the ratio written per theme
+  (DESIGN_BRIEF §1).
 - **The design check proves it** (`design_check.py`, run by `verify.py run` when `DESIGN.md`, the token files, the
-  UI or the design-system skill change): D1, every contrast pair meets its floor in every theme, and no floor is under
-  its kind's — 4.5 for text and on-fill, 3 for non-text — and none sits on a translucent background; D2, every ratio written in it is true; D3, every token it
-  names, and every colour value it gives, is in the token files; D4, every pair the kinds call for exists — each text
-  and non-text role on each surface, each on-fill role on each fill; D5, every colour has a value in every theme; D6,
-  no surface or fill is translucent. A pair that fails is fixed with a different token, never a lower floor.
+  UI or the design-system skill change). D0: the front matter is YAML it can read. D1: every contrast pair meets its
+  floor in every theme, no floor is under its kind's — 4.5 for text and on-fill, 3 for non-text — and none sits on a
+  translucent background. D2: every ratio written in it is true. D3: every token it names, and every colour value it
+  gives, is in the token files. D4: every pair the kinds call for exists — each text and non-text role on each
+  surface, each on-fill role on each fill. D5: every colour has a value in every theme. D6: no surface or fill is
+  translucent. A pair that fails is fixed with a different token, never a lower floor.
 - **A change to it is a design change.** The `ui-designer` judges it, and the gate in `GATES` asks for the person's
   yes on a specimen — swatches, the type scale, a screen or two before and after — before the token files change. The
   principles are the person's: an agent proposes a change to one, and the person decides.
-- **The template ships a demo** with real, passing values, so the checks have something to run on from the first
-  commit. A new project writes its own over it, keeping the sections and the table shapes. The design-system skill
-  carries a smaller starter (`references/templates/DESIGN.md`) for a repo that takes the skill without the template.
+- **The template ships a demo** with real, passing values, so the checks have something to run on from the first commit.
+  A new project writes its own over it, keeping the front matter's keys, the sections and the tables. The design-system
+  skill carries a smaller starter (`references/templates/DESIGN.md`) for a repo that takes the skill without the
+  template.
 
 ---
 

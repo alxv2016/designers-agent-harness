@@ -39,6 +39,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import design_md  # noqa: E402 — DESIGN.md's front matter in Google's format; a copy of the design-system skill's
+
 HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent
 TEMPLATES = SKILL / "templates"
@@ -458,9 +461,52 @@ def css_value(raw: str, part: str = "") -> str | None:
     return v
 
 
+PROP_PART = {"fontSize": "size", "lineHeight": "line height", "fontWeight": "weight", "letterSpacing": "letter spacing",
+             "fontFamily": "family", "fontFeature": "feature", "fontVariation": "variation", "duration": "duration",
+             "timingFunction": "easing", "delay": "delay"}
+
+
+def ref_var(raw) -> str | None:
+    """`{colors.light.primary}` as `var(--color-primary)`: a reference written as one, so the CSS keeps the link."""
+    m = design_md.REF.match(raw.strip()) if isinstance(raw, str) else None
+    if not m:
+        return None
+    parts = m.group(1).split(".")
+    parts = [design_md.PREFIX.get(parts[0], parts[0])] + [p for p in parts[1:] if not design_md.THEME.match(p)]
+    return f"var({css_name('.'.join(parts))})"
+
+
+def front_matter_tokens(data: dict) -> tuple[list[str], list[tuple[str, dict]]]:
+    """DESIGN.md in Google's format: the themes its sub-maps name, and a custom property per token with its value
+    per theme — a typography or motion token one property per part (`--text-body-size`, `--motion-hover-duration`), a
+    reference as `var()`. A font family that only points at a `font.*` token is left to that token."""
+    themes = design_md.themes(data)
+    tokens: dict[str, dict] = {}
+    for t in design_md.tokens(data):
+        if t["props"] is None:
+            v = ref_var(t["raw"]) or (css_value(str(t["value"])) if t["value"] is not None else None)
+            if v is not None:
+                tokens.setdefault(css_name(t["name"]), {})[t["theme"]] = v
+            continue
+        if t["group"] == "components":
+            continue  # a component's properties name its tokens; the component itself is code
+        for prop, raw in t["raw"].items():
+            part = PROP_PART.get(prop, prop)
+            if prop == "fontFamily" and (ref_var(raw) or "").startswith("var(--font-"):
+                continue
+            v = ref_var(raw) or (css_value(str(t["props"][prop]), part) if t["props"][prop] is not None else None)
+            if v is not None:
+                tokens.setdefault(css_name(t["name"], part), {})[None] = v
+    return themes, list(tokens.items())
+
+
 def design_tokens(text: str) -> tuple[list[str], list[tuple[str, dict]]]:
-    """Every `| Token | … |` table's rows: the themes it names, and each custom property with its value per theme
-    (`None` for a value that holds in every theme). The first row for a token wins."""
+    """The brief's tokens: its YAML front matter in Google's format when it has one, else every `| Token | … |`
+    table's rows — the themes it names, and each custom property with its value per theme (`None` for a value that
+    holds in every theme). The first row for a token wins."""
+    data, _ = design_md.front_matter(text)
+    if data:
+        return front_matter_tokens(data)
     themes, tokens, seen = [], [], set()
     header, cols = None, None
     for line in text.splitlines():
@@ -1035,6 +1081,31 @@ def self_test() -> int:
     expect("dark follows the system unless light is chosen", ":root:not([data-theme='light'])" in css, True)
     expect("elevation per theme", "--elevation-raised: none;" in css, True)
     expect("no brief", ":root {\n}" in tokens_css(None), True)
+    google = ("---\nname: Demo\ncolors:\n  light:\n    bg:\n      canvas: \"#FFFFFF\"\n    primary: \"#2457D6\"\n"
+              "  dark:\n    bg:\n      canvas: \"#111317\"\n    primary: \"#7EA2FF\"\n"
+              "font:\n  sans: \"system-ui, sans-serif\"\n"
+              "typography:\n  body:\n    fontFamily: \"{font.sans}\"\n    fontSize: 16px\n    lineHeight: 24px\n"
+              "    fontWeight: 400\nspacing:\n  lg: 16px\nduration:\n  fast: 120ms\nmotion:\n  hover:\n"
+              "    duration: \"{duration.fast}\"\n    timingFunction: ease\nelevation:\n  light:\n"
+              "    raised: \"0 1px 2px rgba(0, 0, 0, 0.12)\"\n  dark:\n    raised: none\n---\n\n# Demo — Design\n")
+    themes, toks = design_tokens(google)
+    names = dict(toks)
+    expect("front matter: themes", themes, ["light", "dark"])
+    expect("front matter: colour per theme", names.get("--color-bg-canvas"), {"light": "#ffffff", "dark": "#111317"})
+    expect("front matter: type parts in rem, the family left to font.sans",
+           (names.get("--text-body-size"), names.get("--text-body-line-height"), "--text-body-family" in names),
+           ({None: "1rem"}, {None: "1.5rem"}, False))
+    expect("front matter: spacing is space", names.get("--space-lg"), {None: "16px"})
+    expect("front matter: a motion token's reference is a var()", names.get("--motion-hover-duration"),
+           {None: "var(--duration-fast)"})
+    css = tokens_css(google)
+    expect("front matter: light in :root, dark in its block", ("--color-primary: #2457d6;" in css.split("[data-")[0],
+                                                               css.count("--color-primary: #7ea2ff;")), (True, 2))
+    expect("front matter: elevation per theme", "--elevation-raised: none;" in css, True)
+    sibling = Path(__file__).resolve().parents[2] / "design-system" / "scripts" / "design_md.py"
+    if sibling.is_file():
+        expect("design_md.py is the design-system skill's, unchanged", sibling.read_text(),
+               Path(design_md.__file__).read_text())
     short = "| Token | Light | Dark | Use |\n| --- | --- | --- | --- |\n| `color.a` | #FFF |\n"
     expect("a short row, no crash", design_tokens(short)[1], [("--color-a", {"Light": "#fff"})])
     dims = "| Token | Value | Dimension | Use |\n| --- | --- | --- | --- |\n| `size.a` | 4 px | width | x |\n"
@@ -1134,7 +1205,7 @@ def self_test() -> int:
         expect("arch doc", "docs/APP_ARCHITECTURE.md" in texts, True)
         expect("gitignore appended", (root / ".gitignore").read_bytes().startswith(b"node_modules\r\n")
                and "node_modules/" not in texts[".gitignore"].split("# The web app")[1], True)
-        expect("the sample brief lacks roles the templates use", any("--color-accent" in r for r in report), True)
+        expect("the sample brief lacks roles the templates use", any("--color-primary" in r for r in report), True)
         expect("clean", layering_hits(root), [])
         expect("a react app", is_react_vite_app(root), True)
         again = generate(root, facts, versions, path, False)

@@ -9,7 +9,8 @@ a screen.
 **Where it lives.** In the `design-system` skill, beside the steps and checks that apply it — [its SKILL.md](../SKILL.md)
 — with a starter brief to copy ([templates/DESIGN.md](templates/DESIGN.md)). The skill folder is self-contained: copy
 it into any repo's `.agents/skills/` and this reference, the template, the design check and the token check come with
-it. The product's own values and choices live in its `DESIGN.md`, cited `DESIGN §n`, and win over this reference.
+it. The product's own values and choices live in its `DESIGN.md`, cited by section name (`DESIGN.md → Colors`), and
+win over this reference.
 
 **Platforms.** Each rule is written for every platform. Guidance that holds on one platform only carries its label —
 **Web**, **iOS**, **Android**, **Embedded (ESP-IDF, LVGL)** for a device that draws its own screen with LVGL — in a
@@ -23,7 +24,7 @@ bold lead or a table row.
 
 | § | Section | Look here for |
 | --- | --- | --- |
-| 1 | [The brief](#1-the-brief) | What DESIGN.md holds, its sections and the table shapes the check reads |
+| 1 | [The brief](#1-the-brief) | What DESIGN.md holds: Google's format, its front matter, its sections and the tables the check reads |
 | 2 | [Principles](#2-principles) | How the product's tie-breakers are written |
 | 3 | [Tokens and roles](#3-tokens-and-roles) | Naming by role, primitives, one owner per value |
 | 4 | [Colour](#4-colour) | Kinds, pairs, states, solid surfaces, status hues, icons; the panel a device draws on |
@@ -45,36 +46,61 @@ bold lead or a table row.
 
 ## 1. The brief
 
-**One file decides how the product looks: `DESIGN.md` at the repo root.** It sits beside `AGENTS.md` — that file is
-how to work in the repo, this one is what the product should look and feel like.
+**One file decides how the product looks: `DESIGN.md` at the repo root, in Google's DESIGN.md format** — the open
+specification Google Labs publishes for a design system in plain text
+([google-labs-code/design.md](https://github.com/google-labs-code/design.md), `version: alpha`). It sits beside
+`AGENTS.md` — that file is how to work in the repo, this one is what the product should look and feel like.
 
-| § | Holds |
+**The YAML front matter holds every token value; the Markdown sections below it say how to apply them.** The front
+matter opens the file on its first line between two `---` lines; Google's spec calls the tokens normative and the
+prose their context.
+
+| Front matter key | Holds | Token names it gives (§15) |
+| --- | --- | --- |
+| `version`, `name`, `description`, `omitted` | `alpha`; the product's name; a line on what it is; the sections left out on purpose, so Google's linter does not warn | — |
+| `colors` | Every colour role, one sub-map per theme (`light`, `dark`), the same roles in each (§5) | `color.<role>` |
+| `typography` | Each type role: `fontFamily`, `fontSize`, `lineHeight`, `fontWeight`, `letterSpacing` | `text.<role>` |
+| `spacing`, `rounded` | The spacing scale; the radius scale | `space.<step>`, `radius.<step>` |
+| `motion` | Each move: `duration`, `timingFunction`, `delay` — written as references to the primitives | `motion.<move>` |
+| The product's own keys | What Google's schema has no key for: `size`, `breakpoint`, `elevation` (a sub-map per theme), `border`, `layer`, `duration`, `delay`, `easing`, `scale`, `font` | Their own name: `size.target` |
+
+| Section, in Google's order | Holds |
 | --- | --- |
-| 1 | Principles — the tie-breakers, numbered |
-| 2 | Colour — roles with a kind and a value per theme (2.1); every contrast pair with its floor and ratios (2.2) |
-| 3–7 | Type, space and size, radius and elevation with the layer order and any decoration, motion, layout — each a token table |
-| 8 | Components — what each is for, its states, what it is not for |
-| 9 | Accessibility — the floors the product meets above WCAG 2.2 AA |
-| 10 | Exceptions — values allowed off the scale, with the reason |
-| 11 | Open items — what is not settled, and what would settle it |
+| Overview | The product in a line, and its principles — the tie-breakers, numbered (§2) |
+| Colors | Each role's kind and use, in a table of token, kind and use; every contrast pair with its floor and ratios |
+| Typography, Layout, Elevation & Depth, Shapes, Motion | What each token is for, in a table of token and use, and the rules that apply it |
+| Voice & Content Strategy | How the product speaks: voice, case, the word list the `ux-content` skill reads |
+| Components | What each component is for, its states, what it is not for (§13) |
+| Do's and Don'ts | Each principle in practice, as guardrails |
+| Accessibility, Exceptions, Open items | The product's own sections, after Google's: the floors above WCAG 2.2 AA; values allowed off the scale, with the reason (§14); what is not settled, and what would settle it |
 
-- **Keep the table shapes; the design check reads them.** A token table's header starts `| Token |`; the colour table
-  adds a `Kind` column and one column per theme (`| Token | Kind | Light | Dark | Use |`); the pairs table is
-  `| Foreground | Background | Floor | <Theme> | … |`.
-- **Write each colour as hex in the token tables** — the value the checks measure. A product that authors in another
-  space (OKLCH, a palette tool) keeps its source there and writes the resulting hex here. The token files spell it
-  the platform's way (§15).
-- **The numbers in this table are the starter's**; a product's brief may number its sections otherwise, and the
-  checks read the table shapes, never the numbers. Skills cite a section by what it holds.
-- **Number every section and never renumber** — skills, rubrics and code comments cite `DESIGN §n`.
+- **Write every value once, in the front matter.** A section names a token and says what it is for; it never repeats
+  the value, so the two cannot disagree.
+- **Keep Google's section names and order, unnumbered** — Google's tools find a section by its name, and a numbered
+  heading (`## 2. Colors`) is not one they recognise. Skills and code comments cite a section by name:
+  `DESIGN.md → Motion`. A section of the product's own goes after Do's and Don'ts; Google's tools keep a section they
+  do not know.
+- **Keep the tables the design check reads.** The colour table gives each role its kinds — `| Token | Kind | Use |`, the
+  kinds comma-separated; the pairs table is `| Foreground | Background | Floor | <Theme> | … |`, one ratio column per
+  theme, named as the front matter's sub-maps are, in any case.
+- **Write each colour as quoted hex** — `"#2457D6"`, the value the checks measure, quoted so YAML does not read the `#`
+  as a comment. A product that authors in another space (OKLCH, a palette tool) keeps its source there and writes the
+  resulting hex here. The token files spell it the platform's way (§15).
+- **Write the front matter as block mappings** — one `key: value` a line, nested by two spaces. The kit reads it with
+  Python's standard library alone, so it refuses a flow mapping (`{a: 1}`), an anchor or a block scalar and says
+  where (D0, §16).
+- **Name a primary colour** — `colors.<theme>.primary`. Google's linter warns without one.
 - **Start from the template** ([templates/DESIGN.md](templates/DESIGN.md)); it passes the design check as it stands.
+- **A brief still in tables reads as before.** A `| Token | <Theme> | … |` table with a value per theme column is read
+  as the front matter is, so a product moves to Google's format when it chooses; the template and new briefs use the
+  front matter.
 
 ## 2. Principles
 
 **Five or fewer, numbered; when two options both pass the rules, the lower-numbered principle decides.**
 
-- **Write each as a rule, what it means on a screen, and why** — "Accessible by default" with "contrast pairs come from
-  §2.2" beside it, not a value word like "delightful".
+- **Write each as a rule and why, and what it means on a screen in Do's and Don'ts** — "Accessible by default" with
+  "take contrast pairs from Contrast pairs" beside it, not a value word like "delightful".
 - **The person owns the principles.** An agent proposes a change with its reason and never edits one alone.
 - **A principle broken on purpose is a recorded decision**, never a silent exception.
 
@@ -135,9 +161,11 @@ theme.**
 
 ## 5. Themes
 
-**A theme is a second column of values for the same roles — complete, checked, and chosen on the first frame.**
+**A theme is a second set of values for the same roles — complete, checked, and chosen on the first frame.** In the
+front matter, each theme is a sub-map holding every role: `colors.light` and `colors.dark`, `elevation.light` and
+`elevation.dark`; a token that is the same in every theme sits outside them.
 
-- **Every role has a value in every theme column** (D5), and every image, illustration and embedded widget has a
+- **Every role has a value in every theme** (D5), and every image, illustration and embedded widget has a
   version per theme. Half a dark mode — a white dropdown on dark — is worse than none (Apple HIG, Dark Mode).
 - **In dark, lighter means higher**: the canvas is darkest and each raised layer is lighter, the topmost lightest; an
   inverted order makes overlays sink (Material Design 3, tonal elevation; Apple HIG, base and elevated backgrounds).
@@ -151,7 +179,7 @@ theme.**
   stored on the device (in NVS) and read before the first screen is built; the display stays dark until that first
   frame is drawn. Switching restyles at run time: the shared `lv_style_t`s take the other theme's values and
   `lv_obj_report_style_change(NULL)` redraws every object that uses them, or the LVGL theme is initialised again
-  (`lv_theme_default_init(…, dark, …)` restyles the display it is given). A single-theme device writes one column.
+  (`lv_theme_default_init(…, dark, …)` restyles the display it is given). A single-theme device writes one theme.
 - **Embedded (ESP-IDF, LVGL): on an AMOLED panel, dark is often the product's only theme** — black pixels draw no
   current and do not heat the panel, so a light theme costs battery and age (§4, the panel table).
 
@@ -387,6 +415,13 @@ step by hand.**
 | Embedded (ESP-IDF, LVGL) | A C or C++ header of `constexpr` values named by role (`static const` or `#define` in C), with the shared `lv_style_t`s built from them once at start and the compiled fonts declared (`LV_FONT_DECLARE`); one value set per theme | `kColorTextSecondary` = `0x6B7280`, painted as `lv_color_hex(kColorTextSecondary)` |
 | Any | A token file in the W3C Design Tokens Community Group format, built to each platform by a tool such as Style Dictionary | `color.text.secondary` |
 
+- **The front matter's path is the token's name, with Google's group names in the words code uses** — `colors` is
+  `color`, `typography` is `text`, `spacing` is `space`, `rounded` is `radius`, and a theme sub-map drops out:
+  `colors.dark.text.secondary` is `color.text.secondary` in dark, `--color-text-secondary` on the web. A typography or
+  motion token is one role with a property per part (`--text-body-size`, `--motion-hover-duration`). A role and a
+  group of the same name cannot both be keys, so a variant takes a hyphen: `primary` and `primary-pressed`.
+- **A value written `"{path.to.token}"` is a reference** — a motion token names its duration and easing this way, and
+  the web's tokens write it as `var(--duration-base)`, so the link holds in code.
 - **Name a code token after its role** — the design check matches any spelling of the same words, so
   `--color-text-secondary`, `colorTextSecondary` and `kColorTextSecondary` match `color.text.secondary`, and `--fg-2`
   does not.
@@ -407,6 +442,7 @@ step by hand.**
 
 | Check | Finds |
 | --- | --- |
+| D0 | A front matter the reader cannot read — a flow mapping, an anchor, a block scalar, a tab, a key written twice — with its line (§1) |
 | D1 | A contrast pair under its floor, written with a floor under its kind's, or on a translucent background |
 | D2 | A ratio written wrong, or a pair naming an unknown role |
 | D3 | A token the brief names, or a colour value it gives, missing from the token files — a colour matched in CSS or C spelling (§15) |
@@ -443,5 +479,5 @@ one for itself.**
   that panel in a tier by its logical width, to choose its structure.
 - **Every value lands on the spacing scale's base**, and a tier is never a value between Bootstrap's — a component that
   must change at its own width uses its container's width, not a new tier.
-- **The layout check reads the `breakpoint.*` rows**, so they keep the token table's shape (§1); how each token is
-  used is the `layout` skill's.
+- **The layout check reads the front matter's `breakpoint` group**, one `name: 576px` a line (§1), or a brief's
+  `breakpoint.*` table rows; how each token is used is the `layout` skill's.

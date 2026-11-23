@@ -615,9 +615,9 @@ The draft's values file (`<screen>_mock<n>.md` in the `ui-designer` skill) holds
 | G5 | A fixed `width` or `min-width` at or above the smallest tier (576 px, 36 rem) outside a media or container query, in a rule with no `max-width` | §6 |
 | G6 | Embedded: an object placed at literal coordinates with `lv_obj_set_pos` | §12 |
 
-- **The tiers come from the brief** — the check reads `breakpoint.*` rows from DESIGN.md's token tables when the repo
-  has one, and Bootstrap's 576, 768, 992, 1200 and 1400 otherwise; a `max-width` 0.02 px below a tier counts as that
-  tier.
+- **The tiers come from the brief.** The check reads the `breakpoint` group in DESIGN.md's front matter, or a brief's
+  `breakpoint.*` table rows. With no brief, it uses Bootstrap's 576, 768, 992, 1200 and 1400. A `max-width` 0.02 px
+  below a tier counts as that tier.
 - **What no script reads**: a spacing value on the grid but off the brief's scale, or written as a literal where a
   token belongs (the reviewer reads every number in a changed style); a pane under its minimum width; navigation in
   the wrong form for its tier; focus or state lost on a resize; a line of text over the measure. The draft, the

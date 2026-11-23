@@ -26,8 +26,9 @@ in any other repo, every tracked file with a UI extension outside vendored and g
   Embedded (ESP-IDF, LVGL) — C and C++ files:
   G6  an object placed at literal coordinates — `lv_obj_set_pos(obj, 12, 40)`                  LAYOUT §12
 
-The tiers: the `breakpoint.*` rows of the repo's DESIGN.md token tables when it has them, Bootstrap 5.3's 576, 768,
-992, 1200 and 1400 otherwise; px, and em or rem at 16 px. A `max-width` 0.02 px under a tier counts as the tier.
+The tiers: the `breakpoint` group of the repo's DESIGN.md front matter, or its `breakpoint.*` table rows, when it has
+them; Bootstrap 5.3's 576, 768, 992, 1200 and 1400 otherwise; px, and em or rem at 16 px. A `max-width` 0.02 px
+under a tier counts as the tier.
 
 What it cannot see: a gap on the grid but off the brief's scale, or a literal where a token belongs; a pane under its
 minimum width; navigation in the wrong form for its tier; focus or state lost on a resize; text over the measure. Its
@@ -73,6 +74,10 @@ BASE = 4  # the base grid every spacing value lands on; an 8 base lands on it to
 HAIRLINES = {0.0, 1.0, 2.0}
 
 TIER_ROW = re.compile(r"^\|\s*`breakpoint\.[\w-]+`\s*\|\s*(\d+(?:\.\d+)?)\s*(?:px|dp|pt)?\s*\|", re.M)
+# DESIGN.md in Google's format: a `breakpoint:` group in the YAML front matter, `  md: 768px` a line (DESIGN_BRIEF §17)
+FRONT = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*$", re.S | re.M)
+TIER_GROUP = re.compile(r"^breakpoints?:[ \t]*\n((?:[ \t]+.*\n?)+)", re.M)
+TIER_LINE = re.compile(r"^[ \t]+[\w-]+:[ \t]*[\"']?(\d+(?:\.\d+)?)[ \t]*(?:px|dp|pt)?[\"']?[ \t]*(?:#.*)?$", re.M)
 
 # G1
 DEVICE_WORD = r"(?:mobile|iphone|ipad|android|tablet)"
@@ -168,9 +173,15 @@ def off_grid(value: float) -> bool:
 
 
 def parse_tiers(design: str) -> tuple:
-    """The brief's breakpoint tiers from its token tables' `breakpoint.*` rows, smallest first; none when it names
-    none. A tier of 0 (`xs`) is the start of every layout and is left out."""
-    return tuple(sorted({float(v) for v in TIER_ROW.findall(design) if float(v) > 0}))
+    """The brief's breakpoint tiers — its front matter's `breakpoint` group, or its token tables' `breakpoint.*`
+    rows — smallest first; none when it names none. A tier of 0 (`xs`) is the start of every layout and is left
+    out."""
+    values = TIER_ROW.findall(design)
+    front = FRONT.match(design)
+    group = TIER_GROUP.search(front.group(1) + "\n") if front else None
+    if group:
+        values += TIER_LINE.findall(group.group(1))
+    return tuple(sorted({float(v) for v in values if float(v) > 0}))
 
 
 def project_tiers() -> tuple:
@@ -439,7 +450,10 @@ def self_test() -> int:
     # The brief's tiers replace Bootstrap's when it names them.
     design = ("| Token | Value | Use |\n| --- | --- | --- |\n| `breakpoint.sm` | 576 px | x |\n"
               "| `breakpoint.md` | 768 px | x |\n| `space.md` | 12 px | x |\n")
-    tier_cases = [(parse_tiers(design), (576.0, 768.0)), (parse_tiers("| `space.md` | 12 px | x |"), ())]
+    tier_cases = [(parse_tiers(design), (576.0, 768.0)), (parse_tiers("| `space.md` | 12 px | x |"), ()),
+                  (parse_tiers("---\nname: x\nbreakpoint:\n  xs: 0px\n  sm: 576px\n  md: \"768px\"  # tablet\n"
+                               "rounded:\n  sm: 4px\n---\n"), (576.0, 768.0)),
+                  (parse_tiers("---\nspacing:\n  md: 12px\n---\nbreakpoint:\n  sm: 576px\n"), ())]
     for got, want in tier_cases:
         if got != want:
             bad += 1

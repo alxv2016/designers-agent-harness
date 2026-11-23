@@ -57,20 +57,32 @@ named() { case "$PROJECT_NAME" in "<"*|"") return 1 ;; *) return 0 ;; esac; }
 
 # S1: every doc has a title. The project's own docs (prefixed, DESIGN.md and the kit's HARNESS.md) carry the project's title once
 # PROJECT_NAME is set. A project-wide doc (GUIDELINES §3.1) names no project and links only to its siblings in docs/.
+# title <file>: the doc's first line — after a YAML front matter block, the first line below it (DESIGN.md in Google's
+# format opens with its tokens, DESIGN_BRIEF §1).
+title() { awk 'NR==1&&$0=="---"{fm=1;next} fm&&$0=="---"{fm=0;next} fm{next} NF{print;exit}' "$1"; }
 s1() {
     for f in "${DOCS[@]}"; do
-        head -1 "$f" | grep -q '^# ' || { echo "$f: no title on line 1"; continue; }
+        title "$f" | grep -q '^# ' || { echo "$f: no title on its first line"; continue; }
         if is_wide "$f"; then
             named && grep -nF "$PROJECT_NAME" "$f" | sed "s|^|$f:|"
             # In docs/, a project-wide doc links only to its siblings; kept in a skill, only within the skill's folder.
             case "$f" in .agents/skills/*) out='\]\(\.\./\.\./' where="its skill" ;; *) out='\]\(\.\./' where="docs/" ;; esac
             awk '/^ *(```|~~~)/{c=!c;next} !c{gsub(/`[^`]*`/,"");print FNR":"$0}' "$f" | grep -E "$out" | sed "s|^|$f: links out of $where:|"
         elif named && { [ "$f" = .agents/HARNESS.md ] || [ "$f" = "$(cfg DESIGN_FILE)" ] || { [ -n "$DOC_PREFIX" ] && case "$f" in docs/"$DOC_PREFIX"_*) true ;; *) false ;; esac; }; }; then
-            head -1 "$f" | grep -qF "# $PROJECT_NAME — " || echo "$f: title is not '# $PROJECT_NAME — <Topic>'"
+            title "$f" | grep -qF "# $PROJECT_NAME — " || echo "$f: title is not '# $PROJECT_NAME — <Topic>'"
         fi
     done
 }
-s2() { for f in "${DOCS[@]}"; do [ "$(wc -l < "$f")" -gt 150 ] && ! grep -q '^| § | Section | Look here for |' "$f" && echo "$f"; done; }
+# S2: a long doc has a contents table. DESIGN.md's sections are Google's, named and never numbered (DESIGN_BRIEF §1),
+# so its table has no § column.
+s2() {
+    for f in "${DOCS[@]}"; do
+        [ "$(wc -l < "$f")" -gt 150 ] || continue
+        grep -q '^| § | Section | Look here for |' "$f" && continue
+        [ "$f" = "$(cfg DESIGN_FILE)" ] && grep -q '^| Section | Look here for |' "$f" && continue
+        echo "$f"
+    done
+}
 s3() {
     for f in "${DOCS[@]}"; do
         case "$f" in "$GUIDE") ;; .agents/skills/*/references/*) continue ;; esac  # a reference may continue its skill's numbering; the guidelines do not

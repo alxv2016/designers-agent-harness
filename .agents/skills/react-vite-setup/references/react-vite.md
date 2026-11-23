@@ -143,10 +143,14 @@ The layering check, `react_vite.py check`, holds these rules:
 **Every value a screen paints comes from `DESIGN.md` through `src/styles/tokens.css` — a custom property per role, a
 block per theme — and each component styles itself with a CSS module of `var(--…)`.**
 
-- **`tokens.css` is written from the brief.** `react_vite.py tokens` reads every `| Token | … |` table in `DESIGN.md`:
-  a `Light` / `Dark` column becomes a theme, a `Value` column one value for every theme, and other columns parts of
-  one token (`text.body` → `--text-body-size`, `--text-body-line-height`, `--text-body-weight`). The name is the role
-  in CSS spelling (`color.text.secondary` → `--color-text-secondary`), so the design check finds each one.
+- **`tokens.css` is written from the brief.** `react_vite.py tokens` reads `DESIGN.md`'s YAML front matter, in
+  Google's DESIGN.md format (DESIGN_BRIEF §1). A theme sub-map (`colors.light`, `colors.dark`) becomes a theme, and a
+  token outside one holds in every theme. A typography or motion token gives one property per part: `text.body` →
+  `--text-body-size`, `--text-body-line-height`, `--text-body-weight`; `motion.hover` → `--motion-hover-duration`,
+  `--motion-hover-easing`. A reference (`"{duration.fast}"`) is written `var(--duration-fast)`. The name is the role in
+  CSS spelling (`colors.light.text.secondary` → `--color-text-secondary`), so the design check finds each one. A brief
+  still in `| Token | … |` tables is read as before: a `Light` / `Dark` column a theme, a `Value` column one value for
+  every theme. The reader is `scripts/design_md.py`, the design-system skill's copy, which the self-test holds equal.
 - **Themes.** The first theme is `:root`; another is `[data-theme='<name>']`; a dark theme also follows the system's
   setting unless the first theme is chosen. Each block sets `color-scheme`, so form controls and scrollbars match.
 - **Type in rem.** A type token's size and line height are written in rem, so text follows the browser's text-size
