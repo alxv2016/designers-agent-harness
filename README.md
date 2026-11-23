@@ -10,9 +10,10 @@ only when the work is checked and you have signed off.
 
 ## What is an agent harness?
 
-A coding agent is a model that reads and edits your repo. It is fast and tireless, but it forgets everything between
-conversations, it sometimes misreads a brief, and it will happily build something you never agreed to. **A harness is
-everything around the agent that is not the model** — the studio process that makes its work reliable:
+**A harness is everything around a coding agent that is not the model** — the studio process that makes its work
+reliable. A coding agent is a model that reads and edits your repo. It is fast and tireless, but it forgets everything
+between conversations, it sometimes misreads a brief, and it will happily build something you never agreed to. Each
+part of the harness is something a design studio already has.
 
 | Part | In studio terms | Here |
 | --- | --- | --- |
@@ -22,6 +23,7 @@ everything around the agent that is not the model** — the studio process that 
 | Sketch first | The client sees a sketch before anything is built | The design gates: a mock, your yes, then the build |
 | The checklist | Steps that run themselves | `verify.py` — picks and runs the checks a change needs |
 | Reviewers | A second pair of eyes against the house rules | Read-only judge agents, each scoring a rubric |
+| A critique | "It works, but how good is it?" — judged against examples of good | Each judge's quality score, 0–100, which your taste tunes |
 | Locks on the doors | Some things need the owner | The guard — asks before a commit, a push, a delete, a deploy; never lets the agent read your secrets |
 | The notebook | What was learned stays learned | Docs, rubrics and a judgements log in the repo — not in one chat |
 
@@ -74,6 +76,9 @@ get the rules, the skills and the commit gate.
 
 ### What you approve, and how
 
+**You speak; the agent records your words with one command, and only those words let it hand over.** Each row is one
+thing only you can decide — a yes, a sign-off, a score below the bar, your taste, a weight.
+
 | You say | The agent records | Why it matters |
 | --- | --- | --- |
 | "Yes to `settings_mock2.png`" | `verify.py approve settings_mock2.png --kind mock` | The yes covers exactly that file; a redrawn mock needs a new yes |
@@ -82,12 +87,45 @@ get the rules, the skills and the commit gate.
 | "Feels right on the phone" | `verify.py signoff "feels right on the phone"` | Only you can judge feel, motion and words on the real thing |
 | "I gave you the design in the file" | `verify.py decision "design given: <where>"` | Your design is the approved draft |
 | "This is a refactor, nothing visible" | `verify.py decision "no visible change: <why>"` | No mock needed |
+| "72 is fine for this one" | `verify.py accept ui-designer "72 is fine for this one"` | A score below the bar is your call, never the agent's |
+| "The spacing feels cramped" | `verify.py taste "the spacing feels cramped" --judge ui-designer --dimension spacing` | Your eye becomes an example the judge reads next time |
+| "I'd give this a 1 on hierarchy" | `verify.py rate home.png --judge ui-designer --dimension hierarchy --score 1` | Shows where the judge's eye and yours differ |
+| "Hierarchy matters most to us" | `verify.py weight --judge ui-designer --dimension hierarchy --set 30` | Sets how much a dimension counts |
 
-The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
+The agent cannot hand over while a yes is missing: `verify.py finish` refuses. The guard asks you before `approve`,
+`signoff`, `accept`, `taste`, `rate` and `weight` run, because each records your words; a `decision` is the agent's
+note of what you said, and passes.
+
+### Quality and taste
+
+A reviewer answers two questions. **Is anything broken?** That is its verdict, `pass` or `blocking`, from its rubric.
+**How good is it?** That is its quality score, 0–100. A screen can follow every rule and still feel unbalanced, so the
+verdict alone is not enough.
+
+- **Each reviewer scores a few dimensions, 0–4** — for the `ui-designer`: hierarchy, spacing, consistency, balance,
+  state and fit to the medium. Each dimension has examples of what a 0, a 2 and a 4 look like, so a score is "nearest
+  to this example", not a mood.
+- **Scripts measure what they can**: how many type sizes a screen uses, a gap against its group's, how long a sentence
+  runs. A measure out of range caps that dimension at 2, whatever the reviewer thought. Docs, code and words are
+  measured from the start; screens once your project builds its screen audit
+  ([UI_REVIEW_RUBRIC §6](.agents/skills/ui-designer/references/rubric.md#6-a-measured-screen-audit)).
+- **The weights turn the dimensions into one score.** They add up to 100, and the hand-over needs 75 or more, unless
+  you accept a lower score by name.
+- **Your taste moves the score.** Say what you see — "too tight", "the title doesn't lead" — and it becomes a new
+  example on that dimension. If the reviewer had scored that dimension well, it missed what you saw, so the dimension
+  counts for more next time. Flag a miss on the same dimension a second time and the agent proposes a rule that
+  blocks it outright.
+
+All of it lives in [.agents/evals/](.agents/evals/), committed, so the next agent starts from your eye, not from zero.
+The whole design: [AGENT_HARNESS §24](docs/AGENT_HARNESS.md#24-quality-scores-and-taste); this repo's judges, weights
+and commands: [HARNESS §12](.agents/HARNESS.md#12-quality-taste-and-weights).
 
 ---
 
 ## What is in the template
+
+**A handful of files you fill in, and a kit that works as it ships.** The right-hand column says what is yours to
+write.
 
 | Path | Holds | You fill in |
 | --- | --- | --- |
@@ -99,6 +137,7 @@ The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
 | [.agents/skills/](.agents/skills/) | 23 skills — the loop, docs, commits, UI design, UX design, accessibility, design tokens, layout, typography, motion, touch and gesture, UX content, Storybook stories, end-to-end tests with Playwright, e-paper displays, secrets handling, ESP-IDF setup, React and Vite setup, build and run, the working principles, blast radius, teaching, and help with the kit. The docs, accessibility, design-system, layout, typography, ux-designer, motion, touch-and-gesture, ui-designer, ux-content, storybook, playwright, e-ink, secrets-handling, esp-idf-setup, react-vite-setup, principles, blast-radius and teach skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
 | [.agents/agents/](.agents/agents/) | 11 agents — `ui-designer`, `ux-designer`, `doc-writer`, `ux-content-writer`, `storybook`, `playwright`, `e-ink`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
+| [.agents/evals/](.agents/evals/) | Each reviewer's quality dimensions, weights and examples of good and poor, and every score; moves with your taste | Your own references, as you give them |
 | `.agents/hooks/` | The guard and the injection flag, with self-tests | — |
 | `.agents/githooks/pre-commit` | Refuses a commit with a secret, a build file or a debug line | — |
 | `.claude/`, `.codex/` | Adapters for Claude Code and Codex: hooks, read denies, sandbox | Read denies for your secret files |
