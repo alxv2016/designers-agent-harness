@@ -46,7 +46,7 @@ project fills in; §15.1 lists where each one goes.
 | --- | --- | --- |
 | An agent prompt and a table of follow-up prompts, which GUIDELINES §1 puts in the kit | §17 | The doc is copied into repos that have no kit yet, and the prompt is what builds the kit |
 | The loop's flowchart and a walk-through of one change, which the verify-change skill also draws | §10, §22 | Same reason: the doc must stand alone where the skill does not exist yet |
-| Sections after Open items, which GUIDELINES §3.3 puts last | §22, §23 | They were added under the next free number, which GUIDELINES §3.4 prefers to a renumber |
+| Sections after Open items, which GUIDELINES §3.3 puts last | §22, §23, §24 | A new section takes the next free number, never a renumber (GUIDELINES §3.4), so it can follow Open items |
 
 | § | Section | Look here for |
 | --- | --- | --- |
@@ -85,6 +85,7 @@ project fills in; §15.1 lists where each one goes.
 | 21 | [Open items](#21-open-items) | Agent behaviours recorded but not rechecked against the tools' docs |
 | 22 | [A design change, end to end](#22-a-design-change-end-to-end) | One change walked from the ask to the commit: what the agent runs and what the person sees |
 | 23 | [The design brief: DESIGN.md](#23-the-design-brief-designmd) | What `DESIGN.md` holds, the table shapes the design check reads, how agents use it |
+| 24 | [Quality scores and taste](#24-quality-scores-and-taste) | The score beside each verdict: dimensions, anchors, weights, proxies, the bar; the person's taste moving anchors and weights; a recurring taste promoted to a floor |
 
 ---
 
@@ -310,6 +311,7 @@ The whole harness lives in a handful of paths. Only the task state is left out o
 | `.agents/hooks/untrusted.py` | PostToolUse injection flag (§12) | Yes |
 | `.agents/githooks/pre-commit` | The commit gate (§13) | Yes |
 | `.agents/evals/judgements.jsonl` | Every routed finding and false alarm, for calibration (§9) | Yes |
+| `.agents/evals/weights.json`, `anchors/`, `scores.jsonl` | Each judge's quality dimensions and weights, what a 0, 2 and 4 look like, every score and the person's taste (§24) | Yes |
 | `.claude/settings.json` | Claude Code's hooks and Read denies (§14.1) | Yes |
 | `.claude/skills`, `.claude/agents` | Symlinks to `../.agents/skills` and `../.agents/agents` | Yes |
 | `.codex/hooks.json`, `.codex/config.toml` | Codex's hooks and sandbox (§14.2) | Yes |
@@ -889,11 +891,14 @@ flowchart TD
 
 ### 10.1 Commands and exit status
 
+**Each command records one kind of fact, and its exit status tells the agent what to do next** — the table gives
+each command, and the exit codes follow it.
+
 | Command | Does |
 | --- | --- |
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
-| `review <judge> pass\|blocking [--note]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit |
+| `review <judge> pass\|blocking [--note] [--score d=n,… \| --scores-file F \| --out-of-scope]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit. With a score: every quality dimension 0–4 with a reason, capped by the proxies, weighted to 0–100 (§24) |
 | `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`), the built thing (`built`) or the diff of a change to a skill or an agent (`kit`); refuses a file the person said no to, unchanged |
 | `kitdiff <file>` | Writes the whole diff of the paths a `kit` gate covers — tracked changes and every new file in full — for the person to read before their `kit` yes |
 | `decline <file> "<their words>" --kind <kind> --about <area> --route <r> [--judge <agent>] [--edit <path>]` | Records the person's no to a draft — a brief, an option, a mock, a motion study, the copy, the built screen — or to a kit change's diff (`kit`), in the task and the judgements log, routed like a lesson (§9.2); a route of `none` needs no edit |
@@ -902,9 +907,15 @@ flowchart TD
 | `signoff "<text>"` | Records the person's yes on the target, in their words; refuses when nothing ran there or the code changed since |
 | `finding "<text>" --route <r> [--source person\|agent] [--about <area>] [--judge <j> --caught yes\|no] [--edit <path>] [--for-run N]` | Records a lesson in the task and the judgements log (§9.2); `--for-run N`, for a lesson recorded after run N on the target, closes the gap before that run (§9.4) |
 | `dispute <judge> "<text>" [--source agent\|person] [--about <area>] [--edit <path>]` | Records a judge's false alarm; its rubric changes in the same change |
+| `proxies [--judge J]` | Runs the judges' measured proxies and prints the dimensions each caps (§24.1) |
+| `taste "<words>" --judge J --dimension D [--anchor F] [--good\|--poor]` | The person's view: a new anchor, a Taste row in the judge's rubric, a miss that raises the weight; the second miss prompts a learned item (§24.3) |
+| `rate <file> --judge J --dimension D --score n` | The person's own score, which calibration compares with the judge's |
+| `weight --judge J --dimension D --set N` | The person sets a weight; the others are scaled to 100 |
+| `accept <judge> "<words>"` | The person accepts that review's score below the bar |
+| `audit <judge> [--scores-file F]` | Scores the whole product, runs the proxy, keeps the score and prints the trend (§24.2) |
 | `status` | Prints where the task stands — read this after compaction, not the chat |
 | `finish` | The hand-over gate: prints the Verified block's draft, then, on exit `1`, what is still open — a lesson whose route's edit is not in the change among it |
-| `calibration` | Agreement per judge; the person's yeses and noes per kind of draft; lessons per area, and a repeated area named (§9.4) |
+| `calibration` | Agreement per judge; the person's yeses and noes per kind of draft; lessons per area, and a repeated area named (§9.4); per dimension, the gap to the person's scores, the taste misses and the weights' history (§24.3) |
 | `doctor` | Checks the wiring: git hooks path, pre-commit executable, each adapter running both hooks and the stop reminder, the symlinks, every agent's Codex file, the hooks' and the loop's self-tests, the Read denies and the sandbox's hosts matching the settings file, `.cache/harness/` ignored, each check's program installed |
 | `unverified [--hook]` | Whether the tree changed since the last run; as the agents' Stop hook, asks once per tree (§14.1) |
 
@@ -1717,7 +1728,7 @@ gate 1's yes with `approve --kind mock|motion|copy`
 
 ## 21. Open items
 
-These claims about the coding agents have not been checked against the tools' current documentation. Each one closes
+These claims about the coding agents and the kit's own checks have not been checked against the tools' current documentation or by a repeated run. Each one closes
 when it is checked against that documentation, or seen in a session with that tool; its outcome then replaces the `[?]` in place.
 
 | Claim | Where | What would settle it |
@@ -1727,6 +1738,7 @@ when it is checked against that documentation, or seen in a session with that to
 | An edit to `.codex/` makes Codex ask for the project's hooks to be reviewed and trusted again — open; that hooks run only once trusted is settled `[TD]` | §14.2 | Codex's hooks docs, or editing `.codex/hooks.json` in a trusted project |
 | A Claude Code `Read(…)` deny binds the Read tool even when the PreToolUse hook fails — open | §14.1 | Claude Code's permissions docs, or a Read of a denied path with the guard broken |
 | Claude Code applies an edited hook only after the person reviews it in `/hooks` or restarts — open | §14.1 | Claude Code's hooks docs, or editing `.claude/settings.json` mid-session |
+| The ux check's timing self-tests (`ux_lint.py`, "40,000 literals on a line") hold while a long build runs beside them — open; one failed once and passed unchanged on the next three runs | §7.2 | Ten runs of the self-test during a long build; a failure under load widens the test's margin |
 
 ---
 
@@ -1794,3 +1806,75 @@ the design skills and the `ui-designer` read it before any UI work. Agents desig
 - **The template ships a demo** with real, passing values, so the checks have something to run on from the first
   commit. A new project writes its own over it, keeping the sections and the table shapes. The design-system skill
   carries a smaller starter (`references/templates/DESIGN.md`) for a repo that takes the skill without the template.
+
+---
+
+## 24. Quality scores and taste
+
+**A judge's verdict says whether anything is broken; a quality score says how good the work is, and the person's
+taste moves what good means.** A judge that only checks rules passes work the person finds poor — type that is
+correct by every rule and still unbalanced, spacing on the scale with no rhythm. So each judge returns two layers, and
+the person's feedback moves the second.
+
+| Layer | Answers | Outcome |
+| --- | --- | --- |
+| Floors | Is anything broken or skipped? | `pass` or `blocking`, from the rubric's items (§9.1) |
+| Quality | How good is it? | A score 0–100: each dimension scored 0–4 against anchored examples, times its weight |
+
+### 24.1 Dimensions, anchors and weights
+
+- **Each judge has four to six dimensions with weights that sum to 100** — for a UI judge, hierarchy, spacing,
+  consistency, balance, state and fit to the medium; for a code judge, correctness, simplicity, robustness, tests and
+  fit. They live in one committed file (`.agents/evals/weights.json` in the template), each weight held between a
+  floor and a ceiling (5 and 40) so no dimension vanishes or swamps the rest.
+- **Each dimension has anchors: what a 0, a 2 and a 4 look like, with real examples** — the person's references as
+  the 4s, the product's own work they found poor as the 1s. A score is the level the work sits nearest, with the
+  evidence beside it; an opinion with no anchor drifts from run to run.
+- **Measured proxies cap a dimension.** A script measures what it can — the sizes per screen, a pair's gap against
+  its group's, function length, sentence length, a refresh time — and a value out of its range caps that dimension at
+  2, whatever the reading says. The proxy keeps a score from being only an opinion; the anchors keep it from being only
+  a count.
+- **A review scores the change; an audit scores the product.** In a review, each proxy measures only what the change
+  touched: the changed sections and lines of a doc, the changed functions, the changed strings. On screens it measures
+  those whose sources changed, a shared component reaching every screen that uses it. So old debt in a file the change
+  passed through never caps it. A change that touches no screen gets no screen cap. The whole-product measure is the
+  audit's.
+- **A judge with nothing in scope is exempt from the bar, not from its verdict.** The loop checks the claim itself:
+  the judge's change-scope measure must find nothing, or the review is scored as any other.
+- **A stale measure caps nothing.** Results older than the newest changed file, from a run that failed, or of the other
+  scope are set aside with a warning; the review runs the proxy again first.
+- **The score is Σ weight × score ÷ 4**, over the weights of the dimensions that apply — and at least 60 % of the weight
+  must apply, or the score is refused: a score over a sliver of the weight says little.
+
+### 24.2 The bar
+
+- **The hand-over needs the floors to pass and each judge's score to reach the project's bar** (75 by default), or the
+  person to accept the lower score by name for that review. Below the bar, the judge says what would raise each
+  dimension at 2 or under.
+- **An audit scores the whole product, not only the change**, and keeps each score in a committed log, so the trend
+  shows and old debt surfaces.
+
+### 24.3 Taste
+
+- **The person's aesthetic feedback always moves what good looks like.** Their words, and an image where they have
+  one, become a new anchor on that dimension, and a row in the judge's Taste table, which the judge reads in every
+  review.
+- **A flag on a dimension the judge scored 3 or 4 is a miss, and a miss raises that dimension's weight by 20 %**; the
+  others are scaled to keep 100, within the bounds, and each change is logged with the person's words. The person can
+  also set a weight directly, or score a file themselves, which calibration compares with the judge's score.
+- **A taste that recurs becomes a floor.** The second miss on one dimension prompts a learned item (§9.3) in the
+  judge's rubric, written by the agent and agreed by the person: a lesson that keeps coming back should block, not
+  only lower a score. The prompt comes once per dimension, and not at all once a learned item names it.
+- **Calibration adds, per dimension, the mean gap between the judge's score and the person's, the misses on taste and
+  the weights' history** (§9.4). A judge whose gap grows on a dimension has its anchors re-read first.
+- **Only the person records the person's words.** The guard asks before the commands that record their yes, their no,
+  sign-off, acceptance, taste, a weight or a rating, and before any other write to the evals; the person answers, and the agent
+  never rewords a command to get round the ask (§11). The loop writes the evals atomically, under a lock, so two judges
+  recording at once lose nothing.
+
+| Alternative | Why it does not work |
+| --- | --- |
+| A verdict alone | Rules catch what is broken, never what is merely poor; the person keeps finding what the judge passed |
+| A score with no anchors | Each run scores from its own idea of good; two runs disagree, and nothing the person says changes the next |
+| Fixed weights | The person's taste never reaches the score; the same miss recurs at the same weight |
+| Taste kept in the chat or an agent's memory | The next judge never sees it (§19) |

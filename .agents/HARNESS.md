@@ -31,6 +31,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 | 9.1 | [The design gates](#91-the-design-gates) | Where the gates are defined, the gates' paths (`GATES`), how this repo records each yes |
 | 10 | [The stop reminder](#10-the-stop-reminder) | The Stop hook: unchecked work, asked once per tree |
 | 11 | [Decisions](#11-decisions) | Why the harness is built this way, and the alternatives that do not work |
+| 12 | [Quality, taste and weights](#12-quality-taste-and-weights) | The score beside each verdict, its dimensions, anchors, proxies and bar; the person's taste moving the anchors, the Taste table and the weights |
 
 ---
 
@@ -134,6 +135,8 @@ what to write, and the corrected call goes on:
 | `ASK_COMMANDS` for a web app (`WEB_PMS`: npm, pnpm, yarn, bun): updating snapshots or visual baselines (`playwright* --update-snapshots` or `-u`; a package manager's `--update-snapshots`, `-u` or `--update`; `vitest* -u`); installing Playwright's browsers or their system packages (`playwright* install`, `install-deps`); a scaffolder (`npm create` or `init`, `pnpm`, `yarn` or `bun create`, `create-vite*`, `storybook* init`, `add`, `upgrade` or `automigrate`); `--host` on `vite`, `storybook*` or a package manager; a global install (`-g` alone or in a cluster, `--global`, `--location global`, `yarn global`); a deploy (`netlify* deploy`, every `vercel*` call — it deploys when called bare — `wrangler* deploy` or `publish`, `firebase* deploy`, `gh-pages*`, `chromatic*`). A program with `*` takes npx's `@version` and package names; a word is matched anywhere, so `npm run init` asks too | A baseline is a new look, the person's to accept; browsers are hundreds of megabytes outside the repo; a scaffolder writes over files; the rest reach past the machine |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
+| Writing `.agents/evals/` by any tool but `verify.py` — the weights, anchors, scores and judgements | They hold the person's words and the judges' scores; `verify.py` writes them by the command that records each (§12.1) |
+| `verify.py approve`, `decline`, `signoff`, `accept`, `taste`, `weight` and `rate` | They record the person's own words — `decline` blocks approving that file for good; the person answers the prompt (§12.3). `dispute` passes: it records a judge's false alarm, the agent's own call |
 | Creating a skill or agent — its prompt names the scope it carries, so the person confirms it was theirs; from the shell, where the content cannot be read — a new skill's file or folder, or a copy into the skills or agents folder — it asks the question. With no scope, it is denied first (§2.2) | Its scope, `portable` or `project`, is the person's choice ([AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) |
 
 - **For Codex an ask is a deny that says to ask the person** — Codex parses a hook's `ask` but does not act on it.
@@ -196,20 +199,22 @@ what to write, and the corrected call goes on:
 - **Every check exits 1 over its baseline** — a count over it, a test that fails.
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
-  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. The judgements log
-  is none of them: a yes or a lesson recorded after a review appends to it and leaves the review standing.
+  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. The records the loop
+  writes itself, in `.agents/evals/`, are none of them: a yes, a lesson or a score recorded after a review appends to
+  them, is left out of every fingerprint and leaves the review standing (§12.4).
 - **Three failures in a row of a counted check — `"counts": True` in `CHECKS`, the build and the tests — exit 3.** A
   lint, a doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
   `references/rubric.md` plus the items learned here, in its file: the Verdict rule, the evidence each result
   needs (a result without evidence is unsure), R-items one per step of its Procedure, and the items learned since. Its
-  report opens with `Verdict: pass | blocking`; `review` records that word.
+  report opens with `Verdict: pass | blocking`; `review` records that word. It ends with the Score block — each
+  quality dimension 0–4 with its evidence — which `review --score` records (§12).
 
 ---
 
 ## 5. The hand-over gate
 
-`verify.py finish` prints the Verified block's draft and exits 1 while anything is open:
+**`verify.py finish` exits 1 while any row below is open, and prints the Verified block's draft.**
 
 | Refuses while | Why |
 | --- | --- |
@@ -219,6 +224,7 @@ what to write, and the corrected call goes on:
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
 | A lesson — a finding, a no, a false alarm — whose route's edit is not in the change, made after the lesson was recorded or named with `--edit`; a `rubric` lesson that added no learned item to its agent's rubric | Written down and changed nothing ([AGENT_HARNESS §9.2](../docs/AGENT_HARNESS.md#92-recording-what-was-learned)) |
 | A skill or an agent changed with no `kit` yes from the person on its diff, or changed since that yes | A tool's permission mode may answer the guard's ask without the person; this holds whatever the mode ([AGENT_HARNESS §11.3](../docs/AGENT_HARNESS.md#113-what-to-gate)) |
+| A judge's quality score missing, or under `QUALITY_BAR` with no acceptance from the person | §12.4 |
 | Two runs on the target with changed code and no finding or decision recorded between, nor one recorded later with `--for-run` naming the later run | A change after the person looked almost always follows something they saw — a lesson for the judgements log ([AGENT_HARNESS §9.4](../docs/AGENT_HARNESS.md#94-the-judgements-log-and-calibration)) |
 | A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft; neither waives the kit gate | §9 |
 
@@ -226,7 +232,8 @@ what to write, and the corrected call goes on:
 ## Verified
 - Base: <commit> + working tree, <n> changed file(s)
 - <Check>: PASS — <detail>
-- Review: <judge> pass — <note>
+- Review: <judge> pass — quality <n>/100 (bar <bar>)
+- Accepted below the bar by the person: <judge> at <n>/100 — <their words>
 - Approved by the person: <kind> <file>
 - Target: <build> on <where>; health check exit <n> — <what was read>
 - Decided by the person: <text>
@@ -295,6 +302,8 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 
 ## 9. The person in the loop
 
+**Each point below needs the person's own words, recorded by the command beside it.**
+
 | Point | What the person does | How it is recorded |
 | --- | --- | --- |
 | A new flow, feature or screen | Says yes to its UX brief — the task, the flow, the states and the behaviour — before its mock is drafted (the `ux-designer` skill) | `approve <flow>_ux<n>.md --kind ux` — recorded, and required only where `GATES` lists `ux` |
@@ -310,6 +319,9 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 | Anything the guard asks about | Approves the call, or runs it | The tool's own prompt |
 | A judge flags what the person has settled | Decides | `verify.py decision "<what>"` — judges read it in `status` |
 | The change on the target | Judges the look, feel, motion and words | `verify.py signoff "<their words>"`, kept against the code as it ran; what they report wrong, `verify.py finding` |
+| A look, a word or a flow they find good or poor | Says so, with an image where they have one | `verify.py taste "<their words>" --judge <j> --dimension <d> [--anchor <file>]` (§12.3) |
+| A judge's quality score under the bar | Accepts it, or asks for the work to be raised | `verify.py accept <judge> "<their words>"` |
+| How much a dimension counts | Sets its weight, or scores a file themselves | `verify.py weight …`, `verify.py rate …` (§12.3) |
 
 - **Only the person's own words name an approved file** — a request, a silence or a judge's pass is not a yes.
 - **An approval keeps the file's hash**: `status` and `finish` say when the file changed after the yes.
@@ -338,6 +350,8 @@ progress. It asks once per tree: the next stop on the same tree goes through.
 
 ## 11. Decisions
 
+**Each decision below beats the alternative in its last column, for the reason beside it.**
+
 | Decision | Why | Alternatives that don't work, and why |
 | --- | --- | --- |
 | One `project.py` holds the project's facts for every script | A designer fills in one commented file; the guard, the hook and the loop cannot drift apart | Lists repeated in each script — one copy goes stale and sets the real policy |
@@ -346,3 +360,125 @@ progress. It asks once per tree: the next stop on the same tree goes through.
 | One judge's pass stands until its own files change | A doc fix does not send the code reviewer round again | One tree fingerprint for every judge — every edit re-asks every judge |
 | Three failures in a row stop the loop | A third failure means the plan is wrong | No limit — an agent keeps editing the same mistake |
 | `judgements.jsonl` is committed | A lesson lasts beyond one person's machine and is calibrated against | Per-user memory — no judge, no other agent, no other person sees it |
+
+---
+
+## 12. Quality, taste and weights
+
+**Every judge returns a quality score, 0–100, beside its pass or blocking verdict, and `verify.py finish` holds it to
+`QUALITY_BAR` (75) unless the person accepts the lower score by name.** The verdict is the floor: is anything broken
+or skipped. The score is how good the work is, against examples of what the person calls good, and the person's
+feedback moves both the examples and the weights. The generic design: [AGENT_HARNESS §24](../docs/AGENT_HARNESS.md#24-quality-scores-and-taste).
+
+### 12.1 Dimensions, weights and anchors
+
+**Each judge scores four to six dimensions, weighted to 100, each against its anchors.**
+
+| Judge | Dimensions, with their starting weights | Rubric's Quality section |
+| --- | --- | --- |
+| `ui-designer` | `hierarchy` 20, `spacing` 20, `consistency` 15, `balance` 15, `state` 15, `medium` 15 | [UI_REVIEW_RUBRIC §5](skills/ui-designer/references/rubric.md#5-quality) |
+| `ux-designer` | `flow` 25, `learnability` 20, `errors` 20, `feedback` 15, `model` 20 | [UX_REVIEW_RUBRIC §5](skills/ux-designer/references/rubric.md#5-quality) |
+| `code-reviewer` | `correctness` 25, `simplicity` 20, `robustness` 20, `tests` 20, `fit` 15 | [code-reviewer → Quality](rubrics/code-reviewer.md#quality) |
+| `doc-reviewer` | `answer-first` 25, `accuracy` 25, `concise` 20, `complete` 15, `plain` 15 | [doc-reviewer → Quality](rubrics/doc-reviewer.md#quality) |
+| `ux-content-writer` | `clear` 30, `short` 20, `human` 20, `next-step` 30 | [UX_CONTENT_RUBRIC §5](skills/ux-content/references/rubric.md#5-quality) |
+
+- **[`evals/weights.json`](evals/weights.json) holds the weights** — per judge they sum to 100, each 5–40 — and
+  `history`, every change with the person's words. `verify.py doctor` checks the sums, the bounds and that every
+  dimension has its anchors.
+- **[`evals/anchors/<judge>/<dimension>.md`](evals/anchors/) holds what a 0, 2 and 4 look like**, with real examples;
+  images in `evals/anchors/img/`, kept small. The kit ships each file with written examples — public design systems
+  for the `ui-designer`'s 4s — and no images; the person's own references replace them as `verify.py taste` adds them
+  under From the person.
+- **`evals/scores.jsonl` keeps every score** — `review` and `audit` scores, the person's
+  ratings (`rate`) and taste (`taste`) — committed, like `judgements.jsonl`.
+- **Only `verify.py` writes `.agents/evals/`, and each write is whole.** `task.json`, `weights.json`, `scores.jsonl`
+  and `judgements.jsonl` are written to a temp file and `os.replace`d over, under an `fcntl.flock` kept in
+  `.cache/harness/locks/`, so two judges recording at once never tear a file or lose a row. The guard asks the person
+  before any other edit or shell write to `.agents/evals/` (§2).
+- **A judge with dimensions and no paths is asked, never named by `run`** — the `ux-designer` and the
+  `ux-content-writer`; once it has reviewed in a task, `finish` holds its score to the bar too.
+
+### 12.2 Scoring a review
+
+- **Each dimension 0–4 against its anchors, with its evidence; `na` leaves the weighting.** `verify.py review <judge>
+  pass|blocking --score dim=n,… --note "dim: why; dim: why"`, or `--scores-file` with `{dim: {"score": n, "reason":
+  "…"}}`. A review that scores must score every dimension and give each a reason; `review` refuses otherwise.
+- **At least 60 % of the judge's weight is scored, or `review` and `audit` refuse the score.** `na` is for a dimension
+  that cannot apply — no screen moves, so no motion — not for one the judge did not read; a score over a sliver of the
+  weight says little.
+- **The score is Σ weight × score ÷ 4 over the weights of the dimensions scored**, rounded to a whole number.
+- **Score each dimension at the anchor it sits nearest, with its evidence.** Use 1 or 3 between two anchors. The
+  evidence is a quoted line, a command's output or a measured value, and the anchor held against. A score without
+  evidence is no higher than 2. Read the anchors, the Taste rows and `verify.py proxies --judge <judge>` first; the
+  person's own examples outrank the anchors' written ones.
+- **A review scores the change; an audit scores the product.** Run bare, each proxy measures only what the change
+  touched against HEAD. With `--all`, it measures the whole product. `review` runs the judge's proxy bare first, and
+  `--no-proxy` skips the run. It caps only from metrics in the change's scope. So debt the change never touched — a
+  long sentence in an unchanged section, a screen it never drew — never caps its review. When the change touches no UI
+  source, no UI cap applies. `verify.py audit <judge>` runs the proxy with `--all` and keeps the score in
+  `scores.jsonl`.
+#### Proxies
+
+- **A measured proxy caps its dimension at 2.** Each judge's proxy, `PROXIES` in `project.py`, writes
+  `.cache/harness/proxies/<judge>.json` as `{"judge", "at", "scope": "change"|"product", "metrics": [{"dimension",
+  "name", "value", "range", "ok", "where"}]}`; any metric with `ok` false caps its dimension. `verify.py proxies
+  [--judge J] [--all]` runs them and prints the caps. A command still in `<…>`, or whose script is missing, is "not
+  built yet": the dimension is scored on reading alone, and `doctor` notes it.
+- **A judge with nothing in scope is exempt from the bar.** `review <judge> pass|blocking --out-of-scope` records the
+  verdict with no score. It is refused unless the judge's proxy, run on this tree, shows its measured scope empty: no
+  screen, widget, token or route source; no doc line; no changed function; no changed string. It prints that scope.
+  `finish` then says "out of scope — not held to the bar" and still needs the verdict. A judge in scope keeps
+  the 60 % floor and the bar.
+- **Stale proxy results cap nothing.** Results older than the newest changed file, from a run that exited non-zero
+  (kept beside them in `<judge>.run.json`), or of the other scope are set aside with a warning, and the dimension is
+  scored on reading alone until the proxy runs again.
+- **The kit's proxies, in `PROXIES`:**
+
+  | Judge | Script | Dimensions it can cap |
+  | --- | --- | --- |
+  | `ui-designer`, `ux-designer` | The project's screen audit, a placeholder until it is built — every screen drawn by the product's own code and measured, one run writing both judges' JSON ([UI_REVIEW_RUBRIC §6](skills/ui-designer/references/rubric.md#6-a-measured-screen-audit)) | `hierarchy`, `spacing`, `consistency`, `balance`, `state`, `medium`; `flow` |
+  | `code-reviewer` | [`code_proxies.py`](skills/verify-change/scripts/code_proxies.py) — the changed functions against HEAD in `CODE_LANGS` (C, C++, Python, JavaScript, TypeScript), `--all` every function; new warnings in the newest build log; the sizes `SIZE_COMMAND` reports, when set; the changed sources no test touches, leaving out `TARGET_ONLY_PATHS` | `simplicity`, `fit`, `robustness`, `tests` |
+  | `doc-reviewer` | [`doc_proxies.py`](skills/docs-authoring-and-sync/scripts/doc_proxies.py) — the changed sections and lines of the changed docs, `--all` every doc whole | `plain`, `answer-first`, `accuracy`, `concise` |
+  | `ux-content-writer` | [`ux_proxies.py`](skills/ux-content/scripts/ux_proxies.py) — the strings on the changed lines of the changed UI files, `--all` every one; each against its element's room in `UX_STRINGS["rooms"]` | `short`, `clear`, `human`, `next-step` |
+
+- **Below the bar, `review` lists the dimensions at 2 or under, highest weight first**, and the judge says what would
+  raise each.
+- **`verify.py audit <judge> --scores-file F [--note TEXT]`** scores the whole product — every screen, component or doc
+  — runs the proxy with `--all`, and keeps the score in `scores.jsonl`, printing the trend, so old debt surfaces.
+
+### 12.3 The person's taste
+
+**The person's words move the anchors, the weights and what passes the bar, through the commands they answer.**
+
+| The person | Command | What it does |
+| --- | --- | --- |
+| Says what looks good or poor on a dimension | `verify.py taste "<their words>" --judge J --dimension D [--anchor <file>] [--good\|--poor]` | Appends their words, and the image copied to `anchors/img/`, to that dimension's anchors under From the person; adds a `T<n>` row to the Taste table in [`rubrics/<judge>.md`](rubrics/); logs it in `scores.jsonl`. **Poor (the default) on a dimension the judge last scored 3 or 4 is a miss**: its weight rises by 20 %, the others are scaled to keep 100, each held 5–40, and the change is logged with their words |
+| Flags the same dimension a second time as a miss | (`taste` prints it, once per dimension) | The prompt to promote the lesson to a learned floor item: the agent writes `L<n>` in the judge's Learned table — what in a diff predicts it, naming the Taste rows it comes from — shows it to the person, and records their yes with `verify.py decision "promote taste on <judge> <dim> to L<n>: <their words>"`. The prompt prints once per dimension, and never once a Learned row names that dimension's Taste rows or a Taste row on it says `promoted to L<n>`. A lesson that keeps recurring blocks, rather than only lowering the score |
+| Scores a file themselves | `verify.py rate <file> --judge J --dimension D --score 0-4` | Kept beside the judge's last score on D; calibration shows the gap |
+| Sets a weight | `verify.py weight --judge J --dimension D --set N [--words "<why>"]` | That weight set (5–40), the others scaled to 100, logged |
+| Accepts a score below the bar | `verify.py accept <judge> "<their words>"` | `finish` passes that judge for the review it was given on; a later review needs a new one |
+
+- **The judge reads the Taste table in every review**, and scores a flagged dimension no higher than the person's
+  example until the work changes.
+- **Only the person's words go into `taste`, `rate`, `weight` and `accept`** — an agent's view is a `finding` or a
+  `dispute`; a request or a silence is not taste.
+- **The guard asks the person before `verify.py approve`, `decline`, `signoff`, `accept`, `taste`, `weight` and
+  `rate`.** These commands record their words. The person answers the prompt; the agent never rewords the command to
+  get round it.
+  `review`, `finding`, `dispute`, `decision`, `run`, `status`, `finish`, `proxies` and `audit` are the loop's own and
+  pass; `dispute` records a judge's false alarm, the agent's own call.
+- **`verify.py calibration`** adds, per judge and dimension, the weight, the judge's last score, the person's ratings
+  and the mean gap (judge minus person, each rating against the judge's last score before it), the taste misses, and
+  every weight change with its words.
+
+### 12.4 What `finish` adds
+
+**`finish` holds each judge's quality score to the bar, beside its verdict.**
+
+| Refuses while | Why |
+| --- | --- |
+| A judge with dimensions that the files call for, or that reviewed this task, passed with no quality score | The verdict alone passed work the person found poor |
+| Its quality score is under `QUALITY_BAR` and the person has not accepted that review's score | The bar is the person's; only they lower it, by name |
+
+- **The evals never make a run or a pass stale.** The loop writes `.agents/evals/` itself — a finding, a scored
+  review, a taste — so the tree's and each judge's fingerprints leave it out (§4).

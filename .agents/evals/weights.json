@@ -1,0 +1,116 @@
+{
+  "about": "Each judge's quality dimensions and their weights, summing to 100 per judge; each weight stays between 5 and 40. verify.py taste raises a dimension the judge scored 3 or 4 that the person flagged by 20 % and renormalises the rest; verify.py weight sets one directly. Every change is in history with the person's words (.agents/HARNESS.md §12).",
+  "judges": {
+    "ui-designer": {
+      "hierarchy": {
+        "label": "Hierarchy, type pairing",
+        "weight": 20
+      },
+      "spacing": {
+        "label": "Spacing rhythm, grouping",
+        "weight": 20
+      },
+      "consistency": {
+        "label": "Consistency across screens",
+        "weight": 15
+      },
+      "balance": {
+        "label": "Balance, alignment, white space",
+        "weight": 15
+      },
+      "state": {
+        "label": "Clarity of state and feedback",
+        "weight": 15
+      },
+      "medium": {
+        "label": "Fit to the medium: the display, its input and its limits",
+        "weight": 15
+      }
+    },
+    "ux-designer": {
+      "flow": {
+        "label": "Task flow, fewest steps",
+        "weight": 25
+      },
+      "learnability": {
+        "label": "Learnability, the next step obvious",
+        "weight": 20
+      },
+      "errors": {
+        "label": "Error prevention and recovery",
+        "weight": 20
+      },
+      "feedback": {
+        "label": "Feedback and status",
+        "weight": 15
+      },
+      "model": {
+        "label": "Consistency with the product's model",
+        "weight": 20
+      }
+    },
+    "code-reviewer": {
+      "correctness": {
+        "label": "Correctness beyond the tests, edge cases",
+        "weight": 25
+      },
+      "simplicity": {
+        "label": "Simplicity, smallest change",
+        "weight": 20
+      },
+      "robustness": {
+        "label": "Robustness: error paths, resources and limits of the platform",
+        "weight": 20
+      },
+      "tests": {
+        "label": "Test quality, a test that fails without the fix",
+        "weight": 20
+      },
+      "fit": {
+        "label": "Fit with the codebase",
+        "weight": 15
+      }
+    },
+    "doc-reviewer": {
+      "answer-first": {
+        "label": "Answer first, findable",
+        "weight": 25
+      },
+      "accuracy": {
+        "label": "Accurate to code and sources",
+        "weight": 25
+      },
+      "concise": {
+        "label": "Concise, one home per rule",
+        "weight": 20
+      },
+      "complete": {
+        "label": "Complete for its reader",
+        "weight": 15
+      },
+      "plain": {
+        "label": "Plain language",
+        "weight": 15
+      }
+    },
+    "ux-content-writer": {
+      "clear": {
+        "label": "Clear, one meaning",
+        "weight": 30
+      },
+      "short": {
+        "label": "Short",
+        "weight": 20
+      },
+      "human": {
+        "label": "Human, the product's voice",
+        "weight": 20
+      },
+      "next-step": {
+        "label": "Says what happened and what to do",
+        "weight": 30
+      }
+    }
+  },
+  "history": []
+}

@@ -6,7 +6,16 @@ docs/AGENT_HARNESS.md §10).
 
     verify.py start "<task>"          # a new task: state reset, the last one kept in history/
     verify.py run [--only docs,harness,design,<the project's checks>]
-    verify.py review <judge> pass|blocking [--note TEXT]
+    verify.py review <judge> pass|blocking [--note TEXT] [--score dim=0-4|na,... | --scores-file F | --out-of-scope]
+                      [--no-proxy]   # --out-of-scope: refused unless the judge's proxy shows its scope empty
+                      # with a score, --note gives a reason per dimension: "dim: why; dim: why"; the judge's proxy
+                      # runs first on the change, and caps only from metrics in the change's scope
+    verify.py proxies [--judge J] [--all]   # run the measured proxies on the change (--all: the product), print caps
+    verify.py accept <judge> "<the person's words>"   # they accept a quality score below the bar
+    verify.py taste "<the person's words>" --judge J --dimension D [--anchor FILE] [--good|--poor]
+    verify.py rate <file> --judge J --dimension D --score 0-4 [--note TEXT]   # the person's own score
+    verify.py weight --judge J --dimension D --set N [--words TEXT]           # the person sets a weight
+    verify.py audit <judge> [--scores-file F] [--note TEXT] [--no-proxy]   # the whole product, in scores.jsonl
     verify.py approve <file> --kind ux|mock|motion|copy|built|kit [--note TEXT]   # the person's yes, naming the file
     verify.py decision "<what the person decided>"   # settled for this task: the judges read it in `status`
     verify.py target --where "<where it ran>" --build "<which build>" [--health-exit N] [--note TEXT]   # every run
@@ -27,6 +36,11 @@ State is .cache/harness/task.json (git-ignored). `finding`, `decline`, `dispute`
 .agents/evals/judgements.jsonl (committed), which `calibration` reads — never put a token, a key, a password or a
 person's data in their text. `finish` refuses a lesson whose route's edit is not in the change — made after it was
 recorded, or named with --edit — and a rubric lesson that added no learned item to that agent's rubric.
+The quality layer keeps its weights in .agents/evals/weights.json, the scores, ratings and taste in
+.agents/evals/scores.jsonl and the anchors in .agents/evals/anchors/ (committed; .agents/HARNESS.md §12). Every write
+to task.json, weights.json, scores.jsonl and judgements.jsonl goes to a temp file, os.replace'd over, under an
+fcntl.flock kept in .cache/harness/locks/. The guard asks the person before the commands that record their words —
+approve, decline, signoff, accept, taste, weight, rate.
 
 Exit status: 0 pass, 1 a check failed or `finish` found something open, 2 usage, 3 the retry limit is reached — stop
 and ask the person.
@@ -43,10 +57,17 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    import fcntl  # the writes' lock; absent on Windows, where the writes are still atomic
+except ImportError:  # pragma: no cover
+    fcntl = None
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / ".agents"))
@@ -55,6 +76,23 @@ import project  # noqa: E402 — the project's facts: .agents/project.py
 STATE = ROOT / ".cache/harness"
 TASK = STATE / "task.json"
 JUDGEMENTS = ROOT / ".agents/evals/judgements.jsonl"
+# The quality layer (.agents/HARNESS.md §12): weights per judge and dimension, the scores and the person's taste,
+# the anchors, and each judge's measured proxies.
+EVALS = ".agents/evals/"
+WEIGHTS = ROOT / EVALS / "weights.json"
+SCORES = ROOT / EVALS / "scores.jsonl"
+ANCHORS = ROOT / EVALS / "anchors"
+PROXY_DIR = STATE / "proxies"
+QUALITY_BAR = getattr(project, "QUALITY_BAR", 75)
+PROXIES = getattr(project, "PROXIES", {})
+SCORE_MAX = 4         # each dimension 0–4 against its anchors
+PROXY_CAP = 2         # a measured proxy out of its range caps its dimension here
+WEIGHT_MIN, WEIGHT_MAX = 5, 40
+MISS_RAISE = 0.2      # a taste miss raises its dimension's weight by 20 %
+OUT_OF_SCOPE = "out of scope"  # a review whose judge's measured scope the change never touches: no score, no bar
+NA_FLOOR = 0.6        # at least 60 % of a judge's weight scored, or the review's score is refused
+SCOPE_CHANGE, SCOPE_PRODUCT = "change", "product"  # a review measures the change; an audit the whole product
+PROXY_PRODUCT_FLAG = "--all"  # every proxy script's switch from the change to the whole product
 MAX_FAILURES = 3
 SKILLS = ".agents/skills"
 DOC_SCRIPTS = f"{SKILLS}/docs-authoring-and-sync/scripts"
@@ -96,6 +134,17 @@ def is_design(f: str) -> bool:
     return f == project.DESIGN_FILE or project.matches(f, project.UI_PATHS + project.TOKEN_FILES)
 
 
+def load_weights() -> dict:
+    """Each judge's quality dimensions with their labels and weights, and the history of every change to them."""
+    try:
+        data = json.loads(WEIGHTS.read_text())
+    except (OSError, ValueError):
+        data = {}
+    data.setdefault("judges", {})
+    data.setdefault("history", [])
+    return data
+
+
 JUDGES = {
     # Docs describe the code, and the kit is kept true like a doc: both call for the doc-reviewer.
     "doc-reviewer": lambda f: is_kit_or_doc(f) or project.is_code(f),
@@ -103,6 +152,9 @@ JUDGES = {
     "ui-designer": lambda f: is_design(f),
     **{name: (lambda f, p=paths: project.matches(f, p)) for name, paths in project.JUDGES.items()},
 }
+# A judge with quality dimensions and no paths — the ux-designer, the ux-content-writer — is asked, never named by
+# `run`; `review` records it, and `finish` holds its score to the bar once it has reviewed in this task.
+JUDGES.update({name: (lambda f: False) for name in load_weights()["judges"] if name not in JUDGES})
 
 
 def judge_ready(name: str) -> bool:
@@ -125,6 +177,12 @@ def changed_files() -> list[str]:
     return sorted(set(files))
 
 
+def watched(files: list[str]) -> list[str]:
+    """The changed files a fingerprint covers: all but the evals, which the loop itself writes — a finding, a scored
+    review or the person's taste never makes the last run or a judge's pass stale."""
+    return [f for f in files if not f.startswith(EVALS)]
+
+
 def content_hash(paths, salt: str = "") -> str:
     h = hashlib.sha256(salt.encode())
     for f in paths:
@@ -135,12 +193,14 @@ def content_hash(paths, salt: str = "") -> str:
 
 def judge_fingerprint(judge: str, files: list[str] | None = None) -> str:
     """The content of the changed files a judge reads, so a change elsewhere leaves its review standing."""
-    return content_hash([f for f in (files if files is not None else changed_files()) if JUDGES[judge](f)], judge)
+    files = watched(files if files is not None else changed_files())
+    return content_hash([f for f in files if JUDGES[judge](f)], judge)
 
 
 def tree_fingerprint() -> str:
-    """HEAD and every changed file's content — the same whether a file is staged, unstaged or untracked."""
-    return content_hash(changed_files(), git("rev-parse", "HEAD"))
+    """HEAD and every changed file's content but the evals' — the same whether a file is staged, unstaged or
+    untracked."""
+    return content_hash(watched(changed_files()), git("rev-parse", "HEAD"))
 
 
 def deployed_fingerprint() -> str:
@@ -189,6 +249,66 @@ def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+# --- Writes: atomic, under a lock — two agents recording at once never tear a file or lose a row ------------------
+
+LOCKS = STATE / "locks"
+_HELD: dict[str, int] = {}  # the locks this process holds, so a nested take of the same one does not wait on itself
+
+
+@contextmanager
+def locked(path: Path):
+    """An exclusive fcntl.flock for one file's writers, its lock file in .cache/harness/locks/ (git-ignored), so the
+    committed folders hold no lock files. Re-entrant within a process; on a platform with no fcntl, no lock."""
+    key = str(path.resolve())
+    if key in _HELD or fcntl is None:
+        _HELD[key] = _HELD.get(key, 0) + 1
+        try:
+            yield
+        finally:
+            _HELD[key] -= 1
+            if not _HELD[key]:
+                del _HELD[key]
+        return
+    LOCKS.mkdir(parents=True, exist_ok=True)
+    name = f"{path.name}.{hashlib.sha256(key.encode()).hexdigest()[:8]}.lock"
+    with open(LOCKS / name, "a") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        _HELD[key] = 1
+        try:
+            yield
+        finally:
+            del _HELD[key]
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def write_atomic(path: Path, text: str) -> None:
+    """Write a temp file beside `path` and os.replace it over, under the file's lock: a reader sees the old file or
+    the new one, never half of either. The file keeps its mode."""
+    with locked(path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+            if path.is_file():
+                shutil.copymode(path, tmp)
+            else:
+                os.chmod(tmp, 0o644)
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+
+def append_line(path: Path, line: str) -> None:
+    """One JSON line added to a log, the whole file rewritten atomically under its lock."""
+    with locked(path):
+        old = path.read_text(encoding="utf-8") if path.is_file() else ""
+        write_atomic(path, old + ("" if not old or old.endswith("\n") else "\n") + line + "\n")
+
+
 def load() -> dict:
     try:
         return json.loads(TASK.read_text())
@@ -197,8 +317,16 @@ def load() -> dict:
 
 
 def save(task: dict) -> None:
-    STATE.mkdir(parents=True, exist_ok=True)
-    TASK.write_text(json.dumps(task, indent=2))
+    write_atomic(TASK, json.dumps(task, indent=2))
+
+
+@contextmanager
+def task_update(name: str = "(unnamed)"):
+    """The task read, changed and saved under its lock — a review recorded while a run is under way is kept."""
+    with locked(TASK):
+        task = load() or new_task(name)
+        yield task
+        save(task)
 
 
 def new_task(name: str) -> dict:
@@ -771,12 +899,11 @@ def broken_invariants() -> list[str]:
 # --- The commands ------------------------------------------------------------------------------------------------
 
 def cmd_start(args: argparse.Namespace) -> int:
-    old = load()
-    if old.get("runs"):
-        hist = STATE / "history"
-        hist.mkdir(parents=True, exist_ok=True)
-        (hist / f"{old['started'].replace(':', '')}.json").write_text(json.dumps(old, indent=2))
-    save(new_task(args.task))
+    with locked(TASK):
+        old = load()
+        if old.get("runs"):
+            write_atomic(STATE / "history" / f"{old['started'].replace(':', '')}.json", json.dumps(old, indent=2))
+        save(new_task(args.task))
     print(f"task started: {args.task} — the retry limit is {MAX_FAILURES}")
     gated = [what for what, paths, kinds in project.GATES if paths and set(kinds) & set(KINDS_BEFORE)]
     if gated:
@@ -812,13 +939,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"  debug     ON    a debug marker in the tree ({len(hits)} line(s)) — remove it before finish")
     ok = all(r["ok"] for r in results.values())
     counted = any(not results[c]["ok"] for c in COUNTED if c in results)
-    task["failures"] = 0 if ok else task["failures"] + 1 if counted else task["failures"]
-    task["runs"].append({"n": n, "at": now(), "ok": ok,
-                         "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
-                         "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
-                         "debug": bool(hits), "partial": bool(only),
-                         "seconds": round(time.time() - t0)})
-    save(task)
+    # Read again under the lock: a review or a finding recorded while the checks ran is kept.
+    with task_update(task["task"]) as task:
+        task["failures"] = 0 if ok else task["failures"] + 1 if counted else task["failures"]
+        task["runs"].append({"n": n, "at": now(), "ok": ok,
+                             "checks": {c: {k: v for k, v in r.items() if k != "tail"} for c, r in results.items()},
+                             "files": files, "gated": gated_contents(files), "fingerprint": tree_fingerprint(),
+                             "debug": bool(hits), "partial": bool(only),
+                             "seconds": round(time.time() - t0)})
     print(f"run {n}: {'PASS' if ok else 'FAIL'} in {time.time() - t0:.0f} s — logs in {run_dir.relative_to(ROOT)}")
     if not ok and not counted:
         print(f"failed, not counted — only {', '.join(sorted(COUNTED)) or 'no check'} count toward the retry limit "
@@ -844,16 +972,61 @@ def stop_or_retry(task: dict) -> int:
 
 
 def cmd_review(args: argparse.Namespace) -> int:
-    task = load() or new_task("(unnamed)")
-    task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note,
-                                   "fingerprint": judge_fingerprint(args.judge), "at": now()}
-    save(task)  # a blocking verdict is fixed and asked again; it does not count toward the retry limit
+    dims = load_weights()["judges"].get(args.judge, {})
+    scored = None
+    if args.out_of_scope:
+        return review_out_of_scope(args, dims)
+    if args.score or args.scores_file:
+        if not dims:
+            print(f"review: {args.judge} has no quality dimensions in {WEIGHTS.relative_to(ROOT)}", file=sys.stderr)
+            return 2
+        try:
+            raw, reasons = read_scores(args.score, args.scores_file, args.note, dims)
+        except ValueError as e:
+            print(f"review: {e}", file=sys.stderr)
+            return 2
+        # A review scores the change: the proxy measures the change's scope, run now so its results are this tree's.
+        if proxy_built(args.judge) and not args.no_proxy:
+            print(f"proxy ({SCOPE_CHANGE}): {run_proxy(args.judge)}")
+        scored = scorecard(args.judge, raw, reasons, dims, SCOPE_CHANGE)
+    with task_update() as task:  # a blocking verdict is fixed and asked again; it does not count toward the limit
+        task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note,
+                                       "fingerprint": judge_fingerprint(args.judge), "at": now(), **(scored or {})}
     print(f"review recorded: {args.judge} {args.verdict}")
+    if scored:
+        log_score({"kind": "review", "judge": args.judge, "verdict": args.verdict, **scored})
+        print_scorecard(args.judge, scored, dims)
+    elif dims:
+        print(f"no quality score — finish holds {args.judge} to the bar ({QUALITY_BAR}): record its Score block with "
+              "--score dim=n,... and a reason per dimension in --note, or --scores-file")
     if args.verdict == "blocking":
         print(f"each item {args.judge} raised that you fix is a catch: verify.py finding \"<what>\" --source agent "
               f"--route <route> --judge {args.judge} --caught yes; one that was not a problem: verify.py dispute")
         return 1
     return 0
+
+
+def review_out_of_scope(args: argparse.Namespace, dims: dict) -> int:
+    """The verdict of a judge whose measured scope the change never touches, with no score — verify.py checks that
+    the scope is empty, so the claim is never only the agent's word."""
+    if args.score or args.scores_file or not dims:
+        print("review: --out-of-scope takes no score, and is for a judge with quality dimensions", file=sys.stderr)
+        return 2
+    if proxy_built(args.judge) and not args.no_proxy:
+        print(f"proxy ({SCOPE_CHANGE}): {run_proxy(args.judge)}")
+    ok, said = out_of_scope_check(args.judge)
+    print(said)
+    if not ok:
+        print(f"review refused: {args.judge} is not out of scope — record its score: verify.py review {args.judge} "
+              f"{args.verdict} --score dim=n,... --note \"dim: why; …\"", file=sys.stderr)
+        return 1
+    with task_update() as task:
+        task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note, "quality": None,
+                                       "out_of_scope": True, "scope": said, "scope_fingerprint": tree_fingerprint(),
+                                       "fingerprint": judge_fingerprint(args.judge), "at": now()}
+    print(f"review recorded: {args.judge} {args.verdict} — {OUT_OF_SCOPE}, not held to the bar; finish still needs "
+          "its verdict")
+    return 1 if args.verdict == "blocking" else 0
 
 
 def cmd_approve(args: argparse.Namespace) -> int:
@@ -865,15 +1038,14 @@ def cmd_approve(args: argparse.Namespace) -> int:
     if digest is None:
         print(f"approve: no file at {path}", file=sys.stderr)
         return 2
-    task = load() or new_task("(unnamed)")
-    no = next((d for d in task.get("declines", []) if d["sha"] == digest), None)
+    no = next((d for d in load().get("declines", []) if d["sha"] == digest), None)
     if no:
         print(f"approve: the person said no to {path.name} as it is — \"{no['text']}\"; draw the next draft and show "
               "them that", file=sys.stderr)
         return 1
-    task["approvals"].append({"kind": args.kind, "file": str(path.resolve()), "sha": digest, "note": args.note,
-                              "at": now(), "code": gated_fingerprint(kind=args.kind)})
-    save(task)
+    with task_update() as task:
+        task["approvals"].append({"kind": args.kind, "file": str(path.resolve()), "sha": digest, "note": args.note,
+                                  "at": now(), "code": gated_fingerprint(kind=args.kind)})
     # Logged too, so calibration can set the person's yeses against their noes per kind of draft
     log_judgement({"kind": "approval", "draft": args.kind, "file": path.name, "source": "person", "route": "none"})
     print(f"approval recorded: {args.kind} {path.name} ({digest})")
@@ -913,12 +1085,11 @@ def cmd_decline(args: argparse.Namespace) -> int:
         print("decline: a rubric lesson names the agent whose rubric learns it — --judge ui-designer, ux-designer, …",
               file=sys.stderr)
         return 2
-    task = load() or new_task("(unnamed)")
     entry = {"kind": "decline", "draft": args.kind, "file": path.name, "sha": digest, "source": "person",
              "text": args.text, "about": args.about, "route": args.route, "judge": args.judge, "caught": None,
              "edit": args.edit}
-    task.setdefault("declines", []).append({**entry, **lesson_snapshot(args.route, args.judge)})
-    save(task)
+    with task_update() as task:
+        task.setdefault("declines", []).append({**entry, **lesson_snapshot(args.route, args.judge)})
     log_judgement(entry)
     print(f"no recorded: {args.kind} {path.name} ({args.about}) → route: {args.route}"
           + (f" ({args.judge}'s rubric)" if args.judge else "")
@@ -929,24 +1100,22 @@ def cmd_decline(args: argparse.Namespace) -> int:
 def cmd_decision(args: argparse.Namespace) -> int:
     """The person's word on something a judge might flag — settled for this task. A rule meant to last goes into the
     doc that owns it as well."""
-    task = load() or new_task("(unnamed)")
-    task["decisions"].append({"text": args.text, "at": now()})
-    save(task)
+    with task_update() as task:
+        task["decisions"].append({"text": args.text, "at": now()})
     print(f"decision recorded: {args.text} — the judges read it in `verify.py status`; a rule meant to last goes in "
           "its doc too")
     return 0
 
 
 def cmd_target(args: argparse.Namespace) -> int:
-    task = load() or new_task("(unnamed)")
-    task["target"] = {"where": args.where, "build": args.build, "health_exit": args.health_exit, "note": args.note,
-                      "at": now(), "deployed": deployed_fingerprint()}
-    # Every run on the target, with how many findings and decisions were recorded by then — finish reads it
-    # (unrecorded_redeploys).
-    task.setdefault("target_log", []).append({"at": task["target"]["at"], "deployed": task["target"]["deployed"],
-                                              "findings": len(task.get("findings", [])),
-                                              "decisions": len(task.get("decisions", []))})
-    save(task)
+    with task_update() as task:
+        task["target"] = {"where": args.where, "build": args.build, "health_exit": args.health_exit,
+                          "note": args.note, "at": now(), "deployed": deployed_fingerprint()}
+        # Every run on the target, with how many findings and decisions were recorded by then — finish reads it
+        # (unrecorded_redeploys).
+        task.setdefault("target_log", []).append({"at": task["target"]["at"], "deployed": task["target"]["deployed"],
+                                                  "findings": len(task.get("findings", [])),
+                                                  "decisions": len(task.get("decisions", []))})
     print(f"target recorded: {args.build} on {args.where}"
           + (f", health check exit {args.health_exit}" if args.health_exit is not None else "")
           + f" — run {len(task['target_log'])} on the target this task")
@@ -986,8 +1155,8 @@ def cmd_signoff(args: argparse.Namespace) -> int:
         print("signoff: the code changed since it ran on the target — run it again, record it with verify.py "
               "target, and show the person again", file=sys.stderr)
         return 1
-    task["signoffs"].append({"text": args.text, "at": now(), "deployed": target["deployed"]})
-    save(task)
+    with task_update() as task:
+        task["signoffs"].append({"text": args.text, "at": now(), "deployed": target["deployed"]})
     print(f"sign-off recorded: {args.text} — the person's yes on the target, for the code as it ran at {target['at']}")
     return 0
 
@@ -997,11 +1166,9 @@ def signoff_state(s: dict) -> str:
 
 
 def log_judgement(entry: dict) -> None:
-    JUDGEMENTS.parent.mkdir(parents=True, exist_ok=True)
     entry = {"date": datetime.now().date().isoformat(), "task": load().get("task", "(unnamed)"),
              "commit": git("rev-parse", "--short", "HEAD").strip(), **entry}
-    with JUDGEMENTS.open("a") as f:
-        f.write(json.dumps(entry) + "\n")
+    append_line(JUDGEMENTS, json.dumps(entry))
 
 
 def cmd_finding(args: argparse.Namespace) -> int:
@@ -1021,8 +1188,8 @@ def cmd_finding(args: argparse.Namespace) -> int:
              "judge": args.judge, "caught": args.caught == "yes" if args.judge else None, "edit": args.edit}
     if args.for_run is not None:
         entry["for_run"] = args.for_run  # recorded late: the run on the target that shipped this lesson's change
-    task["findings"].append({**entry, **lesson_snapshot(args.route, args.judge)})
-    save(task)
+    with task_update() as fresh:
+        fresh["findings"].append({**entry, **lesson_snapshot(args.route, args.judge)})
     log_judgement(entry)
     print(f"finding recorded ({args.source}) → route: {args.route} — make the edit the route names in this change "
           "(verify-change → Recording what was learned)")
@@ -1032,11 +1199,631 @@ def cmd_finding(args: argparse.Namespace) -> int:
 def cmd_dispute(args: argparse.Namespace) -> int:
     entry = {"kind": "false-alarm", "source": args.source, "text": args.text, "about": args.about, "route": "rubric",
              "judge": args.judge, "caught": None, "edit": args.edit}
-    task = load() or new_task("(unnamed)")
-    task["findings"].append({**entry, **lesson_snapshot("rubric", args.judge)})
-    save(task)
+    with task_update() as task:
+        task["findings"].append({**entry, **lesson_snapshot("rubric", args.judge)})
     log_judgement(entry)
     print(f"false alarm recorded against {args.judge} → route: rubric — tighten the item it misread")
+    return 0
+
+
+# --- Quality: scores, proxies, taste and weights (.agents/HARNESS.md §12) ----------------------------------------
+
+def save_weights(data: dict) -> None:
+    write_atomic(WEIGHTS, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
+def weights_of(dims: dict) -> dict:
+    return {d: v["weight"] for d, v in dims.items()}
+
+
+def score_rows() -> list[dict]:
+    try:
+        return [json.loads(line) for line in SCORES.read_text().splitlines() if line.strip()]
+    except (OSError, ValueError):
+        return []
+
+
+def log_score(entry: dict) -> None:
+    entry = {"date": datetime.now().date().isoformat(), "at": now(), "task": load().get("task", "(unnamed)"),
+             "commit": git("rev-parse", "--short", "HEAD").strip(), **entry}
+    append_line(SCORES, json.dumps(entry, ensure_ascii=False))
+
+
+def parse_score_arg(text: str) -> dict:
+    """`hierarchy=3,spacing=2,consistency=na` → {dimension: 0–4 or None}."""
+    out = {}
+    for part in filter(None, (p.strip() for p in (text or "").split(","))):
+        if "=" not in part:
+            raise ValueError(f"--score takes dim=n pairs: {part!r}")
+        d, v = (s.strip() for s in part.split("=", 1))
+        out[d] = None if v.lower() in ("na", "n/a") else int(v) if v.isdigit() else v
+    return out
+
+
+def parse_reasons(note: str, dims) -> dict:
+    """A reason per dimension from a note written `dim: why; dim: why` (or one per line)."""
+    out = {}
+    for part in re.split(r";|\n", note or ""):
+        m = re.match(r"\s*([\w-]+)\s*:\s*(.+)", part)
+        if m and m.group(1) in dims:
+            out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def read_scores(score_arg: str | None, scores_file: str | None, note: str | None, dims: dict) -> tuple[dict, dict]:
+    """Every dimension of the judge scored 0–4 (or `na`, left out of the weighting), each with its reason."""
+    raw, reasons = {}, {}
+    if scores_file:
+        try:
+            data = json.loads(Path(scores_file).expanduser().read_text())
+        except (OSError, ValueError) as e:
+            raise ValueError(f"cannot read {scores_file}: {e}")
+        data = data.get("scores", data) if isinstance(data, dict) else {}
+        for d, v in data.items():
+            if isinstance(v, dict):
+                raw[d] = v.get("score")
+                if v.get("reason"):
+                    reasons[d] = str(v["reason"])
+            else:
+                raw[d] = v
+        raw = {d: None if isinstance(v, str) and v.lower() in ("na", "n/a") else v for d, v in raw.items()}
+    raw.update(parse_score_arg(score_arg))
+    reasons.update(parse_reasons(note, dims))
+    unknown = sorted(set(raw) - set(dims))
+    if unknown:
+        raise ValueError(f"no such dimension {unknown} — one of {', '.join(dims)}")
+    missing = [d for d in dims if d not in raw]
+    if missing:
+        raise ValueError(f"every dimension is scored (0–4, or na): missing {', '.join(missing)}")
+    bad = [d for d, v in raw.items() if v is not None and (not isinstance(v, int) or not 0 <= v <= SCORE_MAX)]
+    if bad:
+        raise ValueError(f"a score is 0–{SCORE_MAX} or na: {', '.join(f'{d}={raw[d]}' for d in bad)}")
+    unreasoned = [d for d in dims if not reasons.get(d)]
+    if unreasoned:
+        raise ValueError(f"a reason per dimension, with its evidence — --note \"dim: why; dim: why\" or the file's "
+                         f"\"reason\": missing {', '.join(unreasoned)}")
+    total = sum(v.get("weight", 0) for v in dims.values())
+    share = sum(v.get("weight", 0) for d, v in dims.items() if raw[d] is not None) / total if total else 1
+    if share < NA_FLOOR:
+        raise ValueError(f"only {share:.0%} of the weight is scored — at least {NA_FLOOR:.0%} must be, or the score "
+                         f"says little: score more dimensions than {', '.join(d for d in dims if raw[d] is not None)}"
+                         " (na only where a dimension cannot apply), or leave the score out of this review")
+    return raw, reasons
+
+
+def weighted(scores: dict, weights: dict) -> int | None:
+    """The quality score 0–100: each dimension's 0–4 times its weight, over the weights of the dimensions scored."""
+    used = {d: w for d, w in weights.items() if scores.get(d) is not None}
+    total = sum(used.values())
+    if not total:
+        return None
+    return round(100 * sum(w * scores[d] / SCORE_MAX for d, w in used.items()) / total)
+
+
+def apply_caps(scores: dict, caps: dict) -> dict:
+    """A dimension with a measured proxy out of its range scores at most PROXY_CAP."""
+    return {d: min(s, PROXY_CAP) if s is not None and caps.get(d) else s for d, s in scores.items()}
+
+
+def proxy_built(judge: str, cmd=None) -> bool:
+    """Whether the judge's proxy command is filled in: not empty, no `<…>` placeholder, its script present."""
+    cmd = list(PROXIES.get(judge) or () if cmd is None else cmd)
+    if not cmd or any(str(a).startswith("<") for a in cmd):
+        return False
+    scripts = [a for a in cmd[1:] if str(a).endswith((".py", ".sh")) and not str(a).startswith("-")]
+    return all((ROOT / a).is_file() for a in scripts)
+
+
+def caps_from(data: dict, judge: str) -> dict:
+    """{dimension: [the metric out of range, …]} from a proxy's JSON — every metric with ok false."""
+    caps: dict[str, list] = {}
+    if not isinstance(data, dict) or data.get("judge") not in (None, judge):
+        return caps
+    for m in data.get("metrics") or []:
+        if isinstance(m, dict) and m.get("ok") is False and m.get("dimension"):
+            caps.setdefault(m["dimension"], []).append(
+                f"{m.get('name', '?')} {m.get('value', '?')} outside {m.get('range', '?')}"
+                + (f" at {m['where']}" if m.get("where") else ""))
+    return caps
+
+
+def epoch(at: str | None) -> float | None:
+    """A proxy's `at` as seconds: ISO 8601, `Z` or an offset for UTC, none for local time."""
+    if not at:
+        return None
+    try:
+        t = datetime.fromisoformat(str(at).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t.timestamp() if t.tzinfo else t.astimezone().timestamp()
+
+
+def newest_change(files: list[str] | None = None) -> tuple[float, str | None]:
+    """The newest modification time among the changed files a fingerprint watches, and which file it is."""
+    best, name = 0.0, None
+    for f in watched(files if files is not None else changed_files()):
+        p = ROOT / f
+        if p.is_file() and p.stat().st_mtime > best:
+            best, name = p.stat().st_mtime, f
+    return best, name
+
+
+def proxy_last_run(judge: str) -> dict:
+    try:
+        return json.loads((PROXY_DIR / f"{judge}.run.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def proxy_state(judge: str, scope: str, files: list[str] | None = None) -> tuple[dict, str | None, str | None]:
+    """(caps, when the results were measured, why they were set aside). Results are used only when they measure the
+    wanted scope, the last run that wrote them passed, and they are newer than every changed file; otherwise a
+    warning, and no cap from them."""
+    try:
+        data = json.loads((PROXY_DIR / f"{judge}.json").read_text())
+    except (OSError, ValueError):
+        return {}, None, None
+    if not isinstance(data, dict):
+        return {}, None, "the results file is not a proxy's JSON"
+    at, run = data.get("at"), proxy_last_run(judge)
+    if run.get("exit") not in (None, 0):
+        return {}, at, f"the last proxy run failed (exit {run['exit']} at {run.get('at')}) — no cap applied from it"
+    got = data.get("scope", SCOPE_CHANGE)
+    if got != scope:
+        return {}, at, (f"the results measure the {got}, not the {scope} — no cap applied from them; run "
+                        f"`verify.py proxies --judge {judge}{' --all' if scope == SCOPE_PRODUCT else ''}`")
+    newest, name = newest_change(files)
+    when = epoch(at)
+    if when is None or newest >= when + 1:  # `at` is kept to the second
+        return {}, at, (f"stale: measured at {at}, before {name} changed — no cap applied from them; run "
+                        f"`verify.py proxies --judge {judge}` again")
+    return caps_from(data, judge), at, None
+
+
+def proxy_caps(judge: str, scope: str = SCOPE_CHANGE) -> tuple[dict, str | None]:
+    """The caps from the judge's last proxy run, and when it ran; none when it has not run or is set aside."""
+    caps, at, _ = proxy_state(judge, scope)
+    return caps, at
+
+
+def run_proxy(judge: str, product: bool = False) -> str:
+    """Run the judge's proxy on the change, or with `product` on the whole product; it writes
+    .cache/harness/proxies/<judge>.json, and its exit is kept beside it so a failed run's results are never used."""
+    if not proxy_built(judge):
+        return "not built yet (PROXIES in .agents/project.py)"
+    PROXY_DIR.mkdir(parents=True, exist_ok=True)
+    cmd = [str(a) for a in PROXIES[judge]] + ([PROXY_PRODUCT_FLAG] if product else [])
+    code, out = sh(cmd, PROXY_DIR / f"{judge}.log")
+    for j in (j for j, c in PROXIES.items() if tuple(c) == tuple(PROXIES[judge])):  # one script, several judges' JSON
+        write_atomic(PROXY_DIR / f"{j}.run.json", json.dumps({"exit": code, "at": now(), "cmd": cmd}))
+    return f"exit {code}" + ("" if code == 0 else f" — {'; '.join(tail(out, 3))}")
+
+
+def scorecard(judge: str, raw: dict, reasons: dict, dims: dict, scope: str = SCOPE_CHANGE) -> dict:
+    caps, at, why = proxy_state(judge, scope)
+    if why:
+        print(f"proxy for {judge} set aside: {why}")
+    caps = {d: c for d, c in caps.items() if d in dims}
+    scores = apply_caps(raw, caps)
+    return {"scores": scores, "raw": raw, "reasons": reasons, "caps": caps, "proxy_at": at, "proxy_scope": scope,
+            "proxy_set_aside": why, "weights": weights_of(dims), "quality": weighted(scores, weights_of(dims))}
+
+
+def brief(reasons: list[str], most: int = 1) -> str:
+    """The first metrics out of range, and how many more; the proxy's JSON holds them all."""
+    more = len(reasons) - most
+    return "; ".join(r[:140] for r in reasons[:most]) + (f"; +{more} more" if more > 0 else "")
+
+
+def print_scorecard(judge: str, card: dict, dims: dict, gate: bool = True) -> None:
+    for d, meta in dims.items():
+        s = card["scores"].get(d)
+        cap = f" — capped at {PROXY_CAP}: {brief(card['caps'][d])}" if card["caps"].get(d) else ""
+        print(f"  {d:13} {'n/a' if s is None else f'{s}/{SCORE_MAX}'}  weight {meta['weight']:>4}  "
+              f"{card['reasons'].get(d, '')[:70]}{cap}")
+    q = card["quality"]
+    print(f"quality: {q}/100 — the bar is {QUALITY_BAR}" + ("" if q is None or q >= QUALITY_BAR else " — BELOW"))
+    if q is not None and q < QUALITY_BAR:
+        low = sorted((d for d, s in card["scores"].items() if s is not None and s <= 2),
+                     key=lambda d: -dims[d]["weight"])
+        for d in low:
+            print(f"  raise: {dims[d]['label']} ({card['scores'][d]}/{SCORE_MAX}, weight {dims[d]['weight']}) — "
+                  "the judge says what would lift it")
+        if gate:
+            print(f"below the bar, finish waits — raise it, or the person accepts it: verify.py accept {judge} "
+                  "\"<their words>\"")
+
+
+def renormalise(weights: dict, dim: str, value: float) -> dict:
+    """Set one dimension's weight and scale the others to keep the sum at 100, each held between WEIGHT_MIN and
+    WEIGHT_MAX; rounded to a tenth, the rounding put on the largest of the others."""
+    others = [d for d in weights if d != dim]
+    value = min(max(value, WEIGHT_MIN, 100 - len(others) * WEIGHT_MAX), WEIGHT_MAX, 100 - len(others) * WEIGHT_MIN)
+    out, free, remaining = {dim: value}, list(others), 100 - value
+    while free:
+        total = sum(weights[d] for d in free)
+        share = {d: remaining * (weights[d] / total if total else 1 / len(free)) for d in free}
+        pinned = {d: min(max(s, WEIGHT_MIN), WEIGHT_MAX) for d, s in share.items() if not WEIGHT_MIN <= s <= WEIGHT_MAX}
+        if not pinned:
+            out.update(share)
+            break
+        out.update(pinned)
+        remaining -= sum(pinned.values())
+        free = [d for d in free if d not in pinned]
+    out = {d: round(out[d], 1) for d in weights}
+    drift = round(100 - sum(out.values()), 1)
+    if drift and others:
+        top = max(others, key=lambda d: out[d])
+        out[top] = round(out[top] + drift, 1)
+    return {d: int(v) if float(v).is_integer() else v for d, v in out.items()}
+
+
+def last_judge_score(rows: list[dict], judge: str, dim: str) -> int | None:
+    """The judge's latest score on a dimension, from a review or an audit."""
+    for r in reversed(rows):
+        if r.get("kind") in ("review", "audit") and r.get("judge") == judge \
+                and (r.get("scores") or {}).get(dim) is not None:
+            return r["scores"][dim]
+    return None
+
+
+def is_miss(verdict: str, judge_score: int | None) -> bool:
+    """The person found poor what the judge scored 3 or 4."""
+    return verdict == "poor" and judge_score is not None and judge_score >= 3
+
+
+def taste_misses(rows: list[dict], judge: str, dim: str) -> int:
+    return sum(1 for r in rows if r.get("kind") == "taste" and r.get("judge") == judge and r.get("dimension") == dim
+               and r.get("miss"))
+
+
+def change_weight(data: dict, judge: str, dim: str, value: float, why: str, words: str) -> tuple[float, dict]:
+    """Set a weight, renormalise the judge's others, and log the change with the person's words."""
+    dims = data["judges"][judge]
+    before = dims[dim]["weight"]
+    new = renormalise(weights_of(dims), dim, value)
+    for d, w in new.items():
+        dims[d]["weight"] = w
+    data["history"].append({"at": now(), "judge": judge, "dimension": dim, "from": before, "to": new[dim],
+                            "why": why, "words": words, "weights": new})
+    return before, new
+
+
+def next_item(text: str, prefix: str) -> int:
+    """The next free number for a rubric's `L<n>` or `T<n>` rows — never reused."""
+    return max([int(n) for n in re.findall(rf"^\|\s*{prefix}(\d+)\s*\|", text, re.M)] or [0]) + 1
+
+
+TASTE_HEAD = ("## Taste\n\nThe person's aesthetic feedback, one row per `verify.py taste`: what they said, the quality "
+              "dimension and the anchor it added (.agents/HARNESS.md §12). The judge reads every row before it scores "
+              "that dimension; a dimension missed twice is promoted to a learned item in the Learned table.\n\n"
+              "| Item | Since | From the person | Dimension | Anchor |\n| --- | --- | --- | --- | --- |\n")
+
+
+def table_cell(text: str) -> str:
+    return " ".join(str(text).split()).replace("|", "\\|")
+
+
+def add_section_row(text: str, heading: str, head: str, row: str) -> str:
+    """Add a row to the table under `heading` — after its last row — or the section with its table at the end."""
+    lines = text.rstrip("\n").split("\n")
+    if heading not in lines:
+        return text.rstrip("\n") + "\n\n" + head + row + "\n"
+    start = lines.index(heading)
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    rows = [i for i in range(start, end) if lines[i].startswith("|")]
+    if rows:
+        lines.insert(rows[-1] + 1, row)
+    else:
+        table = head.split("\n\n")[-1].rstrip("\n").split("\n")
+        lines[end:end] = [""] + table + [row] if lines[end - 1].strip() else table + [row]
+    return "\n".join(lines) + "\n"
+
+
+def link_from(src: Path, dest: Path) -> str:
+    return os.path.relpath(dest, src.parent).replace(os.sep, "/")
+
+
+def cmd_taste(args: argparse.Namespace) -> int:
+    """The person's aesthetic view on one dimension: a new anchor of good or poor, a row in the judge's Taste table,
+    a miss when the judge had scored it 3 or 4 — which raises that dimension's weight — and, on the second miss, the
+    prompt to promote it to a learned floor item."""
+    data = load_weights()
+    dims = data["judges"].get(args.judge, {})
+    if args.dimension not in dims:
+        print(f"taste: {args.judge} has no dimension {args.dimension!r} — one of {', '.join(dims) or 'none'}",
+              file=sys.stderr)
+        return 2
+    verdict = "good" if args.good else "poor"
+    rows = score_rows()
+    judge_score = last_judge_score(rows, args.judge, args.dimension)
+    miss = is_miss(verdict, judge_score)
+    date = datetime.now().date().isoformat()
+    anchor_md = ANCHORS / args.judge / f"{args.dimension}.md"
+    anchor = anchor_md
+    if args.anchor:
+        src = Path(args.anchor).expanduser()
+        if not src.is_file():
+            print(f"taste: no file at {src}", file=sys.stderr)
+            return 2
+        slug = re.sub(r"[^a-z0-9]+", "-", src.stem.lower()).strip("-") or "anchor"
+        anchor = ANCHORS / "img" / f"{date}-{args.judge}-{args.dimension}-{slug}{src.suffix.lower()}"
+        anchor.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, anchor)
+        if anchor.stat().st_size > 300_000:
+            print(f"note: {anchor.name} is {anchor.stat().st_size // 1000} kB — the anchors are committed; keep it "
+                  "small (a crop, or fewer pixels)")
+    rubric = ROOT / ".agents/rubrics" / f"{args.judge}.md"
+    rubric_text = rubric.read_text() if rubric.is_file() else f"# Rubric — {args.judge}\n"
+    item = f"T{next_item(rubric_text, 'T')}"
+    said = f"{verdict}" + (f"; a miss — the judge had scored it {judge_score}" if miss else "")
+    # The anchors file: the person's words as the newest example of good or poor.
+    anchor_md.parent.mkdir(parents=True, exist_ok=True)
+    md = anchor_md.read_text() if anchor_md.is_file() else f"# {args.judge} — {dims[args.dimension]['label']}\n"
+    pic = f" — [{anchor.name}]({link_from(anchor_md, anchor)})" if anchor != anchor_md else ""
+    entry = f"- **{date}, {verdict}** ({item}) — \"{' '.join(args.words.split())}\"{pic}"
+    md = md.rstrip("\n") + ("\n" if "\n## From the person\n" in md else "\n\n## From the person\n\n") + entry + "\n"
+    write_atomic(anchor_md, md)
+    # The judge's Taste table, which it reads in every review.
+    path = anchor.relative_to(ROOT).as_posix()
+    row = (f"| {item} | {date} | \"{table_cell(args.words)}\" ({said}) | `{args.dimension}` | "
+           f"[{path}]({link_from(rubric, anchor)}) |")
+    rubric.parent.mkdir(parents=True, exist_ok=True)
+    with locked(rubric):
+        rubric_text = add_section_row(rubric.read_text() if rubric.is_file() else rubric_text, "## Taste", TASTE_HEAD,
+                                      row)
+        write_atomic(rubric, rubric_text)
+    count = taste_misses(rows, args.judge, args.dimension) + miss
+    prompt = miss and count >= 2 and not learned_for(rubric_text, args.dimension) \
+        and not promoted_before(rows, args.judge, args.dimension)
+    log_score({"kind": "taste", "judge": args.judge, "dimension": args.dimension, "verdict": verdict,
+               "words": args.words, "anchor": path, "item": item, "judge_score": judge_score, "miss": miss,
+               "promote_prompted": bool(prompt)})
+    print(f"taste recorded: {args.judge} {args.dimension} {verdict} → {item} in {rubric.relative_to(ROOT)}, anchor "
+          f"{path}")
+    if miss:
+        with locked(WEIGHTS):  # read again under the lock: another change to the weights since is kept
+            data = load_weights()
+            before, new = change_weight(data, args.judge, args.dimension,
+                                        data["judges"][args.judge][args.dimension]["weight"] * (1 + MISS_RAISE),
+                                        "taste miss", args.words)
+            save_weights(data)
+        print(f"a miss: the judge had scored {args.dimension} {judge_score}/{SCORE_MAX} — its weight {before} → "
+              f"{new[args.dimension]}; now " + ", ".join(f"{d} {w}" for d, w in new.items()))
+    elif verdict == "poor":
+        print("not a miss — " + ("the judge has not scored this dimension yet" if judge_score is None
+                                 else f"the judge had scored it {judge_score}"))
+    if prompt:
+        print_promote(rubric, rubric_text, args.judge, args.dimension, count)
+    return 0
+
+
+def print_promote(rubric: Path, text: str, judge: str, dim: str, count: int) -> None:
+    learned = f"L{next_item(text, 'L')}"
+    ids = ", ".join(taste_items(text, dim))
+    print(f"PROMOTE: the person has flagged {dim} {count} times on a score of 3 or more — a lesson that keeps recurring "
+          f"should block, not only lower the score. Write {learned} in the Learned table of {rubric.relative_to(ROOT)}"
+          f" — From the person: \"promoted from taste rows {ids} on `{dim}`\"; Looks for: what in a diff predicts it —"
+          f" show it to the person, and record their yes: verify.py decision \"promote taste on {judge} {dim} to "
+          f"{learned}: <their words>\". This prompt prints once for {dim}; once {learned} names those rows, never.")
+
+
+def table_rows(text: str, heading: str) -> list[list[str]]:
+    """The cells of each body row of the table under `heading`."""
+    lines = text.split("\n")
+    if heading not in lines:
+        return []
+    start = lines.index(heading)
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    rows = [ln for ln in lines[start:end] if ln.startswith("|") and not re.match(r"^\|\s*(?:Item\b|-{3})", ln)]
+    return [[c.strip() for c in re.split(r"(?<!\\)\|", ln)[1:-1]] for ln in rows]
+
+
+def taste_items(text: str, dim: str) -> list[str]:
+    """The Taste table's `T<n>` rows on a dimension."""
+    return [r[0] for r in table_rows(text, "## Taste") if len(r) > 3 and r[3].strip("` ") == dim]
+
+
+def learned_for(text: str, dim: str) -> str | None:
+    """The Learned item a dimension's taste was promoted to: a Taste row on it that says `promoted to L<n>`, or a
+    Learned row that names the dimension in backticks or one of its Taste rows."""
+    tastes = [r for r in table_rows(text, "## Taste") if len(r) > 3 and r[3].strip("` ") == dim]
+    for r in tastes:
+        if m := re.search(r"promoted to (L\d+)", r[2]):
+            return m.group(1)
+    ids = {r[0] for r in tastes}
+    for r in table_rows(text, "## Learned"):
+        named = set(re.findall(r"\bT\d+\b", " ".join(r[1:])))
+        if f"`{dim}`" in " ".join(r[1:]) or named & ids:
+            return r[0]
+    return None
+
+
+def promoted_before(rows: list[dict], judge: str, dim: str) -> bool:
+    """The promotion prompt has printed once for this dimension already."""
+    return any(r.get("kind") == "taste" and r.get("judge") == judge and r.get("dimension") == dim
+               and r.get("promote_prompted") for r in rows)
+
+
+def cmd_rate(args: argparse.Namespace) -> int:
+    """The person's own 0–4 score of a file on one dimension; calibration compares it with the judge's."""
+    dims = load_weights()["judges"].get(args.judge, {})
+    if args.dimension not in dims:
+        print(f"rate: {args.judge} has no dimension {args.dimension!r} — one of {', '.join(dims) or 'none'}",
+              file=sys.stderr)
+        return 2
+    path = Path(args.file).expanduser()
+    digest = file_hash(path)
+    if digest is None:
+        print(f"rate: no file at {path}", file=sys.stderr)
+        return 2
+    try:
+        name = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        name = path.name
+    judge_score = last_judge_score(score_rows(), args.judge, args.dimension)
+    log_score({"kind": "person", "judge": args.judge, "dimension": args.dimension, "score": args.score,
+               "file": name, "sha": digest, "note": args.note, "judge_score": judge_score})
+    print(f"rating recorded: the person scores {name} {args.score}/{SCORE_MAX} on {args.dimension}"
+          + ("" if judge_score is None else f"; the judge's last score {judge_score} (gap {judge_score - args.score:+d})"))
+    return 0
+
+
+def cmd_weight(args: argparse.Namespace) -> int:
+    """The person sets a dimension's weight; the others are scaled to keep 100."""
+    data = load_weights()
+    dims = data["judges"].get(args.judge, {})
+    if args.dimension not in dims:
+        print(f"weight: {args.judge} has no dimension {args.dimension!r} — one of {', '.join(dims) or 'none'}",
+              file=sys.stderr)
+        return 2
+    if not WEIGHT_MIN <= args.set <= WEIGHT_MAX:
+        print(f"weight: a weight is {WEIGHT_MIN}–{WEIGHT_MAX}", file=sys.stderr)
+        return 2
+    with locked(WEIGHTS):  # read again under the lock: a change to the weights since is kept
+        data = load_weights()
+        before, new = change_weight(data, args.judge, args.dimension, args.set, "set by the person",
+                                    args.words or "set by the person")
+        save_weights(data)
+    print(f"weight set: {args.judge} {args.dimension} {before} → {new[args.dimension]}; now "
+          + ", ".join(f"{d} {w}" for d, w in new.items()))
+    return 0
+
+
+def cmd_accept(args: argparse.Namespace) -> int:
+    """The person accepts a judge's quality score below the bar, by name; it holds for that review only."""
+    with task_update() as task:
+        r = task["reviews"].get(args.judge)
+        if r and r.get("quality") is not None:
+            task.setdefault("acceptances", []).append({"judge": args.judge, "words": args.words, "at": now(),
+                                                       "quality": r["quality"], "review_at": r["at"]})
+    if not r or r.get("quality") is None:
+        print(f"accept: no scored review from {args.judge} this task — verify.py review {args.judge} … --score",
+              file=sys.stderr)
+        return 1
+    print(f"accepted by the person: {args.judge} at {r['quality']}/100 (bar {QUALITY_BAR}) — {args.words}")
+    return 0
+
+
+def accepted(task: dict, judge: str, review: dict) -> dict | None:
+    return next((a for a in reversed(task.get("acceptances", []))
+                 if a["judge"] == judge and a["review_at"] == review["at"]), None)
+
+
+def review_line(judge: str, r: dict) -> str:
+    """A review's line in the Verified block: its verdict, and its quality score — or that it was out of scope."""
+    if r.get("out_of_scope"):
+        return (f"- Review: {judge} {r['verdict']} — {OUT_OF_SCOPE} — not held to the bar ({r.get('scope', '')})"
+                + (f" — {r['note']}" if r.get("note") else ""))
+    quality = f" — quality {r['quality']}/100 (bar {QUALITY_BAR})" if r.get("quality") is not None else ""
+    note = r.get("note") if r.get("quality") is None else None  # a scored note is the reasons, in the card
+    return f"- Review: {judge} {r['verdict']}{quality}" + (f" — {note}" if note else "")
+
+
+def proxy_data(judge: str) -> dict:
+    try:
+        data = json.loads((PROXY_DIR / f"{judge}.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def out_of_scope_check(judge: str) -> tuple[bool, str]:
+    """Whether the change touches none of the judge's measured scope — the scope its proxy measures in change mode:
+    for the ui-designer and ux-designer the screens whose sources changed, for the doc-reviewer the doc lines, for the
+    code-reviewer the changed functions, for the ux-content-writer the changed strings. Only a proxy that ran on this
+    tree, passed, and names what it measured (`in_scope`) can show the scope empty."""
+    if not proxy_built(judge):
+        return False, f"{judge} has no built proxy to show its scope empty (PROXIES in .agents/project.py) — score it"
+    _, at, why = proxy_state(judge, SCOPE_CHANGE)
+    if why or at is None:
+        return False, f"its scope cannot be shown empty: {why or 'the proxy wrote no results'}"
+    data = proxy_data(judge)
+    if not isinstance(data.get("in_scope"), list):
+        return False, "its proxy does not say what it measured (no in_scope) — score it"
+    what = data.get("scope_what") or "its measured scope"
+    found = data["in_scope"]
+    if found:
+        more = f", +{len(found) - 3} more" if len(found) > 3 else ""
+        return False, (f"scope: {what} — {len(found)} in scope: {', '.join(map(str, found[:3]))}{more}; the change "
+                       f"reaches {judge}'s scope, so it is scored and held to the bar")
+    return True, f"scope: {what} — empty"
+
+
+def quality_problems(task: dict, judge: str) -> list[str]:
+    """A judge with quality dimensions: a score recorded with its pass, at or above the bar, or accepted."""
+    if judge not in load_weights()["judges"]:
+        return []
+    r = task["reviews"].get(judge)
+    if not r or r["verdict"] != "pass":
+        return []
+    if r.get("out_of_scope"):  # verify.py checked the claim; it holds for the tree it checked
+        if r.get("scope_fingerprint") != tree_fingerprint():
+            return [f"the tree changed since {judge}'s out-of-scope check — review it again, with a score if the "
+                    "change now reaches its scope"]
+        return []
+    if r.get("quality") is None:
+        return [f"no quality score from {judge} — record its Score block: verify.py review {judge} pass --score "
+                "dim=n,... --note \"dim: why; …\" (or --scores-file)"]
+    if r["quality"] < QUALITY_BAR and not accepted(task, judge, r):
+        low = ", ".join(d for d, s in r["scores"].items() if s is not None and s <= 2) or "none at 2 or under"
+        return [f"{judge}'s quality score {r['quality']} is below the bar {QUALITY_BAR} (low: {low}) — raise it, or "
+                f"the person accepts it: verify.py accept {judge} \"<their words>\""]
+    return []
+
+
+def print_proxy(judge: str, scope: str) -> None:
+    """What the judge's last proxy results cap, or why they are set aside."""
+    caps, at, why = proxy_state(judge, scope)
+    if why:
+        print(f"  set aside — {why}")
+        return
+    if at is None:
+        print("  no results — every dimension scored on the judge's reading alone")
+        return
+    print(f"  results for the {scope} at {at}")
+    for d, reasons in caps.items():
+        print(f"  {d}: capped at {PROXY_CAP} — {brief(reasons, 3)}")
+    if not caps:
+        print("  every metric in range — nothing capped")
+
+
+def cmd_proxies(args: argparse.Namespace) -> int:
+    """Run the measured proxies — for one judge, or every judge with dimensions — on the change, or with --all on the
+    whole product, and print what each caps."""
+    judges = [args.judge] if args.judge else list(load_weights()["judges"])
+    scope = SCOPE_PRODUCT if args.all else SCOPE_CHANGE
+    for j in judges:
+        print(f"{j} ({scope}): {run_proxy(j, product=args.all)}")
+        print_proxy(j, scope)
+    return 0
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    """The whole product scored by one judge — every screen, component or doc, not only a change — its proxy run on
+    the whole product, the score kept in scores.jsonl so the trend shows and old debt surfaces."""
+    dims = load_weights()["judges"].get(args.judge, {})
+    if not dims:
+        print(f"audit: {args.judge} has no quality dimensions", file=sys.stderr)
+        return 2
+    if args.scores_file:
+        try:  # refused before the proxy's run, which can take a while
+            raw, reasons = read_scores(None, args.scores_file, args.note, dims)
+        except ValueError as e:
+            print(f"audit: {e}", file=sys.stderr)
+            return 2
+    if not args.no_proxy:
+        print(f"proxy ({SCOPE_PRODUCT}): {run_proxy(args.judge, product=True)}")
+    print_proxy(args.judge, SCOPE_PRODUCT)
+    if not args.scores_file:
+        print(f"no scores recorded — the judge audits the whole product against its anchors, then: verify.py audit "
+              f"{args.judge} --scores-file <file>")
+        return 0
+    card = scorecard(args.judge, raw, reasons, dims, SCOPE_PRODUCT)
+    log_score({"kind": "audit", "judge": args.judge, "note": args.note, **card})
+    print_scorecard(args.judge, card, dims, gate=False)
+    trend = [r["quality"] for r in score_rows() if r.get("kind") == "audit" and r.get("judge") == args.judge]
+    print(f"audits of {args.judge}: " + " → ".join(str(q) for q in trend[-8:]))
     return 0
 
 
@@ -1109,7 +1896,11 @@ def cmd_status(_: argparse.Namespace) -> int:
         print(f"last run: {last['n']} {'PASS' if last['ok'] else 'FAIL'} at {last['at']}{stale}")
     for judge, r in task["reviews"].items():
         stale = " — its files changed since" if judge in JUDGES and r["fingerprint"] != judge_fingerprint(judge) else ""
-        print(f"review: {judge} {r['verdict']}" + (f" — {r['note']}" if r.get("note") else "") + stale)
+        quality = f", quality {r['quality']}/100 (bar {QUALITY_BAR})" if r.get("quality") is not None else \
+            f", {OUT_OF_SCOPE} — not held to the bar" if r.get("out_of_scope") else ""
+        print(f"review: {judge} {r['verdict']}{quality}" + (f" — {r['note']}" if r.get("note") else "") + stale)
+    for a in task.get("acceptances", []):
+        print(f"accepted below the bar by the person: {a['judge']} at {a['quality']}/100 — {a['words']}")
     for a in task.get("approvals", []):
         print(f"approved by the person: {a['kind']} {Path(a['file']).name} at {a['at']}{approval_state(a)}")
     for d in task.get("decisions", []):
@@ -1160,6 +1951,10 @@ def cmd_finish(_: argparse.Namespace) -> int:
                 open_items.append(f"{judge} said blocking")
             elif r["fingerprint"] != judge_fingerprint(judge, files):
                 open_items.append(f"{judge} reviewed an older version of its files")
+    # The quality layer: every judge the files call for, and any judge asked this task, at or above the bar.
+    for judge in JUDGES:
+        if (judge_ready(judge) and any(JUDGES[judge](f) for f in files)) or judge in task["reviews"]:
+            open_items += quality_problems(task, judge)
     checks = last["checks"]
     target = task.get("target")
     print("## Verified")
@@ -1169,7 +1964,9 @@ def cmd_finish(_: argparse.Namespace) -> int:
     if not checks:
         print("- Checks: none ran — no file a check covers changed")
     for judge, r in task["reviews"].items():
-        print(f"- Review: {judge} {r['verdict']}" + (f" — {r['note']}" if r.get("note") else ""))
+        print(review_line(judge, r))
+    for a in task.get("acceptances", []):
+        print(f"- Accepted below the bar by the person: {a['judge']} at {a['quality']}/100 — {a['words']}")
     for a in task.get("approvals", []):
         print(f"- Approved by the person: {a['kind']} {Path(a['file']).name}{approval_state(a)}")
     for d in task.get("decisions", []):
@@ -1269,6 +2066,7 @@ def cmd_calibration(_: argparse.Namespace) -> int:
         if n >= REPEAT_AT:
             print(f"  repeats: {area} has {n} lessons — turn what they share into a check, a principle in the design "
                   "brief (with the person's yes on a specimen) or a skill's Never (AGENT_HARNESS §9.2)")
+    quality_calibration()
     return 0
 
 
@@ -1303,6 +2101,41 @@ def area_counts(rows: list[dict]) -> tuple[dict, int]:
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))), untagged
 
 
+def calibration_rows(rows: list[dict], judge: str, dim: str) -> dict:
+    """One dimension's record: the judge's last score, the person's ratings and the mean gap (judge minus person,
+    each rating paired with the judge's last score before it), and the taste misses."""
+    rated = [r for r in rows if r.get("kind") == "person" and r.get("judge") == judge and r.get("dimension") == dim]
+    gaps = [r["judge_score"] - r["score"] for r in rated if r.get("judge_score") is not None]
+    tastes = [r for r in rows if r.get("kind") == "taste" and r.get("judge") == judge and r.get("dimension") == dim]
+    return {"last": last_judge_score(rows, judge, dim), "ratings": len(rated),
+            "gap": round(sum(gaps) / len(gaps), 2) if gaps else None,
+            "misses": sum(1 for r in tastes if r.get("miss")), "tastes": len(tastes)}
+
+
+def quality_calibration() -> None:
+    """Per judge and dimension: the weight, the judge's last score, how far it sits from the person's, the misses on
+    taste; then every weight change with the person's words."""
+    data, rows = load_weights(), score_rows()
+    print(f"quality: {sum(1 for r in rows if r.get('kind') in ('review', 'audit'))} score(s), "
+          f"{sum(1 for r in rows if r.get('kind') == 'person')} rating(s) and "
+          f"{sum(1 for r in rows if r.get('kind') == 'taste')} taste record(s) in {SCORES.relative_to(ROOT)}; "
+          f"the bar is {QUALITY_BAR}")
+    for judge, dims in data["judges"].items():
+        print(f"  {judge}")
+        print(f"    {'dimension':13} {'weight':>6} {'last':>4} {'rated':>5} {'gap':>5} {'taste misses':>12}")
+        for d, meta in dims.items():
+            c = calibration_rows(rows, judge, d)
+            gap = "—" if c["gap"] is None else f"{c['gap']:+}"
+            last = "—" if c["last"] is None else c["last"]
+            print(f"    {d:13} {meta['weight']:>6} {last:>4} {c['ratings']:>5} {gap:>5} "
+                  f"{c['misses']:>5} of {c['tastes']:<4}")
+    history = data["history"]
+    print(f"  weight changes: {len(history)}" + ("" if history else " — taste misses and the person's settings add them"))
+    for h in history:
+        print(f"    {h['at'][:10]} {h['judge']} {h['dimension']} {h['from']} → {h['to']} ({h['why']}): "
+              f"\"{h['words'][:70]}\"")
+
+
 def check_sandboxes(check) -> None:
     """Claude Code denies reading the guard's secret paths and the project's secret files, and Codex's sandbox allows
     exactly the project's hosts."""
@@ -1332,6 +2165,21 @@ def check_sandboxes(check) -> None:
           "Codex's sandbox is workspace-write and its proxy allows the project's hosts",
           f"Codex's sandbox or proxy domains differ from ALLOWED_HOSTS {sorted(project.ALLOWED_HOSTS)} "
           "(.codex/config.toml against .agents/project.py)")
+
+
+def weights_problems(data: dict) -> list[str]:
+    """Each judge's weights sum to 100, each within bounds, and each dimension has its anchors file."""
+    problems = []
+    for judge, dims in data["judges"].items():
+        total = sum(v["weight"] for v in dims.values())
+        if abs(total - 100) > 0.05:
+            problems.append(f"{judge}'s weights sum to {total}, not 100 ({WEIGHTS.relative_to(ROOT)})")
+        for d, v in dims.items():
+            if not WEIGHT_MIN <= v["weight"] <= WEIGHT_MAX:
+                problems.append(f"{judge} {d}: weight {v['weight']} outside {WEIGHT_MIN}–{WEIGHT_MAX}")
+            if not (ANCHORS / judge / f"{d}.md").is_file():
+                problems.append(f"{judge} {d}: no anchors at {(ANCHORS / judge / f'{d}.md').relative_to(ROOT)}")
+    return problems
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
@@ -1387,6 +2235,15 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     check((ROOT / project.DESIGN_FILE).is_file(), f"{project.DESIGN_FILE} is the design brief",
           f"no {project.DESIGN_FILE} — the ui-designer and design-system skills read it first; start from the "
           "template's demo")
+    for problem in weights_problems(load_weights()):
+        check(False, "", problem)
+    if not weights_problems(load_weights()):
+        check(True, f"{WEIGHTS.relative_to(ROOT)}: each judge's weights sum to 100, each {WEIGHT_MIN}–{WEIGHT_MAX}, "
+              "every dimension with its anchors", "")
+    for j in load_weights()["judges"]:
+        if not proxy_built(j):
+            note(f"proxy for {j} not built yet — PROXIES in .agents/project.py; its dimensions are scored on reading "
+                 "alone")
     if not project.UI_PATHS:
         note("no UI_PATHS yet — the screen gate is off until they are filled in")
     if not project.TOKEN_FILES:
@@ -1545,12 +2402,277 @@ def self_test() -> int:
     if areas != ({"layout": 2}, 1):
         bad += 1
         print(f"FAIL calibration, areas: {areas}")
+    quality = quality_self_test() + cli_self_test()
+    bad += sum(1 for _, ok in quality if not ok)
+    for name, ok in quality:
+        if not ok:
+            print(f"FAIL quality, {name}")
     cases = cases + scopes + redeploys + lessons + rubrics + [("requires", "", ""), ("new rows", "", ""),
                                                                ("log", "", ""),
                                                                ("judgements", "", ""), ("draft stats", "", ""),
-                                                               ("areas", "", "")]
+                                                               ("areas", "", "")] + quality
     print(f"verify self-test: {len(cases) - bad}/{len(cases)} cases pass")
     return 1 if bad else 0
+
+
+def quality_self_test() -> list[tuple[str, bool]]:
+    """The quality layer's cases: the weighting, the caps, the scores' parsing, a taste miss, the weights kept at 100
+    within bounds, the Taste table, the promote count and the bar (.agents/HARNESS.md §12)."""
+    out = []
+
+    def case(name: str, ok: bool) -> None:
+        out.append((name, bool(ok)))
+
+    def bounded(w: dict) -> bool:
+        return abs(sum(w.values()) - 100) < 0.05 and all(WEIGHT_MIN <= v <= WEIGHT_MAX for v in w.values())
+
+    ui = {"hierarchy": 20, "spacing": 20, "consistency": 15, "balance": 15, "state": 15, "medium": 15}
+    w = renormalise(ui, "spacing", 20 * (1 + MISS_RAISE))
+    case("a miss raises 20 to 24 and keeps 100", w["spacing"] == 24 and bounded(w) and w["hierarchy"] < 20)
+    case("a raise stops at the ceiling", renormalise(ui, "spacing", 55)["spacing"] == WEIGHT_MAX)
+    case("a setting under the floor is held at it", renormalise(ui, "spacing", 1)["spacing"] == WEIGHT_MIN)
+    tight = {"a": 30, "b": 30, "c": 30, "d": 5, "e": 5}
+    w = renormalise(tight, "a", 36)
+    case("the others never fall under the floor", bounded(w) and w["d"] == WEIGHT_MIN and w["a"] == 36)
+    w = renormalise({"a": 40, "b": 40, "c": 10, "d": 10}, "c", 5)
+    case("the others never rise over the ceiling", bounded(w) and w["a"] == WEIGHT_MAX)
+    case("all 4s score 100", weighted({"a": 4, "b": 4}, {"a": 60, "b": 40}) == 100)
+    case("weights tilt the score", weighted({"a": 4, "b": 0}, {"a": 75, "b": 25}) == 75)
+    case("n/a is left out of the weighting", weighted({"a": 4, "b": None}, {"a": 50, "b": 50}) == 100)
+    case("nothing scored has no score", weighted({"a": None}, {"a": 100}) is None)
+    case("a proxy out of range caps at 2", apply_caps({"a": 4, "b": 3, "c": None}, {"a": ["x"], "c": ["y"]})
+         == {"a": 2, "b": 3, "c": None})
+    proxy = {"judge": "ui-designer", "at": "t", "metrics": [
+        {"dimension": "spacing", "name": "pair:group", "value": 0.8, "range": [0, 0.5], "ok": False, "where": "home"},
+        {"dimension": "hierarchy", "name": "sizes", "value": 3, "range": [0, 3], "ok": True, "where": "home"}]}
+    caps = caps_from(proxy, "ui-designer")
+    case("caps come from the metrics out of range", list(caps) == ["spacing"] and "home" in caps["spacing"][0])
+    case("another judge's proxy caps nothing", caps_from(proxy, "code-reviewer") == {})
+    case("a placeholder proxy is not built", not proxy_built("x", ("<part B: the screens' proxy>",)))
+    case("a proxy whose script is missing is not built", not proxy_built("x", ("python3", "no/such/proxy.py")))
+    case("no proxy is not built", not proxy_built("x", ()))
+    dims = {"a": {}, "b": {}}
+
+    def raises(fn) -> bool:
+        try:
+            fn()
+        except ValueError:
+            return True
+        return False
+    case("every dimension is scored", raises(lambda: read_scores("a=3", None, "a: x", dims)))
+    case("a score is 0–4", raises(lambda: read_scores("a=5,b=1", None, "a: x; b: y", dims)))
+    case("an unknown dimension is refused", raises(lambda: read_scores("a=1,b=1,z=1", None, "a: x; b: y", dims)))
+    case("each dimension needs its reason", raises(lambda: read_scores("a=1,b=1", None, "a: x", dims)))
+    case("scores and reasons parse", read_scores("a=3, b=na", None, "a: the pairs glue; b: one screen", dims)
+         == ({"a": 3, "b": None}, {"a": "the pairs glue", "b": "one screen"}))
+    case("a miss: poor on a 3", is_miss("poor", 3))
+    case("not a miss: poor on a 2", not is_miss("poor", 2))
+    case("not a miss: good on a 4", not is_miss("good", 4))
+    case("not a miss: never scored", not is_miss("poor", None))
+    rows = [{"kind": "review", "judge": "j", "scores": {"a": 4}}, {"kind": "audit", "judge": "j", "scores": {"a": 2}},
+            {"kind": "taste", "judge": "j", "dimension": "a", "miss": True},
+            {"kind": "taste", "judge": "j", "dimension": "a", "miss": False},
+            {"kind": "taste", "judge": "j", "dimension": "b", "miss": True},
+            {"kind": "person", "judge": "j", "dimension": "a", "score": 1, "judge_score": 4},
+            {"kind": "person", "judge": "j", "dimension": "a", "score": 2, "judge_score": 2}]
+    case("the judge's last score is the latest review or audit", last_judge_score(rows, "j", "a") == 2)
+    case("misses are counted per dimension", taste_misses(rows, "j", "a") == 1)
+    rows.append({"kind": "taste", "judge": "j", "dimension": "a", "miss": True})
+    case("the second miss on a dimension is counted", taste_misses(rows, "j", "a") == 2)
+    c = calibration_rows(rows, "j", "a")
+    case("calibration: the mean gap, judge minus person", c["gap"] == 1.5 and c["ratings"] == 2 and c["misses"] == 2)
+    plain = "# Rubric — j\n\n## Learned\n\n| Item | Since |\n| --- | --- |\n| L1 | d |\n| L4 | d |\n"
+    once = add_section_row(plain, "## Taste", TASTE_HEAD, "| T1 | d | w | `a` | p |")
+    case("the first taste adds the Taste table", once.count("## Taste") == 1 and once.rstrip().endswith("| p |")
+         and "| L4 | d |" in once)
+    twice = add_section_row(once + "\n## Other\n\ntext\n", "## Taste", TASTE_HEAD, "| T2 | d | w | `b` | p |")
+    case("the next taste goes under the last row, not past the section",
+         twice.index("| T2 |") < twice.index("## Other") and twice.index("| T1 |") < twice.index("| T2 |"))
+    case("the next T and L numbers are free ones", next_item(twice, "T") == 3 and next_item(plain, "L") == 5)
+    case("a word with a pipe stays in its cell", table_cell("a | b\nc") == "a \\| b c")
+    task = {"reviews": {"ui-designer": {"verdict": "pass", "quality": 70, "scores": {"hierarchy": 2}, "at": "t1"}},
+            "acceptances": []}
+    has_dims = "ui-designer" in load_weights()["judges"]
+    case("below the bar is open", not has_dims or len(quality_problems(task, "ui-designer")) == 1)
+    task["acceptances"].append({"judge": "ui-designer", "review_at": "t1", "quality": 70, "words": "ok"})
+    case("the person's acceptance closes it", quality_problems(task, "ui-designer") == [])
+    task["reviews"]["ui-designer"]["at"] = "t2"
+    case("an acceptance holds for its review only", not has_dims or len(quality_problems(task, "ui-designer")) == 1)
+    task["reviews"]["ui-designer"]["quality"] = QUALITY_BAR
+    case("at the bar passes", quality_problems(task, "ui-designer") == [])
+    del task["reviews"]["ui-designer"]["quality"]
+    case("a pass with no score is open", not has_dims or len(quality_problems(task, "ui-designer")) == 1)
+    case("the starting weights sum to 100 within bounds", not [p for p in weights_problems(load_weights())
+                                                               if "anchors" not in p])
+    heavy = {"a": {"weight": 60}, "b": {"weight": 40}}
+    case("60 % of the weight scored is enough", read_scores("a=3,b=na", None, "a: x; b: y", heavy)[0]["a"] == 3)
+    case("under 60 % of the weight scored is refused", raises(lambda: read_scores("a=na,b=3", None, "a: x; b: y",
+                                                                                 heavy)))
+    rubric = ("# R\n\n## Learned\n\n| Item | Since | From the person | Looks for |\n| --- | --- | --- | --- |\n"
+              "| L4 | d | promoted from taste rows T2 and T3 | x |\n\n" + TASTE_HEAD
+              + "| T1 | d | \"w\" (poor) | `hierarchy` | p |\n| T2 | d | \"w\" (poor) | `spacing` | p |\n"
+              "| T3 | d | \"w\" (poor; a miss) | `spacing` | p |\n| T5 | d | \"w\" (poor; promoted to L9) | `medium` | p |\n")
+    case("a Learned row naming a dimension's Taste rows is its item", learned_for(rubric, "spacing") == "L4")
+    case("a Taste row that says it was promoted names the item", learned_for(rubric, "medium") == "L9")
+    case("a dimension never promoted has no item", learned_for(rubric, "hierarchy") is None)
+    case("the Taste rows on a dimension", taste_items(rubric, "spacing") == ["T2", "T3"])
+    once = [{"kind": "taste", "judge": "j", "dimension": "a", "miss": True, "promote_prompted": True}]
+    case("the promotion prompt prints once per dimension", promoted_before(once, "j", "a")
+         and not promoted_before(once, "j", "b"))
+    out += proxy_self_test()
+    out += write_self_test()
+    out += out_of_scope_self_test()
+    return out
+
+
+def out_of_scope_self_test() -> list[tuple[str, bool]]:
+    """--out-of-scope: accepted only when a fresh, passing proxy run shows the judge's scope empty; then finish holds
+    the verdict and not the bar, until the tree changes."""
+    global PROXY_DIR, ROOT, PROXIES
+    out = []
+    saved = PROXY_DIR, ROOT, PROXIES
+    with tempfile.TemporaryDirectory() as tmp:
+        PROXY_DIR, ROOT, PROXIES = Path(tmp) / "proxies", Path(tmp) / "repo", {"j": ("python3", "p.py")}
+        PROXY_DIR.mkdir()
+        ROOT.mkdir()
+        try:
+            subprocess.run(["git", "init", "-q"], cwd=ROOT, check=True)  # a.md: a changed file, for staleness
+            (ROOT / "p.py").write_text("")
+            (ROOT / "a.md").write_text("x")
+            os.utime(ROOT / "a.md", (1_000_000, 1_000_000))
+            os.utime(ROOT / "p.py", (1_000_000, 1_000_000))
+
+            def check(in_scope, at: str = "2001-01-01T00:00:00Z") -> tuple[bool, str]:
+                data = {"judge": "j", "at": at, "scope": SCOPE_CHANGE, "scope_what": "the screens", "metrics": []}
+                if in_scope is not None:
+                    data["in_scope"] = in_scope
+                (PROXY_DIR / "j.json").write_text(json.dumps(data))
+                (PROXY_DIR / "j.run.json").write_text(json.dumps({"exit": 0, "at": at}))
+                return out_of_scope_check("j")
+            ok, said = check([])
+            out.append(("out of scope: an empty measured scope is accepted, and says so", ok and "empty" in said))
+            ok, said = check(["kit", "home"])
+            out.append(("out of scope: a scope with screens in it is refused", not ok and "2 in scope" in said))
+            out.append(("out of scope: a proxy that names no scope is refused", not check(None)[0]))
+            out.append(("out of scope: a stale proxy is refused", not check([], "1970-01-01T00:00:00Z")[0]))
+            PROXIES = {}
+            out.append(("out of scope: a judge with no proxy is refused", not out_of_scope_check("j")[0]))
+        finally:
+            PROXY_DIR, ROOT, PROXIES = saved
+    review = {"verdict": "pass", "out_of_scope": True, "quality": None, "scope": "scope: the screens — empty",
+              "scope_fingerprint": tree_fingerprint(), "at": "t"}
+    task = {"reviews": {"ui-designer": review}, "acceptances": []}
+    out.append(("finish: an out-of-scope pass is not held to the bar", quality_problems(task, "ui-designer") == []))
+    out.append(("finish: it says so in the Verified block", "out of scope — not held to the bar"
+                in review_line("ui-designer", review)))
+    review["scope_fingerprint"] = "another tree"
+    out.append(("finish: a tree changed since the check needs the review again",
+                len(quality_problems(task, "ui-designer")) == 1))
+    del review["out_of_scope"]
+    out.append(("finish: an in-scope pass with no score is still held", len(quality_problems(task, "ui-designer")) == 1))
+    return out
+
+
+def proxy_self_test() -> list[tuple[str, bool]]:
+    """A proxy's results are used only for their scope, from a run that passed, newer than every changed file."""
+    global PROXY_DIR, ROOT
+    out = []
+    saved = PROXY_DIR, ROOT
+    with tempfile.TemporaryDirectory() as tmp:
+        PROXY_DIR, ROOT = Path(tmp), Path(tmp)
+        try:
+            (ROOT / "a.md").write_text("x")
+            os.utime(ROOT / "a.md", (1_000_000, 1_000_000))
+            metric = {"dimension": "plain", "name": "n", "value": 60, "range": [0, 50], "ok": False, "where": "a.md"}
+
+            def results(at: str, scope: str = SCOPE_CHANGE, exit_code: int = 0) -> tuple:
+                (PROXY_DIR / "j.json").write_text(json.dumps({"judge": "j", "at": at, "scope": scope,
+                                                              "metrics": [metric]}))
+                (PROXY_DIR / "j.run.json").write_text(json.dumps({"exit": exit_code, "at": at}))
+                return proxy_state("j", SCOPE_CHANGE, ["a.md"])
+            fresh = results("2001-01-01T00:00:00Z")
+            out.append(("fresh results of the change cap", list(fresh[0]) == ["plain"] and fresh[2] is None))
+            stale = results("1970-01-01T00:00:00Z")
+            out.append(("results older than a changed file are set aside", stale[0] == {} and "stale" in stale[2]))
+            other = results("2001-01-01T00:00:00Z", SCOPE_PRODUCT)
+            out.append(("the product's results cap no review", other[0] == {} and "product" in other[2]))
+            failed = results("2001-01-01T00:00:00Z", exit_code=1)
+            out.append(("a failed run's results are set aside", failed[0] == {} and "failed" in failed[2]))
+        finally:
+            PROXY_DIR, ROOT = saved
+    out.append(("a proxy's `at` reads with Z or local", epoch("1970-01-01T00:00:10Z") == 10
+                and epoch("not a time") is None))
+    return out
+
+
+def write_self_test() -> list[tuple[str, bool]]:
+    """The writes: atomic, a log appended whole, a lock taken again in one process without waiting on itself."""
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "x.jsonl"
+        append_line(p, '{"a": 1}')
+        with locked(p):  # re-entrant: the append inside takes the same lock
+            append_line(p, '{"a": 2}')
+        out.append(("a log appended under its lock keeps every row", p.read_text() == '{"a": 1}\n{"a": 2}\n'))
+        write_atomic(p, "new\n")
+        left = [f for f in os.listdir(tmp) if f != "x.jsonl"]
+        out.append(("an atomic write leaves no temp file", p.read_text() == "new\n" and not left))
+    return out
+
+
+def cli_self_test() -> list[tuple[str, bool]]:
+    """End to end, in a temp copy of the kit: a review scored above the bar, the person's taste on a dimension it
+    scored 3 (a miss that raises its weight), their weight set by hand, a review below the bar that `finish` holds,
+    and their acceptance that lets it through."""
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        me = root / ".agents/skills/verify-change/scripts/verify.py"
+        me.parent.mkdir(parents=True)
+        shutil.copyfile(Path(__file__), me)
+        shutil.copyfile(ROOT / ".agents/project.py", root / ".agents/project.py")
+        (root / EVALS).mkdir(parents=True)
+        shutil.copyfile(WEIGHTS, root / EVALS / "weights.json")
+        (root / ".agents/rubrics").mkdir()
+        (root / ".agents/rubrics/ui-designer.md").write_text("# Rubric — ui-designer\n\n## Learned\n\n"
+                                                             "| Item | Since | From the person | Looks for |\n"
+                                                             "| --- | --- | --- | --- |\n")
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+
+        def cli(*args: str) -> tuple[int, str]:
+            p = subprocess.run([sys.executable, str(me), *args], cwd=root, capture_output=True, text=True)
+            return p.returncode, p.stdout + p.stderr
+
+        dims = list(load_weights()["judges"]["ui-designer"])
+        note = "; ".join(f"{d}: seen" for d in dims)
+        weights = lambda: json.loads((root / EVALS / "weights.json").read_text())["judges"]["ui-designer"]  # noqa
+        cli("start", "e2e")
+        cli("run", "--only", "none")
+        code, said = cli("review", "ui-designer", "pass", "--out-of-scope")
+        out.append(("cli: --out-of-scope is refused when no proxy can show the scope empty", code == 1
+                    and "review refused" in said))
+        code, said = cli("review", "ui-designer", "pass", "--score", ",".join(f"{d}=3" for d in dims), "--note", note)
+        out.append(("cli: a review scored 3 on every dimension passes the bar", code == 0 and "quality: 75/100" in said))
+        before = weights()["spacing"]["weight"]
+        code, said = cli("taste", "too tight", "--judge", "ui-designer", "--dimension", "spacing")
+        after = weights()["spacing"]["weight"]
+        out.append(("cli: taste on a 3 is a miss that raises the weight", code == 0 and "a miss" in said
+                    and after > before))
+        code, _ = cli("weight", "--judge", "ui-designer", "--dimension", "spacing", "--set", "30", "--words", "e2e")
+        w = weights()
+        out.append(("cli: the person's weight is set and the rest keep 100", code == 0 and w["spacing"]["weight"] == 30
+                    and abs(sum(v["weight"] for v in w.values()) - 100) < 0.05))
+        cli("review", "ui-designer", "pass", "--score", ",".join(f"{d}=1" for d in dims), "--note", note)
+        code, said = cli("finish")
+        out.append(("cli: finish holds a score below the bar", code == 1 and "is below the bar" in said))
+        code, _ = cli("accept", "ui-designer", "fine for this change")
+        _, said = cli("finish")
+        out.append(("cli: the person's acceptance lets it through", code == 0 and "is below the bar" not in said
+                    and "Accepted below the bar by the person" in said))
+        rows = [json.loads(ln) for ln in (root / EVALS / "scores.jsonl").read_text().splitlines()]
+        out.append(("cli: every score and the taste are logged", [r["kind"] for r in rows] == ["review", "taste",
+                                                                                                "review"]))
+    return out
 
 
 def main() -> int:
@@ -1565,7 +2687,46 @@ def main() -> int:
     v = sub.add_parser("review")
     v.add_argument("judge", choices=sorted(JUDGES))
     v.add_argument("verdict", choices=["pass", "blocking"])
-    v.add_argument("--note")
+    v.add_argument("--note", help="with a score: a reason per dimension, \"dim: why; dim: why\"")
+    v.add_argument("--score", help="every quality dimension 0–4 or na: dim=n,dim=n (.agents/evals/weights.json)")
+    v.add_argument("--scores-file", help="a JSON file {dim: {\"score\": n, \"reason\": \"…\"}} in place of --score")
+    v.add_argument("--no-proxy", action="store_true",
+                   help="do not run the judge's proxy first; its last results are used only if not stale")
+    v.add_argument("--out-of-scope", action="store_true",
+                   help="the change touches none of the judge's measured scope: the verdict, no score, not held to "
+                        "the bar — refused unless the judge's proxy shows the scope empty")
+    quality_judges = sorted(load_weights()["judges"])
+    ac = sub.add_parser("accept")
+    ac.add_argument("judge", choices=quality_judges)
+    ac.add_argument("words", help="the person's words accepting the score below the bar")
+    ts = sub.add_parser("taste")
+    ts.add_argument("words", help="the person's view, in their words")
+    ts.add_argument("--judge", required=True, choices=quality_judges)
+    ts.add_argument("--dimension", required=True)
+    ts.add_argument("--anchor", help="an image or file that shows it — copied to .agents/evals/anchors/img/")
+    good = ts.add_mutually_exclusive_group()
+    good.add_argument("--good", action="store_true", help="an example of good")
+    good.add_argument("--poor", action="store_true", help="an example of poor (the default)")
+    ra = sub.add_parser("rate")
+    ra.add_argument("file", help="what the person scored: a screenshot, a doc, a file")
+    ra.add_argument("--judge", required=True, choices=quality_judges)
+    ra.add_argument("--dimension", required=True)
+    ra.add_argument("--score", required=True, type=int, choices=range(SCORE_MAX + 1))
+    ra.add_argument("--note")
+    wt = sub.add_parser("weight")
+    wt.add_argument("--judge", required=True, choices=quality_judges)
+    wt.add_argument("--dimension", required=True)
+    wt.add_argument("--set", required=True, type=float, help=f"the new weight, {WEIGHT_MIN}–{WEIGHT_MAX}")
+    wt.add_argument("--words", help="the person's words, logged with the change")
+    au = sub.add_parser("audit")
+    au.add_argument("judge", choices=quality_judges)
+    au.add_argument("--scores-file", help="the judge's whole-product scores, as for review")
+    au.add_argument("--note", help="a note kept with the audit; a reason per dimension, \"dim: why; dim: why\", "
+                                   "where the file gives none")
+    au.add_argument("--no-proxy", action="store_true", help="use the last whole-product proxy results, not a new run")
+    px = sub.add_parser("proxies")
+    px.add_argument("--judge", choices=quality_judges)
+    px.add_argument("--all", action="store_true", help="the whole product, as an audit measures it, not the change")
     a = sub.add_parser("approve")
     a.add_argument("file", help="the file the person said yes to — a mock, a motion study, the copy, the built "
                                 "screen beside its mock")
@@ -1623,7 +2784,8 @@ def main() -> int:
             "decision": cmd_decision, "target": cmd_target, "signoff": cmd_signoff, "finding": cmd_finding,
             "decline": cmd_decline, "kitdiff": cmd_kitdiff,
             "dispute": cmd_dispute, "status": cmd_status, "finish": cmd_finish, "calibration": cmd_calibration,
-            "doctor": cmd_doctor, "unverified": cmd_unverified}[args.command](args)
+            "doctor": cmd_doctor, "unverified": cmd_unverified, "accept": cmd_accept, "taste": cmd_taste,
+            "rate": cmd_rate, "weight": cmd_weight, "audit": cmd_audit, "proxies": cmd_proxies}[args.command](args)
 
 
 if __name__ == "__main__":

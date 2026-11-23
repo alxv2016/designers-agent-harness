@@ -1,6 +1,6 @@
 ---
 name: typography
-description: How a product's type is applied, carried in the skill (references/typography.md) — the type scale itself is the project's own, in its DESIGN.md tokens, and the skill says which role goes where and how to set it — six roles (display, headline, title, body, label, caption) with what each is for and never for, mapped to Apple's text styles and Material's roles; a small scale with visible steps, each role token holding family, size, line height, weight and letter spacing; hierarchy from one property at a time with one top level per screen and headings that match in code; the system font first, one or two families, pairing, variable fonts, glyph coverage and licences, icons as images; line height by role, letter spacing for capitals, paragraph spacing; the measure of 45 to 75 characters, start alignment, centring only short text, justification only with hyphenation, wrapping before truncating; emphasis by weight first, italic sparingly, underline for links, no light weights for reading, capitals with tracking; tabular figures; editorial treatments — display type, a hero number, an eyebrow, a pull quote, an initial; text that follows the person's text size with the hierarchy intact and the platforms' minimum sizes; watches, round screens and LVGL panels' compiled fonts — the principles for every platform with guidance labelled for the web, iOS, Android and embedded ESP-IDF devices with an LVGL display; the type spec a draft records and the review of type; plus typography_check.py for the patterns code can show, in web, native and C/C++ files. Portable — the folder works in any repo. Use when choosing a text role, setting a heading, body text, a label or a caption, building a hierarchy, picking or pairing fonts, setting line height, letter spacing, line length or alignment, emphasising text, setting numbers, designing an editorial treatment, making text scale, or reviewing a screen's type.
+description: How a product's type is applied, carried in the skill (references/typography.md) — the type scale itself is the project's own, in its DESIGN.md tokens, and the skill says which role goes where and how to set it — six roles (display, headline, title, body, label, caption) with what each is for and never for, mapped to Apple's text styles and Material's roles; a small scale with visible steps, each role token holding family, size, line height, weight and letter spacing; hierarchy from one property at a time with one top level per screen and headings that match in code; the system font first, one or two families, pairing, variable fonts, glyph coverage and licences, icons as images; line height by role, letter spacing for capitals, paragraph spacing; the measure of 45 to 75 characters, start alignment, centring only short text, justification only with hyphenation, wrapping before truncating; emphasis by weight first, italic sparingly, underline for links, no light weights for reading, capitals with tracking; tabular figures; pairing type in a component — a label and its description, a title and its subtitle, a key and its value, a hero number, an empty state — and hierarchy without colour or fine sizes; editorial treatments — display type, a hero number, an eyebrow, a pull quote, an initial; text that follows the person's text size with the hierarchy intact and the platforms' minimum sizes; watches, round screens and LVGL panels' compiled fonts — the principles for every platform with guidance labelled for the web, iOS, Android and embedded ESP-IDF devices with an LVGL display; the type spec a draft records and the review of type; plus typography_check.py for the patterns code can show, in web, native and C/C++ files. Portable — the folder works in any repo. Use when pairing text, a label and description, a title and subtitle, visual balance in a component, choosing a text role, setting a heading, body text, a label or a caption, building a hierarchy, picking or pairing fonts, setting line height, letter spacing, line length or alignment, emphasising text, setting numbers, designing an editorial treatment, making text scale, or reviewing a screen's type.
 user-invocable: false
 metadata:
   scope: portable
@@ -67,6 +67,18 @@ the check.
 16. **Write the type spec into the draft** — each text's role, emphasis, measure, wrap, numbers (TYPOGRAPHY §14).
 17. **Embedded (ESP-IDF, LVGL): take each role's compiled font from the brief's header, through shared styles**
     (TYPOGRAPHY §12).
+18. **Separate a pair of texts by weight and ink before size, with a size step of 1.0 to 1.17** (TYPOGRAPHY §17.1).
+19. **Use at most three sizes and two weights on a screen; never set the secondary text heavier than the primary**
+    (TYPOGRAPHY §17.1).
+20. **De-emphasise the key, not the value; glue a pair and space the groups, about 1 : 3** (TYPOGRAPHY §17.1).
+21. **Set big type big by size, regular or lighter and tracked tighter; capitals and small labels tracked open;
+    figures tabular** (TYPOGRAPHY §17.1).
+22. **Give a hero number a style of its own; write an empty state as a title, a line and one action**
+    (TYPOGRAPHY §17.1).
+23. **Prefer an icon whose stroke matches its text's weight, set on the text's first line** — a derived default, no
+    source found (TYPOGRAPHY §17.1).
+24. **Where grey or fine sizes are unreliable, rank by space, whole-pixel weight, inversion, then coarse size; dithered
+    grey last** (TYPOGRAPHY §17.3).
 
 ### Never
 
@@ -126,6 +138,8 @@ python3 .agents/skills/typography/scripts/typography_check.py <file> …   # the
 - [ ] Every text a role from the brief, used for its job (Do 1, Do 2)
 - [ ] One top level; three or four sizes; headings in code at their level (Do 3, Do 5)
 - [ ] Running text within the measure, start-aligned, wrapping before truncating (Do 8–10)
+- [ ] Every text pairing: size ratio 1.0–1.17, weight contrast, the secondary not heavier, the glued gap against the
+  spaced one, and on a display without reliable grey a named substitute (Do 18–24; TYPOGRAPHY §17)
 - [ ] The screen read at the largest text size on the target — handed to the person (Do 14)
 
 Y1 reads CSS `font-size` and the `font` shorthand in px, a custom property named for font or text size in px
@@ -172,4 +186,5 @@ the review and the screen at its largest text size find those.
 | A modular scale | Tim Brown, "More Meaningful Typography", A List Apart |
 | Resizing and text spacing | WCAG 2.2 — 1.4.4 Resize Text, 1.4.12 Text Spacing, 1.4.8 Visual Presentation |
 | Watches and arc text | Apple Human Interface Guidelines, Designing for watchOS; Android Developers, Wear OS "Apply the design" |
+| Pairing, and hierarchy without colour or fine sizes | The sources, by key, with their URLs: [TYPOGRAPHY §17.5](references/typography.md#175-sources-for-17) |
 | Embedded: fonts, styles, text properties | LVGL 9 docs — Fonts, Style properties (`text_font`, `text_line_space`, `text_letter_space`, `text_align`), Label |

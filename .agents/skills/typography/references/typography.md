@@ -40,6 +40,7 @@ an Espressif chip, whose fonts are compiled into the firmware at fixed sizes (§
 | 14 | [The type spec](#14-the-type-spec) | What a draft records about its type |
 | 15 | [Reviewing type](#15-reviewing-type) | What a review of type checks, in order |
 | 16 | [The checks](#16-the-checks) | What the typography check finds, and what is left to read |
+| 17 | [Pairing type in a component](#17-pairing-type-in-a-component) | A label and its description, a title and its subtitle, a key and its value; the pairing table; hierarchy without colour or fine sizes |
 
 ---
 
@@ -107,8 +108,9 @@ platforms' names for their own roles. The brief maps its role tokens (for exampl
 
 - **One top level per screen** — one text in the screen's highest role, whether that is a display, a headline or a
   bar's title; two equal top levels make the person choose where to start.
-- **Change one property at a time to rank** — size, then weight, then colour; a heading that is larger, bolder and a
-  different colour has spent three signals on one step.
+- **Change one property at a time to rank** — in a pair of texts, weight and ink first (§17); across levels, size,
+  then weight, then colour; a heading that is larger, bolder and a different colour has spent three signals on one
+  step.
 - **Weight and colour emphasise within a role** — "Adjust font weight, size, and color as needed to emphasize
   important information and help people visualize hierarchy" (Apple Human Interface Guidelines, Typography); colour is
   never the only signal (the `accessibility` skill).
@@ -168,6 +170,7 @@ Guidelines, Typography; Android Developers, "Material Design 3 in Compose"; Butt
 - **Line height grows with the text** — a unitless ratio, or a `rem` value, on the web; a line height fixed in `px`
   clips enlarged text. Its value at the default size lands on the base grid (§3).
 - **The person may space text further and nothing breaks** — WCAG 1.4.12's values are the `accessibility` skill's.
+- **Line height by role and paragraph spacing in numbers** are in §17.1.
 - **Paragraphs are separated by space or an indent, not both** — on screens, space between paragraphs (Butterick,
   *Practical Typography*).
 - **Embedded (ESP-IDF, LVGL): line and letter spacing are style properties** — `text_line_space` and
@@ -329,6 +332,7 @@ The draft's values file (`<screen>_mock<n>.md` in the `ui-designer` skill) holds
 | --- | --- |
 | Role | The brief's role token — display, headline, title, body, label or caption, as the brief names them |
 | Emphasis | Any weight or colour change within the role, and why |
+| Pairings | Each text pair: the two roles, size ratio, weights, gap glued or spaced, and a substitute where grey is unreliable (§17) |
 | Measure and alignment | The measure token for running text; start, or centred and why |
 | Wrap or truncate | What happens to the longest string, and at the largest text size |
 | Numbers | Tabular or proportional |
@@ -348,7 +352,8 @@ The draft's values file (`<screen>_mock<n>.md` in the `ui-designer` skill) holds
    `accessibility` skill).
 2. **Roles** — every text a role from the brief, used for its job (§2); no size or weight of its own.
 3. **Hierarchy** — one top level; ranks clear by one property at a time; visual levels match the headings in code
-   (§4).
+   (§4); every text pairing checked against §17 — size step, weights, the secondary never heavier, the glued gap against
+   the spaced one, a substitute named where grey is unreliable.
 4. **Families** — the system font or the brief's; at most two families; every glyph present (§5).
 5. **Line height and spacing** — reading text not tight; capitals spaced (§6).
 6. **Measure and alignment** — running text within the measure; start-aligned; justified only with hyphenation; wraps
@@ -377,3 +382,144 @@ rest.**
 - **What no script reads**: a role used for the wrong job, a hierarchy with two top levels, a measure too long, text
   that truncates where it should wrap, a missing glyph, a heading in code at the wrong level. The draft, the review
   and the screen at its largest text size find those.
+
+## 17. Pairing type in a component
+
+**A pair of texts — a label and its description, a title and its subtitle, a key and its value — is separated by weight
+and ink first and by a small size step; the gap inside the pair is glued and the gap between pairs is spaced.**
+
+Sources are cited by key in round brackets; their URLs are in §17.5. Ratios are derived `[D]`: the larger size over the
+smaller, or the line height over the size.
+
+### 17.1 Rules
+
+- **Separate a pair by weight and ink before size** — colour and weight "don't disrupt layout" (RUI-notes); Apple says
+  to "adjust font weight, size, and color" (HIG); "a bold weight will always have more emphasis than a lighter weight
+  font of the same size" (Carbon-ov).
+- **Keep a pair's size step to 1.0–1.17 `[D]`** — M3 list label 16 over supporting 14 is 1.14 (M3-list); Apple Headline
+  17 over Subhead 15 is 1.13 (HIG); Geist 14 over 13 and Polaris 14 over 13 are 1.08 (Geist), (Polaris); Carbon
+  heading-01 and body-01 are both 14 px, at 600 and 400, so 1.0 (Carbon).
+- **Use at most three sizes on a screen, two of them large at most** (NNG-vh); at most three heading levels, two is
+  better, each "the smallest change that's visibly different" (PT-head).
+- **Step the scale tight for UI, 1.125–1.25, and wider (1.333+) for editorial** (Figma-scale); the small steps of Apple
+  (11, 12, 13, 15, 16, 17) and M3 (11, 12, 14, 16) run 1.06–1.17 (HIG), (M3).
+- **Use two weights** — 400–500 for normal, 600–700 for emphasis, never under 400 at UI sizes (RUI-tips); Apple advises
+  against Ultralight, Thin and Light (HIG).
+- **De-emphasise the key, never the value** — make the label smaller, lower in contrast or lighter, since "the data
+  itself is what matters" (RUI-labels). Emphasise the key instead where people scan for it, as on a spec sheet
+  (RUI-labels).
+- **Take the pair's gap from LAYOUT §7.1** — the ladder from a pair's glued texts to the group gap lives there.
+  The gap grows with the larger text's size: a display heading takes more than a label. Type owns the line height below.
+- **Set line height by role, as §6** `[D]` — pairing numbers: one-line label 1.29–1.5 over body 1.43–1.5, small text
+  1.33–1.45, display 1.12–1.2, headline 1.25–1.29 (M3), (Carbon), (HIG), (PT-keys).
+- **Space paragraphs by half to a full line, as §6** — Atlassian 12 px on 14/20 and 16 px on 16/24 (Atl); 4–10 pt
+  (PT-para).
+- **Make big type big by size, regular or lighter, tracked tighter** — Apple Large Title 34 Regular against Headline 17
+  Semibold (HIG); M3 display and headline at 400, display-large tracked −0.25 (M3); Carbon's 42 and 54 px headings at
+  300 (Carbon); weights under 400 only for large headings (RUI-tips).
+- **Track small caps and small labels open, as §8** — M3 label-small +0.5 at 11 px (M3); Carbon label-01 0.32 px at 12
+  px (Carbon).
+- **Use tabular figures in a pair's value, as §9** (PT-fig), (Geist).
+- **Give a hero number a style of its own** and keep it short — M3 headline is "reserved for short, important text or
+  numerals" (M3-roles); Atlassian's metric tokens are 28/32, 24/28 and 16/20, all bold (Atl).
+- **Write an empty state as a short title, a line on what to do and one action**, and never show it while loading
+  (NNG-empty); Carbon left-aligns it as a block and centres only the image in small tiles (Carbon-empty).
+- **Never set the secondary text heavier than the primary** — the secondary gives way by size, ink or weight
+  (Carbon-ov), (RUI-labels).
+- **Match an icon to its text's weight and set it on the text's first line** `[D]` — the icon's stroke equals the text's
+  stem at that weight, and it centres on the first line however many lines follow; derived from alignment practice, no
+  source found.
+
+### 17.2 The pairing table
+
+| Pair | Size ratio `[D]` | Weight contrast | Ink contrast | Gap (the rungs: LAYOUT §7.1) | Line height |
+| --- | --- | --- | --- | --- | --- |
+| Label + description (row) | 1.08–1.14 (M3 16/14, Apple 17/15, Geist 14/13) | M3 none (400/400); Apple 600/400 | on-surface over on-surface-variant (M3-list) | lines touch inside a two-line row (72 dp in M3) (M3-list) | 1.5 over 1.43 (M3) |
+| Title + subtitle (card) | 1.08–1.14 (Polaris 14/13, M3 16/14) | 600/400 (Polaris); 500/400 (M3) | subdued tone on the subtitle (Polaris) | tight, less than the gap between items (NNG-prox) | one line-height token for both (Polaris) |
+| Heading + body | 1.0 (Carbon heading-01, 600) to 1.43 (Carbon heading-03 20/14); Atlassian 16/14 | weight or size, rarely both (Carbon) | primary ink for both | more above than below (RUI-notes); paragraphs ½–1 line apart (PT-para) | heading 1.25–1.4, body 1.43–1.5 |
+| Eyebrow / group header + items | 0.69 (M3 overline 11 over item 16), 0.86 (Carbon 12/14) | 500 (M3) or 400 (Carbon) | variant or secondary ink (M3-list) | closer to its items than to the group before (NNG-prox) | 1.33–1.45 |
+| Key + value | 1.0 common; the key may be smaller (RUI-labels) | value heavier, or key lighter (RUI-labels) | key lower in contrast; "a slightly lighter color" can be enough (RUI-labels) | key beside its value; rows spaced wider than one row's line height (RUI-notes) | one-line label, 1.29–1.43 |
+| Hero number + label | 2.0 (Atlassian 28/14) to 4.0 (48/12, Stripe (RUI-notes)); TRMNL value base 38 px | Atlassian bold; M3 and Apple regular | label grey (RUI-notes) | not sourced | 1.12–1.25 |
+| Empty state | not sourced | title stronger than body | not sourced | title, body, then action (Carbon-empty) | body 1.43–1.5 |
+
+### 17.3 Hierarchy without colour or fine sizes
+
+**On a monochrome, e-ink, 1-bit or pixel-font display, rank a pair by the first cue in this list that the display can
+draw, and add a second only where the first is not enough.**
+
+1. **Space and position** — needs no ink and works on any panel: proximity, enclosure and white space build the groups
+   (NNG-vh), (NNG-prox); on e-ink keep elements "at the same place whenever possible" (EI2030).
+2. **Weight, in whole-pixel steps** — at equal size, bold leads (Carbon-ov); Pebble gives every Gothic size (14, 18, 24,
+   28) a bold, and the 1-bit Mac had a bold system font, Chicago. Pixel strokes need at least 2 px or look "wispy"
+   (Playdate), so a weight step is a whole number of pixels.
+3. **Inversion and fill** — TRMNL picks its label style by bit depth: filled on 1-bit, outline on 2-bit, underline on
+   4-bit. It is the strongest cue, so keep it for one thing at a time.
+4. **Size, in coarse steps** — a pixel font renders only at its design size or a whole multiple of it, so the fine
+   1.08–1.14 step is out of reach. Playdate's system UI sets 20 Medium with headings at 24 Medium (1.2); Pebble uses 28
+   for glance data and 18 as the minimum (1.56). Where the step is coarse, hold the weight equal and keep the big jumps
+   for heroes.
+5. **Case and tracking** — capitals for short labels only, letterspaced; on a pixel font the tracking is a whole number
+   of pixels.
+6. **Rules, outlines and underlines** — one of NN/g's enclosures (NNG-vh); TRMNL keeps outline and underline as label
+   styles.
+7. **Dithered grey, the weakest** — it worked on the 1-bit Mac, which dimmed items with a checkerboard; but grey flashes
+   during e-ink updates (EI2030). Check it on the target (§15) before relying on it.
+
+Sources for §17.3: (TRMNL-label), (TRMNL-value), (Playdate), (Pebble), (Pebble-fonts), (Chicago), (Papyrus), (EI2030)
+and (Pixel-int), in §17.5.
+
+### 17.4 Where the sources disagree
+
+- **How heavy a hero number is** — Atlassian sets metrics bold (Atl); M3, Apple and Carbon set large type regular or
+  light (M3), (HIG), (Carbon). The default is regular or lighter, big by size; a display with no big size takes weight.
+- **How many sizes** — NN/g allows three (NNG-vh); Refactoring UI's scale has eleven (RUI-notes). The default is three
+  on a screen; a scale may hold more, since a screen does not show them all.
+- **How big a step** — Butterick wants about 1.04–1.08 (PT-head); NN/g's body-to-subheader step is about 1.3 (NNG-vh).
+  The default is 1.0–1.17 inside a pair and the scale's step between levels.
+- **Modular or hand-picked scale** — Refactoring UI prefers a hand-picked scale (12, 14, 16, 18, 20, 24, 30, 36, 48, 60,
+  72) (RUI-notes); Figma's generator gives ratios (Figma-scale). The default is the brief's scale, hand-picked or by
+  ratio, with pair steps held to 1.0–1.17.
+- **Light weight for de-emphasis** — Refactoring UI says colour or size, never under 400 (RUI-tips); a UX Movement
+  piece argues light weight beats light grey (UXM). The default follows §8: no light weight for reading.
+- **Body line height** — 1.20–1.45 (PT-keys), 1.5 (M3), (Atl), 1.29 (HIG). The default is the role's range in §6.
+- **Caps** — Butterick bars capitals from headings and allows them on labels (PT-head), (PT-keys); M3's role notes call
+  button text "typically… all caps" (M3-roles). The default is §8's: a few words, tracked.
+- **Empty-state alignment** — Carbon left-aligns (Carbon-empty); a design may centre it. The default is start-aligned
+  (§7); centre a short block only when the brief does.
+- **Key or value first** — the default emphasises the value; a spec sheet emphasises the key (RUI-labels).
+
+### 17.5 Sources for §17
+
+**Each key in round brackets, with its source.**
+
+- (M3) https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/tokens/TypeScaleTokens.kt
+- (M3-list) the same folder's ListTokens.kt
+- (M3-roles) https://developer.android.com/reference/kotlin/androidx/compose/material3/Typography
+- (HIG) https://developer.apple.com/design/human-interface-guidelines/typography
+- (Geist) https://vercel.com/geist/typography
+- (Carbon) https://carbondesignsystem.com/elements/typography/type-sets/
+- (Carbon-ov) https://carbondesignsystem.com/elements/typography/overview/
+- (Carbon-empty) https://carbondesignsystem.com/patterns/empty-states-pattern/
+- (Atl) https://atlassian.design/foundations/typography
+- (Polaris) https://polaris.shopify.com/components/text
+- (RUI-labels) https://www.refactoringui.com/previews/labels-are-a-last-resort
+- (RUI-tips) https://medium.com/refactoring-ui/7-practical-tips-for-cheating-at-design-40c736799886
+- (RUI-notes) https://rjseymour66.github.io/webdev/refactoring-ui/ (a summary of the book)
+- (PT-keys) https://practicaltypography.com/summary-of-key-rules.html
+- (PT-head) https://practicaltypography.com/headings.html
+- (PT-para) https://practicaltypography.com/space-between-paragraphs.html
+- (PT-fig) https://practicaltypography.com/alternate-figures.html
+- (NNG-vh) https://www.nngroup.com/articles/visual-hierarchy-ux-definition/
+- (NNG-prox) https://www.nngroup.com/articles/gestalt-proximity/
+- (NNG-empty) https://www.nngroup.com/articles/empty-state-interface-design/
+- (Figma-scale) https://www.figma.com/type-scale-generator/
+- (Playdate) https://help.play.date/developer/designing-for-playdate
+- (Pebble) https://developer.rebble.io/guides/design-and-interaction/recommended
+- (Pebble-fonts) https://developer.rebble.io/guides/app-resources/system-fonts/
+- (TRMNL-label) https://trmnl.com/framework/docs/3.4/label.md
+- (TRMNL-value) https://trmnl.com/framework/docs/3.4/value.md
+- (Chicago) https://en.wikipedia.org/wiki/Chicago_(typeface)
+- (Papyrus) https://papyrusreader.github.io/docs/user-interface
+- (EI2030) https://hackmd.io/@EI2030/HkvJEvsKu
+- (Pixel-int) https://forum.godotengine.org/t/why-pixel-font-blurry-godot-4/735
+- (UXM) https://uxmovement.substack.com/p/the-font-weight-system-for-better

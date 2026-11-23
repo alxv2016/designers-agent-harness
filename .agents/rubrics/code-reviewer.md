@@ -43,3 +43,34 @@ A result without evidence counts as unsure.
 | --- | --- | --- | --- |
 | L1 | 2026-11-19 | A device froze for seconds at a time on a page, input dead | A driver step that changes a device's power state (standby, power off, sleep) sent without checking the power state the driver tracks |
 | L2 | 2026-11-19 | That freeze repeated every few seconds | A wait on a busy line or a timeout, on the UI's task, retried on its own failure in a loop |
+
+## Quality
+
+The code-reviewer scores its dimensions as [HARNESS §12](../HARNESS.md#12-quality-taste-and-weights) says; its anchors are in `.agents/evals/anchors/code-reviewer/`. The code-reviewer's review scores what the change touches, and `verify.py audit` scores the whole product.
+
+| Dimension | What it scores | Anchors: a 0, 2 and 4 |
+| --- | --- | --- |
+| `correctness` | Correctness beyond the tests, edge cases (R1) | [correctness.md](../evals/anchors/code-reviewer/correctness.md) |
+| `simplicity` | Simplicity, smallest change | [simplicity.md](../evals/anchors/code-reviewer/simplicity.md) |
+| `robustness` | Robustness, error paths, resources (R5, L1, L2) | [robustness.md](../evals/anchors/code-reviewer/robustness.md) |
+| `tests` | Test quality, a test that fails without the fix (R6) | [tests.md](../evals/anchors/code-reviewer/tests.md) |
+| `fit` | Fit with the codebase (R2, R8) | [fit.md](../evals/anchors/code-reviewer/fit.md) |
+
+The report adds this block after its findings; `verify.py review code-reviewer <verdict> --score dim=n,… --note "dim: why;
+…"` records it and computes the score.
+
+```text
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| correctness … fit | <weight> | 0–4 / na (capped: <metric>) | <quoted line, output or measured value; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
+```
+
+## Taste
+
+The code-reviewer reads every row below before it scores; [HARNESS §12.3](../HARNESS.md#123-the-persons-taste) says how a row is recorded and promoted.
+
+| Item | Since | From the person | Dimension | Anchor |
+| --- | --- | --- | --- | --- |

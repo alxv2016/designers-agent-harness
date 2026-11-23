@@ -24,6 +24,7 @@ panel with the same words (§12).
 | Tag | Meaning |
 | --- | --- |
 | `[D]` | Derived — calculated from cited values, not measured |
+| `[J]` | Judgement — a default chosen here, argued in place; no source sets it |
 
 | § | Section | Look here for |
 | --- | --- | --- |
@@ -33,7 +34,7 @@ panel with the same words (§12).
 | 4 | [Navigation by width](#4-navigation-by-width) | A bottom bar, a rail or a side list, by tier; the same destinations at every width |
 | 5 | [Panes and canonical layouts](#5-panes-and-canonical-layouts) | How many panes per tier; list and detail, a supporting pane, a feed |
 | 6 | [Grids, containers and margins](#6-grids-containers-and-margins) | Columns and gutters, the container's cap, margins that grow with the tier |
-| 7 | [Spacing](#7-spacing) | The base grid, proximity, padding inside and gap between |
+| 7 | [Spacing](#7-spacing) | The base grid, proximity, padding inside and gap between; §7.1 the ladder, §7.2 roles, §7.3 the scale, §7.4 a component, §7.5 one-offs, §7.6 rhythm, §7.7 small screens, §7.8 sources |
 | 8 | [Density](#8-density) | Tighter or looser by whole steps, never below the minimum target |
 | 9 | [Content width](#9-content-width) | Room for the measure, forms, media that keep their shape, sideways scrolling |
 | 10 | [When the window changes](#10-when-the-window-changes) | Rotation, split screen, resizing, folding; state that survives |
@@ -223,6 +224,183 @@ Source: the three layouts are the ones Android Developers name in "Canonical lay
   the next card: one token each, named for the relationship in the brief.
 - **An optical adjustment off the scale is an exception** — an icon nudged to look centred, registered with its reason;
   never a habit.
+
+### 7.1 The ladder
+
+**Space steps up by level, and this section is the one home of the ladder: each rung's range is here, and other docs
+point to it.** Keys in round brackets are listed with their URLs in §7.8. Values are px or dp.
+
+| Rung | Spaces | Range (Source) |
+| --- | --- | --- |
+| Pair gap | The two texts of one pair, a label over its description, set between the texts' own boxes — the font's height with no leading | 0–4 between line boxes with their leading (M3's lines touch, M3-list; Atlassian's 0–8, Atl), the same white as 8 between the font's own boxes; check the ink gap, and keep it under the ink gap of wrapped lines `[D]`; it grows with the larger text's size (below) |
+| Label gap | A label to its own control or value | about 8: "8 px inside a setting" (RUI) |
+| Inset | Padding inside a box | small 4–8; card 16 (Atl), (Polaris-space), (Carbon-2x) |
+| Group gap | Between settings, pairs or cards | 16–24: 24 against the label's 8 is 1 : 3 (RUI); at least 2× the pair gap (Carbon-2x) |
+| Section gap | Between sections | 32–80 (Atl), (Carbon) |
+
+- **Read it as pair gap ≤ label gap ≤ inset ≤ group gap < section gap**, internal never more than external — the
+  proximity rule in §7 — and each level 2–3× the one inside it (RUI), (Carbon-2x). Equal — Polaris's 16 inside a card
+  and 16 between cards (Polaris-space) — is the floor the rule allows, not the aim.
+- **The pair gap is a function of the larger text's size, not one number** `[J]`. A display heading over its body, or
+  a modal title over its description, takes a larger gap than a label over its caption. Larger text needs more space
+  below it to its description than smaller text, so set one pair-gap token per size class of the larger text. It stays
+  under the group gap, so the pair still reads as glued. No source set here gives the size-to-gap ratio; the brief
+  records the values.
+- **A heading sits nearer its own text than the section above it**, with more space above than below (NNG-prox), (RUI).
+- **Give the important thing more room** (Carbon), and start with too much white space, then remove it (RUI).
+- **TYPOGRAPHY §17 holds only what is type's** — the line height inside the pair; its gaps are the table's.
+
+### 7.2 Naming spacing by role
+
+**A token is named for the relationship it spaces, not for its size.**
+
+| Role | Spaces | Typical values (Source) |
+| --- | --- | --- |
+| Inset | Padding on all four sides of a box | small 4–8; card 16; list row 16 × 10 (Atl), (Polaris-space), (Carbon-2x), (M3-list) |
+| Squish inset | Vertical halved, for buttons, cells and list items | 16 becomes 8 (Curtis); a medium control 6 × 12 (Primer) |
+| Stretch inset | More vertical than horizontal, for text fields | (Curtis) |
+| Stack | Children in a column | condensed 8, normal 16, spacious 24 (Primer) |
+| Inline | Children in a row, wrapping | icon to label 4–8; button group 8 (Atl), (Polaris-space) |
+| Gap | Repeated items | 4–8 small; cards 16; segmented 2 (Atl), (Polaris-space), (M3-list) |
+| Pair gap | The two texts of one pair | §7.1's range, by the larger text's size |
+| Label gap | A label to its control or value | about 8 (RUI) |
+| Group gap | Between pairs or settings | 16–24 (RUI), (Carbon-2x) |
+| Section gap | Between sections | 32–80 (Atl), (Carbon) |
+| Layout margin | The screen's edge | compact phone 16; Carbon 16, 24 at Max (And-layout), (Carbon-2x) |
+
+- **Atlassian splits its semantic tokens into gap and inset** (Atl-tok); Primer has stack-gap and control-padding
+  (Primer). Name by role so a reader sees what a value is for, and a review can test it against the ladder.
+- **Avoid a generic spacer** (an unnamed `margin-top: 12`): reviewers steer it to an inset or a stack (Curtis).
+- **Use the band for the job** — 0–8 inside components and between repeated items; 12–24 in larger components and
+  cards; 32–80 between sections (Atl), (Carbon).
+
+### 7.3 The scale
+
+**A non-linear scale on a 4 or 8 base, its neighbouring steps at least about 25 % apart.**
+
+- **Take every value from a 4 or 8 base** — Carbon "multiples of two, four, and eight" (Carbon); Atlassian 8 (Atl);
+  Material 8 dp for components and 4 dp for icons and type (M-spacing). 2 is for hairline detail only (Carbon
+  spacing-01, Atlassian space.025, M3's segmented gap) (M3-list).
+- **Make it non-linear** — a linear 4, 8, 12, 16 gives "too many choices too close together" (Curtis); "no two values
+  in the scale should be closer than about 25% apart" (RUI); doubling steps 2, 4, 8, 16, 32, 64, with 24 allowed
+  reluctantly (Curtis).
+
+| System | Values | Naming |
+| --- | --- | --- |
+| Carbon | 2, 4, 8, 12, 16, 24, 32, 40, 48, 64, 80, 96, 160 (Carbon), (Carbon-2x) | spacing-01 … 13 |
+| Atlassian | 0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80 (Atl) | space.0 … space.1000 |
+| Polaris | 0, 1, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 112, 128 (Polaris-size) | space-0 … space-3200 |
+| Primer | 2, 4, 6, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 64, 80, 96, 112, 128 (Primer) | base-size-N |
+| Bootstrap | 0, 4, 8, 16, 24, 48 (Bootstrap) | spacers 0–5 |
+| Refactoring UI | 4, 8, 12, 16, 24, 32, 48, 64, 96, 128 (RUI) | hand-picked |
+| Every Layout | 1 rem × 1.5ⁿ: 10.7, 16, 24, 36, 54 (EL) | --s-5 … --s5 |
+
+**Where the sources disagree**, and the default here `[J]`:
+
+- **Linear or geometric** — Primer and Polaris ship near-linear 4 steps to 48 (Primer), (Polaris-size); Curtis rejects
+  a linear run (Curtis). Default `[J]`: whole 4 steps up to 16, then wider steps (24, 32, 48). Small insets need fine
+  control, and Carbon and Atlassian both keep 12; 8, 12 and 16 are 50 % and 33 % apart, so Curtis's "too many choices
+  too close together" does not apply, and no pair is nearer than the 25 % floor.
+- **A ratio or hand-picked** — Every Layout derives every step from 1.5 (EL); Refactoring UI hand-picks (RUI). Default
+  `[J]`: hand-picked on the base, because a ratio gives fractions of a pixel (EL's 10.7), which §7.7's whole-pixel
+  screens cannot draw.
+- **The base** — 8 (Carbon, Atlassian), 4 (Polaris, Primer), body line height (Every Layout). Default `[J]`: the
+  brief's 4 or 8 base (§7), so one scale serves components and icons.
+- **The jump between levels** — equal (Cieden), 1 : 2 (Carbon-2x), 1 : 3 (RUI). Default `[J]`: at least 1 : 2,
+  because an equal step does not show a group.
+- **Odd values** — Atlassian and Primer keep 6, TRMNL 5 and 7 (TRMNL-gap); a 4 or 8 grid forbids them (Cieden).
+  Default `[J]`: none unless the brief names the step, because an odd value cannot be centred (§7.6) and the base
+  check (G4) flags it.
+
+### 7.4 The anatomy of a component
+
+**Padding sits inside, the gap sits between, and the touch target is never the same thing as the visual size.**
+
+- **A component's padding is its inset; the container's gap spaces its siblings** — the two never stack on one edge
+  (§7). A 20 line height plus 8 above and below makes a 36 button (DS-grid).
+- **Text sits against the padding** — "Always place type against the padding" (Carbon-2x); line height already adds
+  room above and below a line, so a stack of text collapses the part of the gap the line height supplies (Curtis).
+- **The hit area may exceed the drawing** — a 24 icon sits in a 48 target (And-a11y); §8 holds the floor, and it wins
+  over the inset.
+- **Space like elements alike** — one token per relationship, otherwise designs "appear haphazard" (And-layout),
+  (HIG).
+
+### 7.5 No one-off values
+
+**A value used once is a token smell: map it onto the scale, or argue it as an exception.**
+
+- **Step down the scale to fit; never invent a value** — Carbon goes from 16 to 8 at 768 and says deviating "should be
+  avoided whenever possible" (Carbon).
+- **A one-off off the scale** (a 20 inset beside a scale of 4, 8, 16, 24) has two ways out: move it to the nearest
+  step, or add the step to the brief because several places need it, then register it. A value used in one place only,
+  for no reason a reader can name, is moved.
+- **Audit by lint and by review** — Atlassian flags `padding: '16px'` for a token (Atl-lint), Mozilla flags
+  `gap: 4px 12px` (Moz-lint), strict-value forces a variable on chosen properties (Strict). The layout check's G4
+  finds a value off the base (§15); a value on the base but off the scale is a magic number only a reader finds.
+- **Keep a component spacing spec** — a table of each component's inset, inline and stack by token, so a review
+  compares the build against it (§13).
+
+### 7.6 Vertical rhythm and density
+
+**Line height is space, and density moves in whole steps.**
+
+- **Line heights go on the grid too** — divisible by 4 (DS-grid). Snap the spacing, not every baseline: a soft grid
+  (Soft8). The alternative, one ratio kept throughout (EL), is a choice the brief makes.
+- **Even values centre cleanly** — a 25 px button cannot be centred in (DS-grid).
+- **Density moves in whole steps** — §8 holds the rule; Material takes 4 off a component's height per step
+  (M-density).
+
+### 7.7 Small, monochrome and pixel-exact screens
+
+**Space is the grouping cue that costs no ink, so a screen with one bit of ink leans on it, in whole pixels.**
+
+- **Use whole, even pixels** — a 1.5× scale "causes split-pixel blurriness" (DS-grid); Playdate wants strokes of at
+  least 2 and power-of-two tiles (Playdate); TRMNL's 1-bit gaps are whole pixels and its sizes a 4 grid with half
+  steps (TRMNL-gap), (TRMNL-size), (TRMNL-sp).
+- **Space groups where colour cannot** — on one bit, proximity replaces colour; keep elements "at the same place
+  whenever possible" and paginate (EI2030).
+- **Margins as a share of the screen on a watch** — Wear OS defines margins "in percentages" (Wear); 2.5 %
+  rectangular and 5.2 % round (SAP-wear); watchOS keeps text inside its margin while backgrounds run nearly edge to
+  edge (watch-talk). §11 holds the rest.
+- **Fewer things per row** — at most three glyph or two text buttons side by side on watchOS (HIG).
+- **Convert targets by density** — 48 dp is 48 × ppi ÷ 160 px, about 70 at 235 ppi (And-a11y), (M-density) `[D]`.
+
+### 7.8 Sources for §7
+
+**Each key in round brackets, with its source.**
+
+- (Carbon) https://www.carbondesignsystem.com/building-blocks/foundations/spacing/overview
+- (Carbon-2x) https://carbondesignsystem.com/elements/2x-grid/overview/
+- (Atl) https://atlassian.design/foundations/spacing
+- (Atl-lint) https://atlassian.design/components/eslint-plugin-design-system/ensure-design-token-usage/usage
+- (Atl-tok) https://unpkg.com/@atlaskit/tokens@20.12.0/CHANGELOG.md
+- (M3-list) https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/tokens/ListTokens.kt
+- (M-spacing) https://material.io/design/layout/spacing-methods.html
+- (M-density) https://material.io/design/layout/applying-density.html
+- (And-a11y) https://developer.android.com/guide/topics/ui/accessibility/apps
+- (And-layout) https://developer.android.com/design/ui/mobile/guides/layout-and-content/content-structure
+- (Wear) https://developer.android.com/design/ui/wear/guides/foundations/canonical-adaptive-layouts
+- (SAP-wear) https://www.sap.com/design-system/fiori-design-android/sap-fiori-for-wear-os/foundation/wear-os-layout
+- (HIG) https://developer.apple.com/design/human-interface-guidelines/layout
+- (watch-talk) https://developer.apple.com/videos/play/tech-talks/802/
+- (Polaris-size) https://github.com/Shopify/polaris/blob/main/polaris-tokens/src/size.ts
+- (Polaris-space) https://github.com/Shopify/polaris/blob/main/polaris-tokens/src/themes/base/space.ts
+- (Primer) https://primer.style/foundations/primitives/size
+- (Bootstrap) https://getbootstrap.com/docs/5.3/utilities/spacing/
+- (Curtis) https://nathanacurtis.substack.com/p/space-in-design-systems-188bcbae0d62
+- (RUI) https://rjseymour66.github.io/webdev/refactoring-ui/ (a summary of Refactoring UI)
+- (EL) https://every-layout.dev/rudiments/modular-scale/
+- (NNG-prox) https://www.nngroup.com/articles/gestalt-proximity/
+- (Cieden) https://cieden.com/book/sub-atomic/spacing/spacing-best-practices
+- (DS-grid) https://www.designsystems.com/space-grids-and-layouts/
+- (Soft8) https://medium.com/ios-os-x-development/ios-hard-soft-8-point-grids-6d2d1dc2fcf7
+- (TRMNL-gap) https://trmnl.com/framework/docs/3.4/gap.md
+- (TRMNL-sp) https://trmnl.com/framework/docs/3.4/spacing.md
+- (TRMNL-size) https://trmnl.com/framework/docs/3.4/size.md
+- (Playdate) https://help.play.date/developer/designing-for-playdate
+- (EI2030) https://hackmd.io/@EI2030/HkvJEvsKu
+- (Moz-lint) https://firefox-source-docs.mozilla.org/code-quality/lint/linters/stylelint-plugin-mozilla/rules/use-design-tokens/space.html
+- (Strict) https://unpkg.com/stylelint-declaration-strict-value@1.11.1/README.md
 
 ## 8. Density
 
@@ -415,7 +593,8 @@ The draft's values file (`<screen>_mock<n>.md` in the `ui-designer` skill) holds
    the same order (§3, §4).
 5. **Panes** — the count fits the tier and each pane its minimum width; the pane in use survives a narrowing (§5).
 6. **Grid, container, margins** — whole columns, the container's cap, margins from the scale (§6).
-7. **Spacing** — every gap a token; proximity groups; padding inside and gap between (§7).
+7. **Spacing** — every gap a token, named by role and on the scale; proximity groups; internal ≤ external, each level
+   2–3× the one inside; padding inside and gap between; no one-off value without an argued exception (§7).
 8. **Content width** — running text held to the measure; media at their ratio (§9).
 9. **Size changes** — resized across each tier boundary with a selection, a scroll position and a half-typed field: all
    survive (§10).

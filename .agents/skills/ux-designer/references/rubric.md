@@ -19,6 +19,7 @@ item under the next free number.
 | 2 | [Evidence](#2-evidence) | What each result must show |
 | 3 | [Items](#3-items) | X1–X14, each with the principle it rests on |
 | 4 | [The report](#4-the-report) | The shape a review returns |
+| 5 | [Quality](#5-quality) | The score beside the verdict: dimensions, anchors, proxies, the Score block |
 
 ---
 
@@ -84,4 +85,35 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 
 ## Research to settle
 - <the open question> — <method, people, tasks> (UX_METHODS §2)
+```
+
+## 5. Quality
+
+**Beside its verdict, a review scores how good the experience is: each quality dimension 0–4 against its anchors,
+weighted to a score of 0–100.** The verdict says whether a problem is severe enough to block; the score says how far
+the experience is from what the person calls good. The hand-over holds the score to the project's bar; below it the
+person raises the work or accepts the score by name.
+
+| Dimension | What it scores | Starting weight |
+| --- | --- | --- |
+| `flow` | Task flow: the top tasks in the fewest steps, no dead end (X2, X10) | 25 |
+| `learnability` | Learnability: the next step obvious without being told; recognition over recall (X4, X8, X13) | 20 |
+| `errors` | Error prevention and recovery: slips prevented, mistakes recovered with the input kept (X5, X7) | 20 |
+| `feedback` | Feedback and status: every action answered, every wait shown, the result in the person's terms (X3) | 15 |
+| `model` | Consistency with the product's model: one concept, word and key meaning one thing everywhere (X4, X6) | 20 |
+
+- **The ux-designer's scoring follows the kit's HARNESS §12**, with the dimensions above. Outside the kit, the project keeps the ux-designer's weights, anchors and taste beside its rubric.
+- A ux-designer review scores what the change touches; `verify.py audit` scores the whole product.
+- Evidence for the ux-designer is the step of the flow and what a person would experience there.
+
+The ux-designer's report ends with this block, after the Rubric table. In the kit, `verify.py review ux-designer <verdict> --score
+dim=n,… --note "dim: why; …"` records it and computes the score.
+
+```text
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| flow … model | <weight> | 0–4 / na (capped: <metric>) | <the step, what a person would experience; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
 ```

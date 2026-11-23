@@ -485,6 +485,9 @@ write.
   tooltip opens, stays and closes is `ACCESSIBILITY §7`'s.
 - **A tooltip does not repeat the control's label**; if there is nothing to add, there is no tooltip.
 - **Help is in place, at the point of need, and says one thing.**
+- **A hint is for what is unusual or not implied** — a format rule, a key that breaks the product's convention. A
+  convention taught once ("UP or DOWN steps", "OK chooses") is not repeated on each screen; the hint is one short
+  line beside its control (`ACCESSIBILITY §14`).
 - **Touch and embedded have no hover** — on a phone or a device panel, help is a word on the screen or a screen behind
   a press, never a tooltip a person must find.
 

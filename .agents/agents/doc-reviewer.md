@@ -33,6 +33,11 @@ item, the Learned ones too. Run `python3 .agents/skills/verify-change/scripts/ve
 line is the person's word for this task, settled — do not block on it; when you think it breaks a rule, say so as a
 note.
 
+For the quality score, read the rubric's Quality section, each dimension's anchors in
+[`.agents/evals/anchors/doc-reviewer/`](../evals/anchors/doc-reviewer/), the person's rows in its Taste table, and the
+measured proxies — `python3 .agents/skills/verify-change/scripts/verify.py proxies --judge doc-reviewer` prints each
+dimension a proxy caps at 2.
+
 ## Input
 
 One doc path, several, or "all"; or a diff — `git diff`, `git diff --cached`, `git diff <base>...HEAD`. With a diff,
@@ -95,7 +100,17 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 
 ## Needs the target
 - <claims only the running product can settle>
+
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| answer-first … plain | <weight> | 0–4 / na (capped: <metric>) | <the doc's words quoted, a check's count; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
 ```
+
+Score every quality dimension, each with its evidence, after the items: the rubric's Quality section says how. A
+dimension a Taste row names scores no higher than the person's example until the docs have changed.
 
 ## Boundaries
 

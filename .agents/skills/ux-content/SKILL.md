@@ -30,7 +30,7 @@ Java, Android XML, Apple `.strings`, and C and C++. It needs git and Python 3.9+
 its visible words (`ACCESSIBILITY §4`), that a field has a visible label and typed text is checked on commit with the
 problem said beside the field (`ACCESSIBILITY §9`), that a status reaches a screen reader (`ACCESSIBILITY §10`), that
 instructions and links never rest on sense or place alone and one function has one name (`ACCESSIBILITY §13`), and
-what a device with no screen reader carries instead (`ACCESSIBILITY §14`); its focus reference says where a message
+what a device with no screen reader does instead: it teaches key conventions once, hints only at the unusual and never swaps visible instructions for a screen reader (`ACCESSIBILITY §14`). Its focus reference says where a message
 puts focus (`FOCUS §9`). The `touch-and-gesture` skill's feedback reference says when pending, done and failed show,
 and that success is said only once it happened (`FEEDBACK §3`, `FEEDBACK §5`). The `design-system` skill's brief
 chooses the control and the look of a destructive action and its confirmation (`DESIGN_BRIEF §13`). This skill writes
@@ -107,6 +107,9 @@ Every string is purposeful, short, human and means one thing — and is edited i
 - **Something essential only in a toast or an empty state** — both disappear (UX_CONTENT §5.9).
 - **Words cut to fit a box** — a label that ends in dots or scrolls when it must be read (UX_CONTENT §2.4).
 - **All capitals for words** (UX_CONTENT §3.1).
+- **A hint or instruction string where the interaction is implied or a convention** — "UP or DOWN steps", "OK
+  chooses", "Hold OK to go back" on a screen; a finding unless the interaction is unusual for the product and not
+  implied. One short line, beside its control (UX_CONTENT §5.14, ACCESSIBILITY Do 35).
 - **A readability score as the test of interface text** — test the words with people (UX_CONTENT §7.4).
 
 ## Procedure
@@ -135,6 +138,8 @@ Every string is purposeful, short, human and means one thing — and is edited i
 4. **Check the accessible names, the status messages and the translation allowance** (UX_CONTENT §6).
 5. **Report each finding with the string, the rule (`UX_CONTENT §n`) and a rewrite.** Voice, tone and whether a word
    helps are judgment — the reviewer's, never the script's.
+6. **Score it against [references/rubric.md](references/rubric.md)** (UX_CONTENT_RUBRIC): the verdict, items C1–C6,
+   and the quality score beside the verdict, each dimension 0–4 against the project's anchors.
 
 ## Checks
 

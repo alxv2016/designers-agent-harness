@@ -61,7 +61,8 @@ flowchart TD
    change — not the judgements log, which a yes or a lesson appends to — ask again only the judges `finish` names.
    Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its skill's
    `references/rubric.md`, its learned ones in that file) and opens its report with `Verdict: pass | blocking`; that
-   word is the one `review` records (AGENT_HARNESS §8, §9).
+   word is the one `review` records (AGENT_HARNESS §8, §9). It ends with the Score block — every quality dimension
+   0–4 with its evidence — recorded with `--score` (Quality and taste, below).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    ux|mock|motion|copy` the moment they give it, naming the file** — `ux` for a UX brief, which comes before the
    mock for a new flow (the `ux-designer` skill). After the build, their yes on the built screen beside
@@ -97,6 +98,11 @@ flowchart TD
     <file>` writes it whole, new files included, then `verify.py approve <file> --kind kit`; `finish` holds the
     hand-over without it, and a tool's permission mode answering the guard's ask is not their yes (AGENT_HARNESS
     §11.3).
+15. **Record the person's aesthetic feedback with `verify.py taste` the moment they give it**, in their words, with
+    their image as `--anchor` — it becomes an anchor, a Taste row the judge reads, and a weight that moves on a miss
+    (HARNESS §12.3). On the prompt after a second miss, write the learned item and record their yes with `decision`.
+16. **Hand over at or above the quality bar** — below it, raise the dimensions the judge names, or ask the person;
+    only their words accept the score: `verify.py accept <judge> "<their words>"`.
 
 ### Never
 
@@ -119,8 +125,9 @@ flowchart TD
 3. Edit. Then `V run`: each check's PASS or FAIL with the lines that matter, and the judges to ask.
    - exit 1: read the failing lines, fix, run again.
    - exit 3: stop — the retry limit (Do 3).
-4. Ask each judge `V run` named, in parallel, with the diff; each returns its findings and a Verdict. Record each:
-   `V review <judge> pass|blocking --note "<one line>"`. Blocking: fix and go back to step 3.
+4. Ask each judge `V run` named, in parallel, with the diff; each returns its findings, a Verdict and its Score block.
+   Record each: `V review <judge> pass|blocking --score dim=n,… --note "dim: why; dim: why"` (or `--scores-file`).
+   Blocking: fix and go back to step 3. Below the bar: raise what it names, or the person accepts it.
 5. A visible change: show the person the built screen beside the approved mock ([`ui-designer`](../ui-designer/SKILL.md)
    gate 2); their yes: `V approve <side-by-side> --kind built`.
 6. The change needs the target? The target, below; then `V target --where "<where>" --build "<which build>"
@@ -185,11 +192,29 @@ same change (AGENT_HARNESS §9.2).
 - `V calibration` shows, per judge, what it caught, missed and raised in error; the findings only the person could
   see; the count per route.
 
+### Quality and taste
+
+Every judge scores its quality dimensions 0–4 against the anchors in `.agents/evals/anchors/<judge>/`, weighted by
+`.agents/evals/weights.json` to 0–100; `finish` holds it to `QUALITY_BAR` (HARNESS §12).
+
+| When | Run |
+| --- | --- |
+| Before a judge scores — the judge runs it | `V proxies --judge <judge>` — the measured proxies; one out of range caps its dimension at 2 |
+| A judge returns its Score block | `V review <judge> <verdict> --score dim=n,… --note "dim: why; …"` |
+| A judge named whose measured scope the change never touches | `V review <judge> <verdict> --out-of-scope --note "…"` — the verdict, no score, not held to the bar; refused unless its proxy shows the scope empty |
+| The person says a look, a word or a flow is good or poor | `V taste "<their words>" --judge <j> --dimension <d> [--anchor <their image>] [--good]` |
+| `taste` prints PROMOTE — the second miss on a dimension | Write `L<n>` in the judge's Learned table (what in a diff predicts it, from the Taste rows), show the person, then `V decision "promote taste on <j> <d> to L<n>: <their words>"` |
+| The person scores a file themselves | `V rate <file> --judge <j> --dimension <d> --score <0-4>` |
+| The person sets how much a dimension counts | `V weight --judge <j> --dimension <d> --set <5-40> --words "<their words>"` |
+| A score under the bar the person accepts | `V accept <judge> "<their words>"` |
+| A whole-product audit | `V audit <judge> --scores-file <file>` — kept in `.agents/evals/scores.jsonl`, with the trend |
+
 ### State
 
 `.cache/harness/` (git-ignored): `task.json` — the task, runs, reviews, approvals with each file's hash, decisions,
 the target and the sign-offs, findings, failures in a row; `nudged` — the tree the stop reminder last asked about;
-`runs/<n>/` — each check's log; `logs/` — the quiet wrapper's logs; `history/` — earlier tasks. Read `V status`
+`runs/<n>/` — each check's log; `logs/` — the quiet wrapper's logs; `history/` — earlier tasks; `proxies/` — each
+judge's proxy results. Committed: `.agents/evals/` — the judgements log, the weights, the scores and the anchors. Read `V status`
 instead of searching the chat for where the task stands.
 
 ## Checks
@@ -245,6 +270,7 @@ instead of searching the chat for where the task stands.
 | The guard, the hooks, the adapters, each agent's model | [HARNESS §2, §3, §7, §8](../../HARNESS.md#2-the-guard) |
 | The loop's design: commands, exit codes, task state, the hand-over | [AGENT_HARNESS §10](../../../docs/AGENT_HARNESS.md#10-the-verify-loop) |
 | Rubrics, learned items, routes, calibration | [AGENT_HARNESS §9](../../../docs/AGENT_HARNESS.md#9-rubrics-learnings-and-calibration) |
+| Quality scores, anchors, weights, proxies, the person's taste | [HARNESS §12](../../HARNESS.md#12-quality-taste-and-weights), [AGENT_HARNESS §24](../../../docs/AGENT_HARNESS.md#24-quality-scores-and-taste) |
 | The person in the loop, approval before building | [AGENT_HARNESS §20](../../../docs/AGENT_HARNESS.md#20-human-in-the-loop) |
 | Build, run, the target's steps | [`build-run-test`](../build-run-test/SKILL.md) |
 | Doc checks | [`docs-authoring-and-sync`](../docs-authoring-and-sync/SKILL.md) |

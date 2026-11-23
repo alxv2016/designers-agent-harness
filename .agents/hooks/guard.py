@@ -21,7 +21,8 @@ are peeled. It decides:
   ask   — needs the person: a commit, a push, discarding changes, deleting files outside the temp directories,
           skipping or moving the git hooks, sending data off the machine or fetching from a host outside
           ALLOWED_HOSTS, writing generated or managed files, a branch switch or merge that rewrites the kit, editing
-          the harness itself, creating a skill or agent (its prompt names the scope it will carry, or asks for one),
+          the harness itself or its evals (.agents/evals/), the verify.py commands that record the person's words
+          (approve, decline, signoff, accept, taste, weight, rate), creating a skill or agent (its prompt names the scope it will carry, or asks for one),
           a NEEDS_DOC file written from the shell when its rule needs no look at the content, and the project's
           ASK_COMMANDS — flashing a board, installing browsers and updating visual baselines among them;
   allow — everything else, with no output: reading, building, testing, running the app.
@@ -89,12 +90,25 @@ GATED = {
 }
 # Denied even with a yes: the result would land in the chat.
 NEVER = {"secret", "keychain"}
+# verify.py's commands that record the person's own words — their yes, their no, their sign-off, their acceptance of a
+# score, their taste, a weight and their rating: the person answers the prompt, so an agent cannot record them alone.
+# The rest (review, finding, decision, run, status, finish, proxies, audit, …) are the loop's own and pass. `dispute`
+# passes too: it records a judge's false alarm, the agent's own call on a review, never the person's words.
+PERSON_WORDS = {"approve": "records the person's yes on a draft or the built screen",
+                "decline": "records the person's no to a draft, which blocks approving that file for good",
+                "signoff": "records the person's sign-off on the target",
+                "accept": "records the person's acceptance of a quality score below the bar",
+                "taste": "records the person's taste, which moves the anchors and the weights",
+                "weight": "sets a quality weight, the person's to set",
+                "rate": "records the person's own score of a file"}
 
 HARNESS_PATHS = [
     (".agents/project.py", "the harness's project settings"),
     (".agents/skills/", "the harness's skills"),
     (".agents/agents/", "the harness's agents"),
     (".agents/rubrics/", "the harness's rubrics — a learned item lands through verify.py finding, with the person"),
+    (".agents/evals/", "the evals — the weights, anchors, scores and judgements hold the person's words and the "
+                       "judges' scores; verify.py writes them, by the commands that record each"),
     (".claude/skills/", "the harness's skills"),
     (".claude/agents/", "the harness's agents"),
     (".agents/hooks/", "the harness's guard"),
@@ -425,6 +439,17 @@ def check_segment(words: list[str], cwd: str) -> tuple[str, str] | None:
         return check_git(args, cwd)
     if prog == "rm":
         return check_rm(args, cwd)
+    if prog == "verify.py":
+        return check_verify(args)
+    return None
+
+
+def check_verify(args: list[str]) -> tuple[str, str] | None:
+    """verify.py's subcommand — its first argument that is not a flag — when it records the person's words."""
+    sub = next((a for a in args if not a.startswith("-")), "")
+    if sub in PERSON_WORDS:
+        return ask(f"`verify.py {sub}` {PERSON_WORDS[sub]} — the person answers this prompt; never reword the "
+                   "command to get round it")
     return None
 
 
@@ -670,6 +695,36 @@ CASES = [
     ("python3 - <<'EOF'\np='DESIGN.md'\nopen(p,'w').write(open(p).read())\nEOF", None),
     ("python3 -c \"print(open('.agents/project.py').read())\"", None),
     ("python3 .agents/skills/verify-change/scripts/verify.py run", None),
+    # verify.py: the person's words ask; the loop's own commands pass
+    ("python3 .agents/skills/verify-change/scripts/verify.py approve /tmp/mock.png --kind mock", "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py signoff \"looks right on the target\"", "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py decline /tmp/mock.png \"too tight\" --kind mock --about "
+     "layout --route none", "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py dispute ui-designer \"not a problem\"", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py accept ui-designer \"fine\"", "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py taste \"tight\" --judge ui-designer --dimension spacing",
+     "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py weight --judge ui-designer --dimension spacing --set 30",
+     "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py rate x.png --judge ui-designer --dimension spacing "
+     "--score 2", "ask"),
+    ("cd /tmp && ./verify.py approve x --kind mock", "ask"),
+    ("bash -c \"python3 .agents/skills/verify-change/scripts/verify.py accept ui-designer ok\"", "ask"),
+    ("python3 .agents/skills/verify-change/scripts/verify.py review ui-designer pass --score a=1", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py finding \"the person said approve\" --route none", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py decision \"no visible change: kit\"", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py status", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py finish", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py proxies --judge doc-reviewer", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py audit ui-designer --scores-file /tmp/s.json", None),
+    ("python3 .agents/skills/verify-change/scripts/verify.py --test", None),
+    ("grep -n 'verify.py approve' docs/AGENT_HARNESS.md", None),
+    # the evals, written from the shell
+    ("echo '{}' >> .agents/evals/scores.jsonl", "ask"),
+    ("cp /tmp/w.json .agents/evals/weights.json", "ask"),
+    ("python3 -c \"open('.agents/evals/judgements.jsonl','a').write('x')\"", "ask"),
+    ("sed -i '' 's/a/b/' .agents/evals/anchors/ui-designer/spacing.md", "ask"),
+    ("cat .agents/evals/scores.jsonl", None),
     ("python3 .agents/skills/motion/scripts/motion_check.py --test", None),
     ("python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test", None),
     ("python3 .agents/skills/layout/scripts/layout_check.py --test", None),
@@ -752,7 +807,11 @@ PATH_CASES = [
     (".agents/rubrics/doc-reviewer.md", "ask"),
     (".codex/hooks.json", "ask"),
     (".claude/settings.json", "ask"),
-    (".agents/evals/judgements.jsonl", None),  # verify.py writes it
+    (".agents/evals/judgements.jsonl", "ask"),  # verify.py writes it; an agent's edit asks
+    (".agents/evals/weights.json", "ask"),
+    (".agents/evals/scores.jsonl", "ask"),
+    (".agents/evals/anchors/ui-designer/spacing.md", "ask"),
+    (".agents/evals/anchors/img/x.png", "ask"),
     ("docs/AGENT_HARNESS.md", None),
     ("AGENTS.md", None),
     ("src/app.ts", None),
@@ -782,6 +841,9 @@ def self_test() -> int:
         ({"tool_name": "Read", "tool_input": {"file_path": ".env.production"}}, "deny"),
         ({"tool_name": "Read", "tool_input": {"file_path": "build/index.html"}}, None),
         ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/hooks/guard.py"}}, "ask"),
+        ({"tool_name": "Edit", "tool_input": {"file_path": ".agents/evals/weights.json"}}, "ask"),
+        ({"tool_name": "Write", "tool_input": {"file_path": ".agents/evals/scores.jsonl", "content": "x"}}, "ask"),
+        ({"tool_name": "Read", "tool_input": {"file_path": ".agents/evals/scores.jsonl"}}, None),
         ({"tool_name": "Write", "tool_input": {"file_path": "src/app.ts"}}, None),
         # a new skill or agent: denied without the person's scope, asked with it named
         ({"tool_name": "Write", "tool_input": {"file_path": ".agents/skills/zz-new/SKILL.md",
@@ -901,7 +963,7 @@ def self_test() -> int:
 
 
 def main() -> int:
-    if "--test" in sys.argv:
+    if "--test" in sys.argv or "--self-test" in sys.argv:
         return self_test()
     agent = sys.argv[sys.argv.index("--agent") + 1] if "--agent" in sys.argv else "claude"
     try:

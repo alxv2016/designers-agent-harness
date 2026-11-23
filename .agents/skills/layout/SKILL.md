@@ -1,6 +1,6 @@
 ---
 name: layout
-description: How a product's screens are laid out and how they adapt across window sizes, carried in the skill (references/layout.md) — content and the window deciding, never the device; mobile first on Bootstrap's six breakpoint tiers (sm 576, md 768, lg 992, xl 1200, xxl 1400) applied to the window's logical width, with a panel's logical width from its pixels and dpi; the scaffold's regions (system areas, navigation, top bar, body, bottom actions) and one scroll per pane; navigation by width (a bottom bar, a rail, a side list) with the same destinations at every tier; panes per tier and the canonical layouts (list and detail, supporting pane, feed); a twelve-column grid, gutters, the container's cap and margins that grow with the tier; spacing on a 4 or 8 base with proximity, padding inside and gap between; density by whole steps, never below the minimum target; content width and line length; what survives when the window changes size; round and small screens — watches (watchOS, Wear OS) and small or round panels — one glance per screen, one column scrolled by touch and the crown, bezel or encoder, margins as a percentage of the screen, the circle's safe area and lists that reach its centre, edges that follow the bezel — the principles for every platform, stated in the web's words and mapped to iOS, Android and embedded ESP-IDF devices with an LVGL display (flex and grid layouts modelled on CSS, pad_row and pad_column as gap, LV_SIZE_CONTENT, lv_pct, lv_dpx, rotation as a resize); the layout spec a draft records tier by tier, and the review of a layout change; plus layout_check.py for the patterns code can show, in web, native and C/C++ files. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when laying out a screen or a component, choosing breakpoints, navigation or panes, setting spacing, margins, a grid or density, making a screen adapt to phones, tablets, desktops, a watch or a round or small panel, when a layout scrolls sideways, breaks at a width or loses state on rotation, or when reviewing a layout change.
+description: How a product's screens are laid out and how they adapt across window sizes, carried in the skill (references/layout.md) — content and the window deciding, never the device; mobile first on Bootstrap's six breakpoint tiers (sm 576, md 768, lg 992, xl 1200, xxl 1400) applied to the window's logical width, with a panel's logical width from its pixels and dpi; the scaffold's regions (system areas, navigation, top bar, body, bottom actions) and one scroll per pane; navigation by width (a bottom bar, a rail, a side list) with the same destinations at every tier; panes per tier and the canonical layouts (list and detail, supporting pane, feed); a twelve-column grid, gutters, the container's cap and margins that grow with the tier; spacing on a 4 or 8 base with proximity, padding inside and gap between, named by role (inset, stack, inline, gap, margin) on a non-linear scale, pair gap < inset ≤ group gap < section gap, no one-off values; density by whole steps, never below the minimum target; content width and line length; what survives when the window changes size; round and small screens — watches (watchOS, Wear OS) and small or round panels — one glance per screen, one column scrolled by touch and the crown, bezel or encoder, margins as a percentage of the screen, the circle's safe area and lists that reach its centre, edges that follow the bezel — the principles for every platform, stated in the web's words and mapped to iOS, Android and embedded ESP-IDF devices with an LVGL display (flex and grid layouts modelled on CSS, pad_row and pad_column as gap, LV_SIZE_CONTENT, lv_pct, lv_dpx, rotation as a resize); the layout spec a draft records tier by tier, and the review of a layout change; plus layout_check.py for the patterns code can show, in web, native and C/C++ files. Values come from the project's own DESIGN.md. Portable — the folder works in any repo. Use when laying out a screen or a component, choosing breakpoints, navigation or panes, setting spacing, a spacing scale, insets, gaps or spacing tokens, margins, a grid or density, fixing visual harmony, making a screen adapt to phones, tablets, desktops, a watch or a round or small panel, when a layout scrolls sideways, breaks at a width or loses state on rotation, or when reviewing a layout change.
 user-invocable: false
 metadata:
   scope: portable
@@ -62,6 +62,12 @@ the keyboard, and `verify.py run` runs the check.
    (LAYOUT §6).
 10. **Take every gap from the spacing scale on its 4 or 8 base**; smaller inside a group than between groups; the
     container sets the gap, children carry no margins (LAYOUT §7).
+    - **Name each space by role** — inset (squish, stretch), stack, inline, gap, layout margin — and keep the ladder:
+      pair gap < inset ≤ group gap < section gap, internal ≤ external, each level 2–3× the one inside it
+      (LAYOUT §7.1, §7.2).
+    - **Keep the scale non-linear, neighbouring steps at least about 25 % apart**, on whole, even pixels
+      (LAYOUT §7.3, §7.7).
+    - **A value used once is a token smell** — map it onto the scale or argue it as an exception (LAYOUT §7.5).
 11. **Change density by whole steps of the scale, never the hit area or the type** (LAYOUT §8).
 12. **Give running text the measure's width and no more** — the measure is the `typography` skill's; a wider window
     adds panes or margin (LAYOUT §9).
@@ -149,6 +155,8 @@ python3 .agents/skills/layout/scripts/layout_check.py <file> …   # the files a
 - [ ] Navigation in its tier's form, the same destinations in the same order (Do 6)
 - [ ] Panes at or above their minimum width; the pane in use survives a narrowing (Do 7)
 - [ ] Every gap, margin and gutter a token; proximity groups (Do 9, Do 10)
+- [ ] Every inset and gap named by role and on the scale, internal ≤ external, each level 2–3× the one inside; a
+  one-off argued (Do 10, LAYOUT §7.1–§7.5)
 - [ ] Running text held to the measure (Do 12)
 - [ ] Resized across every tier boundary, or rotated on a panel, with state kept — handed to the person (Do 13)
 - [ ] On a watch or a round or small panel: one purpose per screen, nothing in the curve or the corners, the list's
@@ -203,6 +211,7 @@ the review and the walk find those.
 | The principles, the spec, the review | [references/layout.md](references/layout.md) |
 | Breakpoint tiers, max-width subtraction, containers, the twelve-column grid, gutters, spacers | Bootstrap 5.3 — Breakpoints, Containers, Grid, Gutters, Spacing (v5.3.9) |
 | Spacing scales on a 4 or 8 base | IBM Carbon, Spacing; Atlassian Design System, Spacing; Shopify Polaris, Space; Bryn Jackson, "The 8-Point Grid" |
+| Spacing by role, the ladder, one-offs, small screens | The keys and URLs are in LAYOUT §7.8 (Carbon, Atlassian, Polaris, Primer, Material, Curtis, Refactoring UI, Every Layout, NNG, TRMNL, Playdate) |
 | List and detail, supporting pane, feed | Android Developers, "Canonical layouts" |
 | Window, not device; state through size changes | Android Developers, "Use window size classes"; Apple Human Interface Guidelines, Layout |
 | Bottom navigation | Apple Human Interface Guidelines, Tab bars |

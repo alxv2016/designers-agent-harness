@@ -14,3 +14,14 @@ the agent.
 
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
+
+## Quality
+
+The ui-designer scores its dimensions as [HARNESS §12](../HARNESS.md#12-quality-taste-and-weights) says; its anchors are in `.agents/evals/anchors/ui-designer/`. The ui-designer's review scores what the change touches, and `verify.py audit` scores the whole product.
+
+## Taste
+
+The ui-designer reads every row below before it scores; [HARNESS §12.3](../HARNESS.md#123-the-persons-taste) says how a row is recorded and promoted.
+
+| Item | Since | From the person | Dimension | Anchor |
+| --- | --- | --- | --- | --- |

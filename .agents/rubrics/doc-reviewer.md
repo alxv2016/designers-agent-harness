@@ -51,3 +51,34 @@ A result without evidence counts as unsure.
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
 | L1 | 2026-11-19 | A doc's "never do X" rule passed while the code did X in five places | A rule in a doc that bounds what code does — *never*, *only*, *every* — over a set the code enumerates (commands sent, pins, keys): each member the code uses, grepped and checked against the rule's source, not the rule's wording alone |
+
+## Quality
+
+The doc-reviewer scores its dimensions as [HARNESS §12](../HARNESS.md#12-quality-taste-and-weights) says; its anchors are in `.agents/evals/anchors/doc-reviewer/`. The doc-reviewer's review scores what the change touches, and `verify.py audit` scores the whole product.
+
+| Dimension | What it scores | Anchors: a 0, 2 and 4 |
+| --- | --- | --- |
+| `answer-first` | Answer first, findable (the form half) | [answer-first.md](../evals/anchors/doc-reviewer/answer-first.md) |
+| `accuracy` | Accurate to code and sources (the drift half) | [accuracy.md](../evals/anchors/doc-reviewer/accuracy.md) |
+| `concise` | Concise, one home per rule | [concise.md](../evals/anchors/doc-reviewer/concise.md) |
+| `complete` | Complete for its reader | [complete.md](../evals/anchors/doc-reviewer/complete.md) |
+| `plain` | Plain language | [plain.md](../evals/anchors/doc-reviewer/plain.md) |
+
+The report adds this block after its findings; `verify.py review doc-reviewer <verdict> --score dim=n,… --note "dim: why;
+…"` records it and computes the score.
+
+```text
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| answer-first … plain | <weight> | 0–4 / na (capped: <metric>) | <quoted line, output or measured value; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
+```
+
+## Taste
+
+The doc-reviewer reads every row below before it scores; [HARNESS §12.3](../HARNESS.md#123-the-persons-taste) says how a row is recorded and promoted.
+
+| Item | Since | From the person | Dimension | Anchor |
+| --- | --- | --- | --- | --- |

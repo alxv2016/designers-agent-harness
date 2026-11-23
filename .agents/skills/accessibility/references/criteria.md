@@ -394,11 +394,11 @@ thing looks, sits and is named the same on every screen.**
 
 ## 14. Closed functionality and physical controls
 
-**A product people cannot add assistive technology to — firmware with its own screen, no screen reader and no system
-settings — is closed functionality: it carries on screen, in sound and in its own settings what a platform's
-accessibility API would carry, and its physical controls work without vision, grasping, force or two hands.** The
-standard is EN 301 549 (V3.2.1, which cites WCAG 2.1): clause 5.1 for closed functionality, 5.5–5.9 for operable
-parts, and 8.4 for mechanical parts. Every other floor in this doc holds unchanged (§1).
+**Firmware with its own screen, no screen reader and no system settings is closed
+functionality.** The product teaches its conventions once, hints only at the
+unusual, pairs each sound with something visual and declares the duties it cannot meet. It meets the rest, and its
+physical controls work without vision, grasping, force or two hands. The standard is EN 301 549 (V3.2.1, which
+cites WCAG 2.1): clause 5.1 for closed functionality, 5.5–5.9 for operable parts, 8.4 for mechanical parts. Every other floor in this doc holds unchanged (§1).
 
 | Where a criterion needs an accessibility API | Closed functionality meets instead (EN 301 549) |
 | --- | --- |
@@ -410,6 +410,21 @@ parts, and 8.4 for mechanical parts. Every other floor in this doc holds unchang
 | Info and Relationships (1.3.1), Meaningful Sequence (1.3.2), Label in Name (2.5.3) | Speech that lets the person match what they hear to what is on screen (5.1.3.3, a recommendation) |
 | Language (3.1.1); Error Identification (3.3.1) | Speech in the language on screen (5.1.3.14); speech that names the field in error (5.1.3.15) |
 
+- **Never substitute visible instructions for a screen reader.** The duty is non-visual access, by speech or touch
+  (EN 301 549 5.1.3.1). Words on screen reach sighted people, who do not need them, and add the clutter WCAG 3.3.2
+  warns against. Criteria that need a programmatic name are Not applicable to closed software (11.4.1.2.2,
+  11.4.1.3.2).
+- **Teach conventions once.** The keys mean the same on every screen. Teach them at first use, by doing, and keep
+  them on one help screen in the same place (WCAG2ICT best practice for 3.2.6). No other screen repeats them.
+- **Hint only at the unusual.** Label every input. Instruct only where the format is not customary or has a rule
+  for correct input (3.3.2), in one short line beside the control.
+- **Pair each sound with something visual.** A sound that is needed has a visual equivalent (5.1.5).
+- **Declare unmet duties in a conformance table.** Rate each Supports, Partially supports, Does not support or Not
+  applicable, with a reason; the design brief holds it. Without speech, 5.1.3.1 is Does not support, and
+  5.1.3.2–5.1.3.16 are Not applicable with it.
+- **Keep the duties a closed device can meet.** Never trap focus (5.1.6.2), and let controls be found without sight
+  (5.5.2). Keep text size (5.1.4), show a toggle's state by feel or sight (5.6.1), make key repeat adjustable (5.7),
+  and ask for no two keys at once (5.9).
 - **Where seeing the screen is needed to use a closed function, a non-visual mode exists** — audio, including
   speech (EN 301 549 5.1.3.1). Whether the product must ship one is a decision for its design brief, from the rules
   that cover it (procurement under EN 301 549, the product categories of the European Accessibility Act); the brief
@@ -418,9 +433,8 @@ parts, and 8.4 for mechanical parts. Every other floor in this doc holds unchang
   cut off by the person's next action (5.1.3.5), never speaking masked entry aloud unless it reaches private
   listening only (5.1.3.8), loud enough — at least 65 dBA from a speaker (5.1.3.12) — and turned on without needing
   sight (5.2).
-- **Without speech, every control says what it does in words on screen** — an icon that carries meaning has a word
-  beside it or a word on the screen that opens from it; state is drawn by more than colour (§2); each action and each
-  error gets a distinct sound or haptic where the device has them, so the result is felt as well as seen.
+- **Without speech, state and outcome are shown by more than words.** Draw state by more than colour (§2). Give each
+  action and each error a distinct sound or haptic where the device has them, always with a visual cue.
 - **Accessibility settings are reached without the ability they make up for** (EN 301 549 5.2) — large text, reduced
   motion and speech are turned on from a path that does not depend on small text, motion or sight: a long press of a
   physical key, or a first-run screen.

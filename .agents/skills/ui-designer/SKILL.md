@@ -49,7 +49,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
 5. **Build from the approved draft's values, unchanged** — a layout change is a new draft and a new yes, back at gate 1
    (DESIGN_GATES §5).
 6. **Show the built screen beside the draft** — a screenshot at the same size, side by side, read against the draft
-   before showing it; the person's yes on it is gate 2 (DESIGN_GATES §5).
+   before showing it; the person's yes on it is gate 2 (DESIGN_GATES §5). Capture and compare only what is new or changed
+   since the person's last built yes; screens they already said yes to and that did not change are not measured again.
 7. **Take each answer back to the gate that owns it** — look and words to gate 1; a logic, layout or focus fault to
    gate 2; feel, speed and the real device to gate 3 (DESIGN_GATES §1).
 8. **Reuse before making** — an existing component first; a second caller moves a one-off into the shared components
@@ -73,6 +74,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
     no to an option, a draft or the built screen, record it in their words — what it is about, and the lesson routed,
     most often a learned item for this skill's review: what in a draft predicts it and what to do instead — before
     drawing the next (DESIGN_GATES §2, §3).
+15. **Draw spacing overlays on every mock, built sheet and review specimen**, on a copy beside the clean frame
+    (DESIGN_GATES §4).
 
 ### Never
 
@@ -80,6 +83,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
   yes, naming the draft, approves (DESIGN_GATES §2).
 - **Write production code just to get the first picture, or put a draft in the repo** — the draft lives in the
   scratchpad.
+- **Change a layer the person did not ask for** — a request for one layer (type, spacing, colour) leaves every
+  other layer pixel-identical, and the mock proves it with a per-control pixel diff against today.
 - **Change a value at gate 2 that the draft fixed** — a different layout is a new draft and a new yes.
 - **Claim how it feels on the target from reading code or a screenshot** — touch, speed, motion and the real screen
   are the person's to judge at gate 3.

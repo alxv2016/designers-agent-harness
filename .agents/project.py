@@ -29,6 +29,7 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/touch-and-gesture/references/feedback.md",
                      ".agents/skills/secrets-handling/references/secrets.md",
                      ".agents/skills/ux-content/references/ux-content.md",
+                     ".agents/skills/ux-content/references/rubric.md",
                      ".agents/skills/design-system/references/brief.md",
                      ".agents/skills/motion/references/motion.md",
                      ".agents/skills/touch-and-gesture/references/touch.md",
@@ -73,9 +74,14 @@ DESIGN_FILE = "DESIGN.md"
 #   "names":    proper nouns and product names that keep their capitals
 #   "case":     "title" for a product that follows Apple's title case, which turns the title-case rule off
 #   "baseline": the hits accepted today, each with its reason in a comment here
+#   "rooms":    the room each sized element gives its words, for the ux-content-writer's proxy (ux_proxies.py): a list
+#               of {"call": a function's name, or ".field" for a string assigned to a config's field, "arg": the
+#               argument that holds the words, "chars": the characters that fit, "element": its name} — the project's
+#               own arithmetic from its type and widths; empty: the room is not measured
+#               ({"call": "MakeButton", "arg": 1, "chars": 10, "element": "a half-width button"})
 #   Web:     {"paths": ("src/", "public/locales/")}
 #   ESP-IDF: {"paths": ("components/ui_*/", "main/"), "names": ("<Product>",)}
-UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0}
+UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0, "rooms": ()}
 
 # The UI drawn on an e-paper panel (patterns as above) — the e-ink skill's check reads only these, since what it flags
 # (motion, translucency, shadows, hairlines) is fine on an LCD. Empty: the check runs only its self-test.
@@ -287,6 +293,46 @@ GATES = [
     # handed over, whatever a tool's permission mode answered when the edit was made (AGENTS.md rule 9).
     ("a skill or an agent", (".agents/skills/", ".agents/agents/"), ("kit",)),
 ]
+
+# The quality bar: each judge's quality score, 0–100 from its dimensions in .agents/evals/weights.json, that
+# `verify.py finish` asks for beside its pass — below it, the hand-over waits until the score is raised or the person
+# accepts it by name (`verify.py accept <judge> "<their words>"`; .agents/HARNESS.md §12).
+QUALITY_BAR = 75
+
+# Each judge's measured proxies: judge → the command, as a list run from the repo root, that writes
+# .cache/harness/proxies/<judge>.json as
+#   {"judge": J, "at": iso, "scope": "change" | "product",
+#    "metrics": [{"dimension": D, "name": str, "value": num, "range": [lo, hi], "ok": bool, "where": str}]}
+# Run bare, the command measures only what the change touched — `verify.py review` runs it so; with `--all` it
+# measures the whole product — `verify.py audit` adds it. A metric with ok false caps its dimension at 2, from results
+# of the scope asked for, newer than every changed file, from a run that exited 0. A command still in `<…>`, or whose
+# script does not exist, is "not built yet": the judge scores on its reading alone, and `verify.py doctor` notes it.
+PROXIES = {
+    # The screen audit — every screen drawn by the product's own code and measured, one run writing both the
+    # ui-designer's and the ux-designer's JSON — is the project's to build (UI_REVIEW_RUBRIC §6); until then, these
+    # stay placeholders and both judges score on their reading alone.
+    "ui-designer": ("<python3>", "<the project's screen audit script>"),
+    "ux-designer": ("<python3>", "<the project's screen audit script>"),
+    "code-reviewer": ("python3", ".agents/skills/verify-change/scripts/code_proxies.py"),
+    "doc-reviewer": ("python3", ".agents/skills/docs-authoring-and-sync/scripts/doc_proxies.py"),
+    "ux-content-writer": ("python3", ".agents/skills/ux-content/scripts/ux_proxies.py"),
+}
+
+# The code only the target can run — the board, its drivers, the display and input tasks, the app's start — which no
+# host test reaches: the code-reviewer's tests proxy (code_proxies.py) leaves it out (path prefixes, as in CODE_PATHS).
+#   ESP-IDF: ("main/", "components/board/", "components/<display driver>/")
+TARGET_ONLY_PATHS = ()
+
+# The languages the code-reviewer's proxies read functions and tests in (code_proxies.py): any of "c", "cpp",
+# "python", "js", "ts". Empty: all five.
+CODE_LANGS = ()
+
+# Optional: the command, as a list run from the repo root, that prints the build's sizes for the code-reviewer's
+# robustness proxy as JSON {"<part>": {"used": bytes, "budget": bytes or null, "growth": the most it may grow in
+# bytes, or null}} — a part over 90 % of its budget, or grown past its limit since the baseline, caps robustness at 2.
+# Empty, or still in `<…>`: sizes are not measured.
+#   Web:     ("node", "scripts/bundle_size.mjs")    ESP-IDF: ("python3", "tools/app_size.py", "build")
+SIZE_COMMAND = ()
 
 # Where the change finally runs, in a few words — the Verified block names it.
 #   "the app in a browser at localhost:3000"  "the iOS simulator"  "a phone over USB"  "the staging site"

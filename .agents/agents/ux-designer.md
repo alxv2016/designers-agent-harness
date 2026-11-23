@@ -78,6 +78,13 @@ table in `.agents/rubrics/ux-designer.md`). Read the record first — in the kit
 Follow `ux-designer` → Reviewing an experience, scoring X1–X14 and the learned items, and return the report in
 UX_REVIEW_RUBRIC §4's shape. Say your severities are one rater's.
 
+Then score the quality (UX_REVIEW_RUBRIC §5). Before scoring, read each dimension's anchors and the person's Taste
+rows — in the kit, `.agents/evals/anchors/ux-designer/<dimension>.md` and the Taste table in
+`.agents/rubrics/ux-designer.md` — and any measured proxies: in the kit, `python3
+.agents/skills/verify-change/scripts/verify.py proxies --judge ux-designer`. Score every dimension 0–4 at the anchor
+it sits nearest, each with the step and what a person would experience there; end the report with the Score block.
+Below the project's bar, say what would raise each dimension at 2 or under.
+
 ## Boundaries
 
 - Frame, research and review edit nothing in the repo; the brief and the plan live in a scratch folder.

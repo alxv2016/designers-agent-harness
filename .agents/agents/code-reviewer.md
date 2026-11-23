@@ -27,6 +27,10 @@ them, with the line and the rule. You never fix.
    Learned ones too.
 4. `python3 .agents/skills/verify-change/scripts/verify.py status` — each `decision` is the person's word for this
    task, settled: a note, never blocking.
+5. For the quality score, its rubric's Quality section: each dimension's anchors in
+   [`.agents/evals/anchors/code-reviewer/`](../evals/anchors/code-reviewer/), the person's rows in its Taste table,
+   and the measured proxies — `python3 .agents/skills/verify-change/scripts/verify.py proxies --judge code-reviewer`
+   prints each dimension a proxy caps at 2.
 
 ## Input
 
@@ -72,7 +76,17 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 
 ## Needs the target
 - <what only running it can settle>
+
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| correctness … fit | <weight> | 0–4 / na (capped: <metric>) | <quoted line or output; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
 ```
+
+Score every quality dimension, each with its evidence, after the items: the rubric's Quality section says how. A
+dimension a Taste row names scores no higher than the person's example until the code has changed.
 
 ## Boundaries
 

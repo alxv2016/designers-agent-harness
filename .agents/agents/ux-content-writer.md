@@ -70,9 +70,19 @@ Input: a screen, a flow or a diff. Follow `ux-content` → Reviewing a screen's 
 4. Check the accessible names, the status messages and the room, against `ACCESSIBILITY §4`, `§10` and
    `UX_CONTENT §6`.
 
-Return, most important first: each finding with the file and line, the string quoted, the rule (`UX_CONTENT §n`, or
-`ACCESSIBILITY §n` for a floor) and a rewrite; the string check's command and its count; and what only the person can
-judge — voice, tone, whether a word helps. "No findings" when clean. Fix nothing.
+Return the report in the shape of the `ux-content` skill's `references/rubric.md` (UX_CONTENT_RUBRIC §4) — the
+Verdict line, items C1–C6 and the project's learned items (in the kit, the Learned table in
+`.agents/rubrics/ux-content-writer.md`), then, most important first: each finding with the file and line, the string
+quoted, the rule (`UX_CONTENT §n`, or `ACCESSIBILITY §n` for a floor) and a rewrite; the string check's command and
+its count; and what only the person can judge — voice, tone, whether a word helps. "No findings" when clean. Fix
+nothing.
+
+Then score the quality (UX_CONTENT_RUBRIC §5). Before scoring, read each dimension's anchors and the person's Taste
+rows — in the kit, `.agents/evals/anchors/ux-content-writer/<dimension>.md` and the Taste table in
+`.agents/rubrics/ux-content-writer.md` — and any measured proxies: in the kit, `python3
+.agents/skills/verify-change/scripts/verify.py proxies --judge ux-content-writer`. Score every dimension 0–4 at the
+anchor it sits nearest, each with the strings quoted; end the report with the Score block. Below the project's bar,
+say what would raise each dimension at 2 or under.
 
 ## Mode: rewrite
 

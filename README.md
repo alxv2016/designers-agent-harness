@@ -111,6 +111,8 @@ Everything is plain files and Python's standard library: no package to install, 
 
 ## Documentation
 
+**Each doc owns one subject; the table names it.**
+
 | Doc | What it holds |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — the rules, the loop, the guard, the reviewers, the design gates, memory, token use, and the bootstrap prompt. Generic: any project, any stack |
@@ -123,6 +125,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF firmware project is set up from the board's hardware spec: the installed toolchain, the spec's facts, the app's structure and its layering rules, LVGL. Generic: any ESP-IDF project |
 | [REACT_VITE_SETUP](.agents/skills/react-vite-setup/references/react-vite.md) | How a React, Vite and TypeScript web app is set up with Playwright and Storybook from its web app spec: Node and the versions pinned, the app's structure and its layering rules, tokens from DESIGN.md, the three layers of tests. Generic: any React and Vite app |
 | [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written, for the web, iOS, Android and an LVGL screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content. Generic: any project, any stack |
+| [UX_CONTENT_RUBRIC](.agents/skills/ux-content/references/rubric.md) | How an interface's words are scored in a content review, C1–C6, with the quality score. Generic: any project, any stack |
 | [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product takes, stores, shows, logs and rotates its users' secrets on the web, iOS, Android and ESP-IDF, and what to do after a leak. Generic: any project, any stack |
 | [LAYOUT](.agents/skills/layout/references/layout.md) | How screens are laid out and adapt across window sizes, from Bootstrap's breakpoint tiers to watches and round panels, in the web's words mapped to iOS, Android and LVGL. Generic: any project, any stack |
 | [TYPOGRAPHY](.agents/skills/typography/references/typography.md) | How type is applied from the product's own scale — roles, hierarchy, fonts, spacing, line length, emphasis, numbers, editorial treatments and text that scales — on the web, iOS, Android and an LVGL screen. Generic: any project, any stack |

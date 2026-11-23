@@ -71,7 +71,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
 | [`githooks/`](githooks/) | The pre-commit hook; CI runs the same rules on every push |
-| [`evals/`](evals/) | `judgements.jsonl` — what each reviewer caught, missed or flagged wrongly, read by `verify.py calibration` |
+| [`evals/`](evals/) | `judgements.jsonl` — what each reviewer caught, missed or flagged wrongly, read by `verify.py calibration`; `weights.json`, `anchors/` and `scores.jsonl` — each reviewer's quality dimensions, what a 0, 2 and 4 look like, and every score and taste ([HARNESS §12](HARNESS.md#12-quality-taste-and-weights)) |
 | [`HARNESS.md`](HARNESS.md) | How agents are guarded, checked and judged here, and every point that needs the person |
 
 `.claude/` links to `agents/` and `skills/`; `.codex/` names each agent for Codex.

@@ -100,7 +100,7 @@ and Python 3.9+. In the agent-harness kit, the `ui-designer` skill applies these
 23. **Caption video, describe it, and let sound be stopped; word instructions and links so they stand alone; keep
     navigation, names and help the same on every screen** (WCAG 1.2.1–1.2.5, 1.3.3, 1.4.2, 1.4.5, 2.4.4, 2.4.5, 3.1.2,
     3.2.3, 3.2.4, 3.2.6; ACCESSIBILITY §13).
-24. **Where there is no screen reader, carry on screen and in sound what a reader would say** — a word on every
+24. **Where there is no screen reader, carry on screen and in sound the names, states and outcomes a reader would say, not the instructions** — a word on every
     control, state drawn by more than colour, a sound or haptic for each action and error, a spoken mode where the
     product's brief decides it needs one, and accessibility settings reached without the ability they make up for
     (EN 301 549 5.1, 5.2; ACCESSIBILITY §14).
@@ -126,6 +126,15 @@ and Python 3.9+. In the agent-harness kit, the `ui-designer` skill applies these
     (ACCESSIBILITY §9).
 34. **Give a status light more than colour, put what it says on the screen too, and blink it at most 3 times a
     second** (WCAG 1.4.1, 2.3.1; ACCESSIBILITY §2, §8).
+35. **On a closed device with no assistive technology, let the interface imply its use, and declare what cannot be
+    met** — show use by the look (a pressable control, a ring, an open state that looks open); teach the key
+    conventions once, at first use and on one help screen in the same place; hint only at what is unusual and not
+    implied, in one short line beside the control; pair every sound with a visual cue (EN 301 549 5.1.5); keep every
+    duty a closed device can meet — focus never trapped (5.1.6.2), controls found by touch (5.5.2), text size (5.1.4),
+    key repeat adjustable (5.7), no two keys at once (5.9), a toggle's state felt or seen (5.6.1); and write a
+    conformance table (Supports, Partially supports, Does not support, Not applicable, a reason each) beside the
+    design brief (EN 301 549 5.1.3.1, 11.4.1.2.2, 11.4.1.3.2; WCAG2ICT closed functionality; WCAG 3.3.2, 3.2.6, 2.1.2;
+    ACCESSIBILITY §14).
 
 ### Never
 
@@ -143,6 +152,10 @@ and Python 3.9+. In the agent-harness kit, the `ui-designer` skill applies these
   ACCESSIBILITY §6, §7).
 - **Use a styled container where a platform control exists** — it is not focused, keyed or announced (WCAG 4.1.2;
   ACCESSIBILITY §4).
+- **Print instructions as a stand-in for a screen reader** — the standard asks for speech or touch; and never restate
+  a convention on each screen, for "too much instruction can be as harmful as too little" (Understanding 3.3.2; Do 35).
+- **Work round an unmeetable criterion with imitation, or claim "Supports" for 4.1.2 or 4.1.3 on closed software** — declare it;
+  the standard says Not applicable (Do 35).
 - **Claim a walk passed from reading code** — the walks are the person's, on the target (ACCESSIBILITY §11).
 
 ## Procedure
@@ -268,6 +281,8 @@ walks a change needs and hands them to the person for the target; it never claim
   (Do 17).
 - **Sliding a finger off a button and lifting still presses it** → `LV_OBJ_FLAG_PRESS_LOCK`, set on every child object
   by default → clear it where sliding off must cancel, or make the action undoable (Do 14).
+- **A hint on every screen so it is accessible** → it is clutter and not non-visual access → teach once, declare the
+  gap (Do 35).
 - **The contrast pair passes in the token file and fails on the glass** → an RGB565 panel truncates each channel, or
   the panel washes out in daylight → recheck the truncated values, and walk it in light (Do 3).
 
@@ -281,5 +296,6 @@ walks a change needs and hands them to the person for the target; it never claim
 | The focus model, for every input | [references/focus.md](references/focus.md); the WAI-ARIA Authoring Practices Guide (*Developing a Keyboard Interface*, *Dialog (Modal) Pattern*); the HTML Standard (sequential focus navigation starting point, `autofocus`); CSS Selectors Level 4 (`:focus-visible`) |
 | Target sizes, reduced motion and assistive tech on the platforms | Apple Human Interface Guidelines (Accessibility); Material Design and Android Developers (Accessibility); MDN (`prefers-reduced-motion`, ARIA live regions) |
 | Closed functionality, operable parts and mechanical controls | ETSI EN 301 549 V3.2.1, clauses 5, 8 and 11 |
+| Closed software, the conformance report and instructions | WCAG2ICT 2.2 (closed functionality); Understanding 3.3.2 and 2.4.6; Section 508 402.2 and 407.4; the ITI VPAT 2.x and Section508.gov's ACR guide; NN/g on instructional overlays; Pebble's button guide |
 | Groups, input devices, focus states and style precedence on LVGL | LVGL's documentation (Input devices: Groups, Encoder, Keypad; Styles: States) and headers (`lv_group.h`, `lv_indev.h`, `lv_obj_style.h`, `lv_event.h`); Espressif's `esp_lvgl_port` README (encoder and navigation buttons) |
 | The contrast formula | WCAG 2.2's definitions of contrast ratio and relative luminance — `contrast.py` |

@@ -195,6 +195,8 @@ not of the product: the target and the person's sign-off are what show it works.
 
 ## Documentation
 
+**Each doc owns one subject; the table names it.**
+
 | Doc | Owns |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
@@ -206,6 +208,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [ESP_IDF_SETUP](.agents/skills/esp-idf-setup/references/esp-idf.md) | How an ESP-IDF project is set up from the hardware spec and why it is shaped so — generic, any ESP-IDF project; kept in the esp-idf-setup skill so it travels with it |
 | [REACT_VITE_SETUP](.agents/skills/react-vite-setup/references/react-vite.md) | How a React and Vite web app is set up with Playwright and Storybook, from the web app spec, and why it is shaped so — generic, any React and Vite app; kept in the react-vite-setup skill so it travels with it |
 | [UX_CONTENT](.agents/skills/ux-content/references/ux-content.md) | How the words in an interface are written — voice, the four tests, mechanics, names, the pattern per element, accessible content — generic, any project; kept in the ux-content skill |
+| [UX_CONTENT_RUBRIC](.agents/skills/ux-content/references/rubric.md) | How an interface's words are scored, C1–C6, with the quality score — generic, any project; kept in the ux-content skill |
 | [SECRETS](.agents/skills/secrets-handling/references/secrets.md) | How a product handles its users' secrets, per platform, and what to do after a leak — generic, any project; kept in the secrets-handling skill |
 | [LAYOUT](.agents/skills/layout/references/layout.md) | How screens are laid out and adapt — breakpoints, the scaffold, navigation and panes by tier, grids, spacing, density, content width, resizing, round and small screens — generic, any project; kept in the layout skill so it travels with it |
 | [TYPOGRAPHY](.agents/skills/typography/references/typography.md) | How type is applied from the project's own scale — roles, hierarchy, fonts, spacing, the measure, emphasis, numbers, editorial treatments, text that scales — generic, any project; kept in the typography skill so it travels with it |
