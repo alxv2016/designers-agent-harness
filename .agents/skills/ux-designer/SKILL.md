@@ -94,7 +94,8 @@ Input: a feature, a flow or a screen to design. Everything here is written in th
    person said no to or found wrong — the brief repeats none of them.
 2. **Name the outcome, the people, their job and context**; mark each as research or assumption (UX_METHODS §3).
 3. **List the top tasks with their frequency and risk** (UX_METHODS §4).
-4. **Map the flow** — entries, steps, decisions, exits, back; a Mermaid flowchart when it branches.
+4. **Map the flow** — entries, steps, decisions, exits, back; a Mermaid flowchart when it branches, drawn with the
+   `show-me` skill so the person sees a picture, and a sketch beside the real screens for a new feature.
 5. **Place it in the structure** — where it lives, how people reach it, what things are called (UX_METHODS §5).
 6. **Choose the interaction model and the defaults**, and write the conceptual model (HCI §4–§6).
 7. **Design every state and error** — empty, loading, partial, error, success, offline; slips, mistakes, undo

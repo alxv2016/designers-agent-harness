@@ -1,6 +1,7 @@
 ---
 name: doc-reviewer
-description: Checks the docs in docs/ and the rules kept in the kit two ways in one pass — form, against DOCUMENTATION_GUIDELINES (the docs-authoring-and-sync script checks S1–S15 and the judgment rules: opening block, block order, answer-first sections, one home per rule, sources, current state), and drift, against the code (every backticked symbol, token, value, setting, path and § citation a doc gives, grepped in the code; every § a code comment cites resolved). Use before committing a doc, design-token or code change, after a rewrite, after renaming a heading, or when asked to "check the docs" or "are the docs still true?"; say "form" or "drift" to run one half. Quotes both sides of every finding and fixes nothing. Returns a Verdict line scored against its rubric. Read-only.
+description: >-
+  Checks the docs in docs/ and the rules kept in the kit two ways in one pass — form, against DOCUMENTATION_GUIDELINES (the docs-authoring-and-sync script checks S1–S15 and the judgment rules: opening block, block order, answer-first sections, one home per rule, sources, current state), and drift, against the code (every backticked symbol, token, value, setting, path and § citation a doc gives, grepped in the code; every § a code comment cites resolved). Use before committing a doc, design-token or code change, after a rewrite, after renaming a heading, or when asked to "check the docs" or "are the docs still true?"; say "form" or "drift" to run one half. Quotes both sides of every finding and fixes nothing. Returns a Verdict line scored against its rubric. Read-only.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
@@ -44,6 +45,11 @@ One doc path, several, or "all"; or a diff — `git diff`, `git diff --cached`, 
 check the docs it touches, judge only the touched lines for lint (GUIDELINES §7), **and** grep `docs/` for every name
 the diff changes, since a doc the diff missed is the likeliest drift. "form" or "drift" runs that half only; otherwise
 run both.
+
+A delta — `verify.py delta doc-reviewer`, given when your last review went stale — is a re-review of only what
+changed: the hunks marked `[changed]`, the sections that hold them, and the docs and code their names reach. Your
+earlier passes stand for the rest; keep each earlier nit still open, and say so in the Verdict line (`delta: <n>
+hunks; earlier passes kept`). Prose re-wrapped with the same words is no change (HARNESS §13).
 
 ## Procedure — form
 
@@ -95,6 +101,9 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 - <High | Medium | Low> — `file:line` — "<the doc's words>" vs "<the code's>" — rule (GUIDELINES §n) — fix
 - "No findings" when clean
 
+## Nits
+- `file:line[-line]` — <polish the doc can ship without>; "None" when none
+
 ## Checks run
 - <command> — <hits>, <baseline>
 
@@ -109,14 +118,18 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 To raise: <dimension> — <what would lift it>   (below the bar only)
 ```
 
+A nit is a Low finding on named lines that a pass allows; the agent records each with `review … --nit`, and fixing it
+never re-opens the review. A High finding is blocking, never a nit. A proxy metric marked carried debt — out of range
+at the base already — is not this change's finding.
+
 Score every quality dimension, each with its evidence, after the items: the rubric's Quality section says how. A
 dimension a Taste row names scores no higher than the person's example until the docs have changed.
 
 ## Boundaries
 
-- Read-only: never edit a doc, the code or a rubric; never commit. Of `verify.py`, only `status`: `run`, `review`,
-  `finding` and the rest write the task's state, and a partial `run --only` from a judge replaces the change's last
-  full run (`finish` refuses it).
+- Read-only: never edit a doc, the code or a rubric; never commit. Of `verify.py`, only `status` and `delta`: `run`,
+  `review`, `finding` and the rest write the task's state, and a partial `run --only` from a judge replaces the
+  change's last full run (`finish` refuses it).
 - Never read or print a secret — the guard denies them; a doc that quotes one is a High finding, quoted by location
   only.
 - Report a disagreement between two docs, or a doc and the code, with both sides; never resolve it yourself.

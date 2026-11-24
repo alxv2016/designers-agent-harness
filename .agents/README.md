@@ -66,7 +66,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 23 skills, each a `SKILL.md` with its `scripts/` |
+| [`skills/`](skills/) | The 24 skills, each a `SKILL.md` with its `scripts/` |
 | [`agents/`](agents/) | The 11 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
@@ -114,6 +114,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`playwright`](skills/playwright/SKILL.md) | A feature's end-to-end tests, right after it is added: the template's layout, each task and its failure, locators by role and name, web-first assertions awaited, isolation and stubs, axe in each theme, reflow at 320 px; fixing a failing or flaky test at its cause, never weakening it; Playwright's MCP server and test agents; the e2e check (`e2e_check.py`, PW1–PW8). Portable: it carries the rules (`references/playwright.md`) and the spec template | `playwright` | `portable` |
 | [`storybook`](skills/storybook/SKILL.md) | A component's stories, right after it is created or its props change: the template's layout, every prop covered, one concept per story, JSDoc summaries, light and dark pinned with `globals`, play functions by role and name, the accessibility test; Storybook's MCP server, the components manifest and agents' instructions; the story check (`story_check.py`, SB1–SB7). Portable: it carries the rules (`references/storybook.md`) and the story template, and takes the themes from the project's DESIGN.md | `storybook` | `portable` |
 | [`ux-content`](skills/ux-content/SKILL.md) | The words on every screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content, strings ready for translation; the string check (`ux_lint.py`, web, iOS, Android and C/C++ LVGL). Portable: it carries the rules (`references/ux-content.md`), and takes the voice, case and word list from the project's DESIGN.md | `ui-designer`, `ux-content-writer` | `portable` |
+| [`show-me`](skills/show-me/SKILL.md) | Every picture, at the lowest fidelity that answers the question: a diagram (pseudocode, a call tree, a file tree or a short diff as text; a Mermaid flow, sequence or state diagram drawn in one HTML page and opened), a sketch (a new part as a grey box beside the real frames on disk), or a mock (real size, real tokens and fonts, a values file, a spacing-overlay copy). A picture approves nothing; the gates decide which mock needs a yes. Technique inspired by HumanLayer's show-me | `ui-designer`, `ux-designer`, the main session, the person on demand | `portable` |
 | [`secrets-handling`](skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets, per platform; bench and CI credentials; after a leak; the secret scan (`secret_scan.py`, counts only). Portable: it carries the rules (`references/secrets.md`); each project keeps its own secret inventory | — | `portable` |
 
 ## Agents

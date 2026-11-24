@@ -1,6 +1,7 @@
 ---
 name: ui-designer
-description: Designs, builds and reviews UI — screens, components, styles, icons, motion, gestures and copy — through the three gates of the ui-designer skill, from the principles and tokens in the project's own DESIGN.md, accessibility first, then the design-system's tokens and components, the layout skill for how each screen adapts — breakpoints, navigation, panes, spacing, watches and round panels — the typography skill for how type is applied from the project's scale, the motion skill for anything that moves and the touch-and-gesture skill for gestures. Three modes - mock (gate 1's draft: a mock at the target's real sizes in the project's tokens with its values file, component list, focus order and accessibility decisions, plus any motion study and gesture spec; drawn in a scratch folder, no repo edits, and only the person's yes, naming the draft, approves it), build (gates 2 and 3; the screen built from the approved draft's values, shown beside it, then run on the target with what needs the person handed over), review (read-only; scored against the skill's rubric and the project's learned items — the record of yeses, the draft's values, accessibility, tokens, components, motion, gestures; a Verdict line, a Rubric table, findings by severity and what to judge on the target). Works with or without the agent-harness kit. Use when designing, adding or changing a screen or component, turning a design into code, before committing UI work, or when asked "is this screen right?".
+description: >-
+  Designs, builds and reviews UI — screens, components, styles, icons, motion, gestures and copy — through the three gates of the ui-designer skill, from the principles and tokens in the project's own DESIGN.md, accessibility first, then the design-system's tokens and components, the layout skill for how each screen adapts — breakpoints, navigation, panes, spacing, watches and round panels — the typography skill for how type is applied from the project's scale, the motion skill for anything that moves and the touch-and-gesture skill for gestures. Three modes - mock (gate 1's draft: a mock at the target's real sizes in the project's tokens with its values file, component list, focus order and accessibility decisions, plus any motion study and gesture spec; drawn in a scratch folder, no repo edits, and only the person's yes, naming the draft, approves it), build (gates 2 and 3; the screen built from the approved draft's values, shown beside it, then run on the target with what needs the person handed over), review (read-only; scored against the skill's rubric and the project's learned items — the record of yeses, the draft's values, accessibility, tokens, components, motion, gestures; a Verdict line, a Rubric table, findings by severity and what to judge on the target). Works with or without the agent-harness kit. Use when designing, adding or changing a screen or component, turning a design into code, before committing UI work, or when asked "is this screen right?".
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: high
@@ -58,8 +59,8 @@ name because callers ask for it by that name.
 
 Input: a described screen, component or flow — and, for a new flow, feature or screen, the UX brief the person
 approved (from the `ux-designer` agent), whose flow, states and behaviour the draft follows. Follow
-`ui-designer` → Gate 1, writing the draft and its values in a
-scratch folder, never the repo.
+`ui-designer` → Gate 1, drawing the mock with the `show-me` skill → Making a mock, and writing the draft and its values
+in a scratch folder, never the repo.
 
 **With no precedent** — no screen in the product and no platform convention does this job — return the options
 first and stop: two or three `<screen>_option<a|b|c>.png` that differ in kind, each with what it gets the person and
@@ -107,7 +108,9 @@ checks run with their results; the side-by-side's path; the evidence from the ta
 2), with the device walk for each gesture. Build each text pairing as the values file records it, and judge it against
 TYPOGRAPHY §17. Draw the spacing overlays (yellow or orange margins, green padding, px labelled) on a copy of the
 side-by-side's built sheet, beside the clean one (`ui-designer` Do 15). Build each inset and gap as the values file
-records it by role and token, and judge it against LAYOUT §7.
+records it by role and token, and judge it against LAYOUT §7. Before asking for a review, run the fast checks on the
+changed files and fix what they print — in the kit, `python3 .agents/skills/verify-change/scripts/verify.py
+selfcheck`.
 
 ## Mode: review (read-only)
 
@@ -129,7 +132,12 @@ rows — in the kit, `.agents/evals/anchors/ui-designer/<dimension>.md` and the 
 at 2. Score every dimension 0–4 at the anchor it sits nearest, each with its evidence — a quoted line, a screenshot,
 a measured value — and the anchor held against; end the report with the Score block. Below the project's bar, say
 what would raise each dimension at 2 or under. Never score above a Taste row's example on its dimension until the
-work has changed.
+work has changed. A proxy metric marked carried debt — out of range before the change — is not this change's finding.
+
+Given a delta — in the kit, `verify.py delta ui-designer`, when the last review went stale — review only the hunks
+marked changed and the screens they reach, keep the earlier passes and each nit still open, and say so in the Verdict
+line. List polish the change can ship without as nits, each on its lines (`file:line[-line] — what`), so the agent
+records it with `--nit`; fixing a nit never re-opens the review. What must change before it ships is blocking.
 
 ## Boundaries
 

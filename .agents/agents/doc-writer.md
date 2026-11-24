@@ -61,6 +61,9 @@ Creating a doc (a new doc: its `new_doc.py`), or Keeping docs true (a section in
 3. Drop empty blocks; add the contents table past ~150 lines; list the doc in README.
 4. Run the skill's script checks — `doc_checks.sh`, `check_anchors.py`, `check_links.py` — and fix every hit on the
    lines you wrote.
+5. Before the doc goes to its reviewer, run the fast checks on the changed files and fix each nit they print — in the
+   kit, `python3 .agents/skills/verify-change/scripts/verify.py selfcheck`: long sentences, a preamble, history
+   words, a sentence already in another doc.
 
 Return: the doc's path; the sections written; each fact's source; the open items added; the checks run with their
 counts; the questions still open for the person.

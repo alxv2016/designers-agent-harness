@@ -32,6 +32,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 | 10 | [The stop reminder](#10-the-stop-reminder) | The Stop hook: unchecked work, asked once per tree |
 | 11 | [Decisions](#11-decisions) | Why the harness is built this way, and the alternatives that do not work |
 | 12 | [Quality, taste and weights](#12-quality-taste-and-weights) | The score beside each verdict, its dimensions, anchors, proxies and bar; the person's taste moving the anchors, the Taste table and the weights |
+| 13 | [What a review rests on](#13-what-a-review-rests-on) | Reviews kept across comment and whitespace edits, nits and `nits-fixed`, the delta re-review, the self-check before the judges |
 
 ---
 
@@ -192,16 +193,17 @@ what to write, and the corrected call goes on:
 | `UX_STRINGS` paths (else `UI_PATHS`), the `ux-content` skill | `ux` (the string check's self-test; the strings against U1–U14 once paths are set) | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` (`secret_scan.py` on the change — counts, never the match; its self-test when the skill changes) | — |
 | `.agents/rubrics/`, `.agents/evals/`, the `verify-change` skill | `rubrics` (each Learned row `\| L<n> \| YYYY-MM-DD \| … \| … \|`, numbers rising and never reused, no date ahead of today, no empty cell; each judgements line parses with a known kind, route, area and draft — [AGENT_HARNESS §9.3](../docs/AGENT_HARNESS.md#93-learned-items)) | — |
-| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills)) | — |
+| `.agents/skills/`, `.agents/agents/` | `scope` (every skill and agent carries `metadata: scope:`, and a portable one depends only on what it may — [AGENT_HARNESS §7.3](../docs/AGENT_HARNESS.md#73-the-harnesss-skills); its frontmatter would parse as YAML: closed, and no plain value holding a colon and a space, or a space and a hash — fold a long description with `>-`) | — |
 | `.agents/hooks/`, `.agents/githooks/`, `project.py`, `verify-change`, `.claude/settings.json`, `.codex/`, `.github/` | `harness` (the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index) | — |
 | `JUDGES` in `project.py` | — | `<the project's own judges>` |
 
 - **Every check exits 1 over its baseline** — a count over it, a test that fails.
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
-  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. The records the loop
-  writes itself, in `.agents/evals/`, are none of them: a yes, a lesson or a score recorded after a review appends to
-  them, is left out of every fingerprint and leaves the review standing (§12.4).
+  reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved. A comment or
+  whitespace edit does not move them (§13). The records the loop writes itself, in `.agents/evals/`, are none of them:
+  a yes, a lesson or a score recorded after a review appends to them, is left out of every fingerprint and leaves the
+  review standing (§12.4).
 - **Three failures in a row of a counted check — `"counts": True` in `CHECKS`, the build and the tests — exit 3.** A
   lint, a doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
@@ -221,7 +223,7 @@ what to write, and the corrected call goes on:
 | No run; the last run failed; an edit after the last run; a last run made with `--only` | The checks did not see this tree |
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
-| A judge the files call for with no review, a blocking one, or one older than its files | §4 |
+| A judge the files call for with no review, a blocking one, or one older than its files once comments and whitespace are set aside | §4, §13 |
 | A lesson — a finding, a no, a false alarm — whose route's edit is not in the change, made after the lesson was recorded or named with `--edit`; a `rubric` lesson that added no learned item to its agent's rubric | Written down and changed nothing ([AGENT_HARNESS §9.2](../docs/AGENT_HARNESS.md#92-recording-what-was-learned)) |
 | A skill or an agent changed with no `kit` yes from the person on its diff, or changed since that yes | A tool's permission mode may answer the guard's ask without the person; this holds whatever the mode ([AGENT_HARNESS §11.3](../docs/AGENT_HARNESS.md#113-what-to-gate)) |
 | A judge's quality score missing, or under `QUALITY_BAR` with no acceptance from the person | §12.4 |
@@ -358,6 +360,8 @@ progress. It asks once per tree: the next stop on the same tree goes through.
 | The guard judges a command by its program, not its words | A `grep` for a dangerous word, or a commit message naming one, is harmless | Matching words — blocks the harmless, misses a command inside `bash -c` |
 | A draft is approved before the build, with the file's hash | A yes covers exactly what the person saw | A yes in the chat — it covers whatever the agent built next |
 | One judge's pass stands until its own files change | A doc fix does not send the code reviewer round again | One tree fingerprint for every judge — every edit re-asks every judge |
+| A pass survives a comment or whitespace edit, and a fixed nit | Re-asking a judge on the same tokens adds time and noise, not evidence (Gerrit's trivial rebase, Critique's LGTM with comments) | Any byte stales the pass — the agent re-asks a judge for a re-wrapped sentence |
+| Only what the change adds caps a score | A refactor through old debt is not held for it (SonarQube's Clean as You Code) | Caps from everything in scope — the person accepts the same old debt on every change |
 | Three failures in a row stop the loop | A third failure means the plan is wrong | No limit — an agent keeps editing the same mistake |
 | `judgements.jsonl` is committed | A lesson lasts beyond one person's machine and is calibrated against | Per-user memory — no judge, no other agent, no other person sees it |
 
@@ -417,6 +421,7 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
   long sentence in an unchanged section, a screen it never drew — never caps its review. When the change touches no UI
   source, no UI cap applies. `verify.py audit <judge>` runs the proxy with `--all` and keeps the score in
   `scores.jsonl`.
+
 #### Proxies
 
 - **A measured proxy caps its dimension at 2.** Each judge's proxy, `PROXIES` in `project.py`, writes
@@ -424,6 +429,7 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
   "name", "value", "range", "ok", "where"}]}`; any metric with `ok` false caps its dimension. `verify.py proxies
   [--judge J] [--all]` runs them and prints the caps. A command still in `<…>`, or whose script is missing, is "not
   built yet": the dimension is scored on reading alone, and `doctor` notes it.
+- **In a review, a metric caps only what the change adds** — carried debt never caps (§12.5).
 - **A judge with nothing in scope is exempt from the bar.** `review <judge> pass|blocking --out-of-scope` records the
   verdict with no score. It is refused unless the judge's proxy, run on this tree, shows its measured scope empty: no
   screen, widget, token or route source; no doc line; no changed function; no changed string. It prints that scope.
@@ -456,7 +462,7 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
 | Flags the same dimension a second time as a miss | (`taste` prints it, once per dimension) | The prompt to promote the lesson to a learned floor item: the agent writes `L<n>` in the judge's Learned table — what in a diff predicts it, naming the Taste rows it comes from — shows it to the person, and records their yes with `verify.py decision "promote taste on <judge> <dim> to L<n>: <their words>"`. The prompt prints once per dimension, and never once a Learned row names that dimension's Taste rows or a Taste row on it says `promoted to L<n>`. A lesson that keeps recurring blocks, rather than only lowering the score |
 | Scores a file themselves | `verify.py rate <file> --judge J --dimension D --score 0-4` | Kept beside the judge's last score on D; calibration shows the gap |
 | Sets a weight | `verify.py weight --judge J --dimension D --set N [--words "<why>"]` | That weight set (5–40), the others scaled to 100, logged |
-| Accepts a score below the bar | `verify.py accept <judge> "<their words>"` | `finish` passes that judge for the review it was given on; a later review needs a new one |
+| Accepts a score below the bar | `verify.py accept <judge> "<their words>"` | `finish` passes that judge for the review it was given on, and for a later review of that judge scored the same or higher — kept in that review's history; a lower score needs a new one |
 
 - **The judge reads the Taste table in every review**, and scores a flagged dimension no higher than the person's
   example until the work changes.
@@ -465,8 +471,8 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
 - **The guard asks the person before `verify.py approve`, `decline`, `signoff`, `accept`, `taste`, `weight` and
   `rate`.** These commands record their words. The person answers the prompt; the agent never rewords the command to
   get round it.
-  `review`, `finding`, `dispute`, `decision`, `run`, `status`, `finish`, `proxies` and `audit` are the loop's own and
-  pass; `dispute` records a judge's false alarm, the agent's own call.
+  `review`, `ask`, `nits-fixed`, `delta`, `selfcheck`, `finding`, `dispute`, `decision`, `run`, `status`, `finish`,
+  `proxies` and `audit` are the loop's own and pass; `dispute` records a judge's false alarm, the agent's own call.
 - **`verify.py calibration`** adds, per judge and dimension, the weight, the judge's last score, the person's ratings
   and the mean gap (judge minus person, each rating against the judge's last score before it), the taste misses, and
   every weight change with its words.
@@ -478,7 +484,79 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
 | Refuses while | Why |
 | --- | --- |
 | A judge with dimensions that the files call for, or that reviewed this task, passed with no quality score | The verdict alone passed work the person found poor |
-| Its quality score is under `QUALITY_BAR` and the person has not accepted that review's score | The bar is the person's; only they lower it, by name |
+| Its quality score is under `QUALITY_BAR` and the person has not accepted that score, or a lower one of that judge's earlier in the task | The bar is the person's; only they lower it, by name |
 
 - **The evals never make a run or a pass stale.** The loop writes `.agents/evals/` itself — a finding, a scored
   review, a taste — so the tree's and each judge's fingerprints leave it out (§4).
+- **Carried debt is reported, never held.** The Verified block's review line counts it, beside the review's nits.
+
+### 12.5 Only what the change adds caps
+
+**In a review, a proxy metric caps its dimension only when the change made it — SonarQube's Clean as You Code.**
+Old debt is the audit's trend, never a review's cap.
+
+- **Each change-scope metric carries `base`**, its value at `HEAD` for the same scope (null: none there). It may also
+  carry `offenders` and `base_offenders`, `{place: how bad}`, which then decide alone.
+- **A metric out of range caps when it is new, farther out than at the base, or at a place the base did not have, or
+  worse there.** Otherwise it is carried debt: `review`, `proxies` and `finish` report it and never cap from it. A
+  metric with no `base` caps as before, and an audit caps from every metric.
+- **The comparison fails closed.** A value, base or range bound that is not a number caps as "not comparable". So
+  does a metric out of range that names no place. A repeated place — the same sentence, heading or string twice —
+  is keyed by its occurrence in the whole file, untouched lines counted. The base counts `HEAD`'s whole file the same
+  way, so a second copy the change adds is new, even beside an untouched first.
+- **So a refactor that adds no new hit is scored uncapped**, and needs no acceptance from the person.
+- **Each proxy gets its base the cheapest correct way.** The doc, code and string proxies read `HEAD`'s files with
+  `git show`, in milliseconds. A sentence, function or string is keyed by its words or its name, so a moved or
+  re-wrapped one is carried. Warnings and growth are already new since the saved baseline.
+- **A proxy that must build and run the product — the screen audit, once the project builds one — measures `HEAD`
+  once per commit, in a git worktree under `.cache/harness/worktrees/`.** The worktree shares the tree's build caches,
+  its JSON is cached in `.cache/harness/proxies/base/<commit>/`, and the worktree is removed. A metric is matched by
+  dimension, name, view and the words it quotes, each base metric once, the same `where` first, so a second
+  violation at a place the base held once is new. Until the audit writes `base`, its metrics cap as before.
+
+---
+
+## 13. What a review rests on
+
+**A judge's verdict holds for the tokens it read: a comment or whitespace edit keeps it, a fixed nit keeps it, and
+anything else asks the judge about only what changed.** The research behind this is Gerrit's copy conditions,
+Critique's LGTM with comments and CodeRabbit's incremental reviews.
+
+| Command | Does |
+| --- | --- |
+| `verify.py review <judge> pass\|blocking [--nit "path:line[-line] words"] …` | Records the verdict with two fingerprints of the judge's files, raw and normalised; each nit with its lines; and a snapshot of the files in `.cache/harness/snapshots/<task>/<judge>/` |
+| `verify.py ask <judge>` | Keeps the judge's files, and the time, as they are when it is asked, in `<judge>.asked/` beside its snapshot — run it before briefing the judge; its next `review` takes that snapshot |
+| `verify.py nits-fixed <judge>` | Re-stamps a pass when every hunk since its snapshot lies within 3 lines of a nit it raised, and logs it in the review's history; refuses otherwise, and for a blocking verdict |
+| `verify.py delta <judge>` | Prints the judge's last verdict, note, nits and history, then the unified diff between its snapshot and the tree, each hunk marked "comments or whitespace only" or "changed" |
+| `verify.py selfcheck` | Runs the fast proxies on the changed files only, in seconds, and prints what a judge would flag; exits 1 when it finds any |
+
+- **A review stands while its normalised fingerprint matches.** C and C++ lose their comments, and whitespace
+  collapses; a space between a word and a sign goes. Literals and every space in a preprocessor line are kept, and a
+  `//` comment ending in a backslash takes the next line, as the compiler does. Python is read by its tokenizer:
+  comments and breaks inside brackets go, indentation depth stays. Shell loses its comments and runs of spaces outside
+  quotes; line breaks and here-documents stay. A `#!` first line is kept in both. Markdown re-wrapped with the same
+  words is the same, but any word change, a list run into a paragraph, or the whitespace of fenced or indented code
+  is not. Other files compare by line. `status` and the Verified block say "stands: only comments or whitespace
+  changed" when only that holds it.
+- **A nit is polish the judge passed with; a blocking finding is not.** A pass with `--nit` is approve-with-nits.
+  `nits-fixed` diffs the snapshot against the tree after normalising both, and every hunk must lie by a nit. A nit
+  covers at most 10 lines, and a hunk's sides may be at most the nit's lines plus 3 long. A hunk that keeps each
+  paragraph, statement or line it touches as many lines long is only the lines that differ as written, so a word fixed
+  in a long paragraph is one line; one that splits, joins or re-reads them is all it touched. A file added to or gone
+  from what the judge read refuses it. A logic change within those bounds is not told apart from polish. `delta`
+  shows every hunk, so the judge sees one on its next look. A blocking verdict stays in force until the judge records a
+  new pass — `nits-fixed` never clears it, like Gerrit's `is:MIN`.
+- **A review rests on what the judge read.** `ask` keeps the judge's files when it is asked. Its `review` then
+  stamps and snapshots those files, not the tree at record time. So an edit made while the judge reads makes the
+  review stale, and shows in the next `delta`. Without an `ask` since its last review, `review` snapshots the tree
+  as it is then.
+- **A stale review is re-asked with its delta, not from scratch.** Give the judge `verify.py delta <judge>`: it
+  reviews the delta and what it touches, keeps its earlier passes, and says so. `finish` names the command beside
+  "reviewed an older version of its files".
+- **Each carry-forward is kept in the review's history** — a `nits-fixed` re-stamp, an acceptance that carried
+  (§12.3). `status` lists them under the review, and the Verified block adds a "Carried forward" line for each.
+- **`selfcheck` comes before the judges.** It runs the doc proxies on the changed docs and the string proxies (or the
+  string check) on the changed UI. It also checks the changed code lines against 120 characters and runs the anchor
+  check. It prints only what caps, so carried debt is never a nit. The builders run it first: the `ui-designer` in
+  build mode, the `doc-writer` in write mode and the agent itself ([`verify-change`](skills/verify-change/SKILL.md)).
+- **`start` clears the last task's snapshots**, so no delta reaches back into another task.

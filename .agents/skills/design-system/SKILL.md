@@ -181,6 +181,9 @@ Each run prints how many files it read; a run that read none says so and proves 
   (DESIGN_BRIEF §15).
 - **A gradient is smooth in the mock and stepped on the device** → the panel runs at RGB565 and LVGL does not dither
   → a shorter lightness span or a dithered image, judged on the panel (Do 18).
+- **A new weight of a font draws differently from its siblings** → its file came from another source or release (a
+  static download beside instances cut from the variable font) → cut every weight from one source with one recipe,
+  and record the source, its version and the tool beside the font build (Do 19).
 - **A label shows boxes or gaps on the device** → its glyphs are not in the compiled font's ranges → add them to the
   font and name the ranges in DESIGN.md (Do 19).
 - **The theme switch leaves some widgets in the old colours** → they hold local styles set once, or the shared

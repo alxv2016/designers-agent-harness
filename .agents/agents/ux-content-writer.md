@@ -82,7 +82,13 @@ rows — in the kit, `.agents/evals/anchors/ux-content-writer/<dimension>.md` an
 `.agents/rubrics/ux-content-writer.md` — and any measured proxies: in the kit, `python3
 .agents/skills/verify-change/scripts/verify.py proxies --judge ux-content-writer`. Score every dimension 0–4 at the
 anchor it sits nearest, each with the strings quoted; end the report with the Score block. Below the project's bar,
-say what would raise each dimension at 2 or under.
+say what would raise each dimension at 2 or under. A proxy metric marked carried debt — a string out of range before
+the change — is not this change's finding.
+
+Given a delta — in the kit, `verify.py delta ux-content-writer`, when the last review went stale — read only the
+strings on the hunks marked changed, keep the earlier passes and each nit still open, and say so in the Verdict line.
+List a rewrite the screen can ship without as a nit, on its lines, so the agent records it with `--nit`; a string
+that breaks a floor is blocking.
 
 ## Mode: rewrite
 

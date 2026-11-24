@@ -24,8 +24,10 @@ Measures, by dimension (the keys of .agents/evals/weights.json):
 The rules are ux_lint.py's (UX_CONTENT §n there); the strings are those its reader finds with the project's calls, and for
 the room also the calls and fields the rooms name. Writes
 .cache/harness/proxies/ux-content-writer.json — {"judge", "at", "scope": "change" | "product" | "files", "metrics":
-[{"dimension", "name", "value", "range": [lo, hi], "ok", "where"}]} — and prints a summary. Python 3.9+, standard library
-only.
+[{"dimension", "name", "value", "range": [lo, hi], "ok", "where", "base"?, "offenders"?, "base_offenders"?}]} — and
+prints a summary. In the change's scope each metric names its `offenders`, "file: string", beside HEAD's in the same
+files whole (`base_offenders`), so verify.py caps only a string the change made worse; a string moved within its file
+is carried debt (.agents/HARNESS.md §12.5). Python 3.9+, standard library only.
 """
 
 from __future__ import annotations
@@ -119,10 +121,13 @@ def changed_lines(path: str) -> set | None:
     return lines
 
 
-def measure(files: list, lines_of: dict | None = None, rooms: list | None = None, calls: tuple | None = None) -> tuple:
+def measure(files: list, lines_of: dict | None = None, rooms: list | None = None, calls: tuple | None = None,
+            keys: dict | None = None, texts: dict | None = None) -> tuple:
     """(strings read, hits by dimension, strings over their room, strings in sized elements); with `lines_of`
     {file: lines or None}, only the strings on those lines of each file (None: every line). `rooms` defaults to the
-    project's; `calls`, the project's string calls (else ux_lint's defaults)."""
+    project's; `calls`, the project's string calls (else ux_lint's defaults). `keys`, when given, is filled with the
+    places out of range — {"room" or a dimension: {"file: string": how bad}} — and `texts` {file: text} reads a file's
+    text from there (HEAD's) rather than from the tree."""
     rooms = load_rooms() if rooms is None else rooms
     fields = [r["call"][1:] for r in rooms if r["call"].startswith(".")]
     settings = ux_lint.load_settings()
@@ -131,10 +136,11 @@ def measure(files: list, lines_of: dict | None = None, rooms: list | None = None
     calls = calls or ux_lint.as_tuple(ux.get("calls")) or ux_lint.DEFAULT_CALLS
     cfg = {"calls": calls, "names": names, "case": ux.get("case", "sentence")}
     strings, by_dim, over, measured = 0, {d: [] for d in set(DIMENSION_OF.values())}, [], 0
+    keys = keys if keys is not None else {}
     for f in files:
         try:
-            text = ux_lint.decode((ROOT / f).read_bytes())
-        except OSError:
+            text = texts[f] if texts is not None else ux_lint.decode((ROOT / f).read_bytes())
+        except (OSError, KeyError):
             continue
         newlines = [m.start() for m in re.finditer("\n", text)]
         wanted = (lines_of or {}).get(f)
@@ -142,15 +148,25 @@ def measure(files: list, lines_of: dict | None = None, rooms: list | None = None
             (lambda pos: ux_lint.bisect.bisect_left(newlines, pos) + 1 in wanted)
         excepted = {ux_lint.bisect.bisect_left(newlines, m.start()) for m in re.finditer("ux-exception", text)}
         # The rules, as ux_lint runs them.
+        seen: dict = {}  # each string's occurrence in the whole file, untouched lines too, as HEAD's whole file counts
+
+        def nth(kind: str, piece: str) -> str:
+            seen[(kind, piece)] = seen.get((kind, piece), 0) + 1
+            return f"{f}: {piece}" + (f" #{seen[(kind, piece)]}" if seen[(kind, piece)] > 1 else "")
+
         for pos, raw in ux_lint.literals(f, text, calls):
             n = ux_lint.bisect.bisect_left(newlines, pos)
-            if n in excepted or not keep(pos):
+            if n in excepted:
                 continue
             for piece in ux_lint.pieces(raw):
+                place = nth("rule", piece)
+                if not keep(pos):
+                    continue
                 strings += 1
                 dims = {DIMENSION_OF[r] for r in ux_lint.check(piece, cfg)}
                 for d in dims:
                     by_dim[d].append(f"{f}:{n + 1} \"{piece[:50]}\"")
+                    keys.setdefault(d, {})[place] = 1
         # The room, with the calls that place words in a sized element.
         if not rooms:
             continue
@@ -161,18 +177,38 @@ def measure(files: list, lines_of: dict | None = None, rooms: list | None = None
             end = code.find(";", m.end())
             found.update((t[0], t[3]) for t in tokens if t[2] == "s" and m.end() <= t[0] < end)
         for pos, raw in sorted(found.items()):
-            if not keep(pos):
-                continue
             call, arg, _ = enclosing(code, tokens, pos)
             fit = room(call, arg, rooms)
             if fit is None:
                 continue
             for piece in ux_lint.pieces(raw):
+                place = nth("room", piece)  # the same string twice in a file is two places
+                if not keep(pos):
+                    continue
                 measured += 1
                 if len(piece) > fit[0]:
                     over.append(f"{f}:{ux_lint.bisect.bisect_left(newlines, pos) + 1} \"{piece}\" {len(piece)} for "
                                 f"{fit[1]}'s {fit[0]}")
+                    keys.setdefault("room", {})[place] = len(piece) - fit[0]
     return strings, by_dim, over, measured
+
+
+def with_base(metrics: list, keys: dict, head_keys: dict, head_metrics: list) -> list:
+    """Each metric with its `offenders` here and `base_offenders` in HEAD's whole files — a string moved within its file
+    is carried — and its `base`, the same metric over HEAD's files (null: none there)."""
+    head = {m["name"]: m["value"] for m in head_metrics}
+    for m in metrics:
+        group = "room" if m["name"].startswith("strings longer") else m["dimension"]
+        m["base"] = head.get(m["name"])
+        m["offenders"] = keys.get(group, {})
+        m["base_offenders"] = head_keys.get(group, {})
+    return metrics
+
+
+def at_head(path: str) -> str | None:
+    """The file as HEAD holds it; None when HEAD does not have it."""
+    proc = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=ROOT, capture_output=True)
+    return ux_lint.decode(proc.stdout) if proc.returncode == 0 else None
 
 
 def metric(dimension: str, name: str, value: float, lo: float, hi: float, where: str) -> dict:
@@ -251,9 +287,32 @@ def self_test() -> int:
           f"{measured}, {over}")
     check(not any("Please wait" in h for hits in by_dim.values() for h in hits), "the untouched 'Please wait!' caps "
           "nothing in the change's scope")
+    # The base: a string over its room at HEAD too is the same place; one the change wrote is new.
+    keys, head_keys = {}, {}
+    now = proxies(*measure([path], None, rooms, calls, keys, {path: src}))
+    old = src.replace('"Save changes"', '"Save"')
+    based = with_base(now, keys, head_keys, proxies(*measure([path], None, rooms, calls, head_keys, {path: old})))
+    over_room = next((m for m in based if m["name"].startswith("strings longer")), {})
+    fresh = set(over_room.get("offenders", {})) - set(over_room.get("base_offenders", {}))
+    check(fresh == {f"{path}: Save changes"}, f"only the string the change lengthened is new: {sorted(fresh)}")
+    check(over_room.get("base") == 2, f"the base counts HEAD's strings over their room: {over_room.get('base')}")
+    keys = {}
+    twice = src.replace('MakeButton(row, "Full"', 'MakeButton(row, "Calibrate the touch screen"')
+    measure([path], None, rooms, calls, keys, {path: twice})
+    check(sorted(k for k in keys.get("room", {}) if "Calibrate" in k) == [f"{path}: Calibrate the touch screen",
+                                                                         f"{path}: Calibrate the touch screen #2"],
+          f"the same string twice is two places: {sorted(keys.get('room', {}))}")
+    # HEAD holds the string once; the change adds a copy on another line, and only that line is measured: still new.
+    copy_line = next(k for k, ln in enumerate(twice.split("\n"), 1) if "Calibrate" in ln and "OnFull" in ln)
+    keys, head_keys = {}, {}
+    measure([path], {path: {copy_line}}, rooms, calls, keys, {path: twice})
+    measure([path], None, rooms, calls, head_keys, {path: src})
+    fresh = set(keys.get("room", {})) - set(head_keys.get("room", {}))
+    check(fresh == {f"{path}: Calibrate the touch screen #2"}, f"a second copy of an untouched string is new: "
+          f"{sorted(fresh)}")
     for f in failures:
         print(f"FAIL  {f}")
-    total = 10
+    total = 14
     print(f"ux_proxies self-test: {total - len(failures)} of {total} checks pass")
     return 1 if failures else 0
 
@@ -277,8 +336,14 @@ def main(argv: list) -> int:
                                                                             "--exclude-standard").split())
         files = [f for f in ui_files if f in changed]
         lines_of = {f: changed_lines(f) for f in files}
-    strings, by_dim, over, measured = measure(files, lines_of)
+    keys: dict = {}
+    strings, by_dim, over, measured = measure(files, lines_of, keys=keys)
     metrics = proxies(strings, by_dim, over, measured)
+    if scope == "change":  # the base: the same files as HEAD holds them, whole
+        heads = {f: t for f in files if (t := at_head(f)) is not None}
+        head_keys: dict = {}
+        head = measure(sorted(heads), None, keys=head_keys, texts=heads)
+        metrics = with_base(metrics, keys, head_keys, proxies(*head))
     # What was measured, file by file: empty, the change wrote no string a person reads.
     in_scope = [f for f in files if sum(measure([f], lines_of)[0::3])] if strings or measured else []
     PROXIES.mkdir(parents=True, exist_ok=True)

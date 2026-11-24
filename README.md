@@ -75,6 +75,30 @@ get the rules, the skills and the commit gate.
 6. **Ask for your first design change.** The agent drafts a mock and stops; say yes by name ("yes to mock 2"), and it
    builds.
 
+### Seeing it first: `/show-me`
+
+**Ask to see anything, at any time, and the agent draws the smallest picture that answers you.** Type `/show-me`, or
+say "show me", "draw it", "mock it up" or "what does that look like?". The
+[`show-me`](.agents/skills/show-me/SKILL.md) skill picks the lowest fidelity that answers the question, because each
+step up costs more time.
+
+| You ask | You get | Drawn from |
+| --- | --- | --- |
+| "Show me how sign-in works" | A diagram: the steps as a flowchart, who talks to whom as a sequence, or the states a screen can be in, on a small page that opens in your browser. For code: a call tree or a file tree in the reply | What the repo already holds, in seconds |
+| "Where would a filter bar go?" | A sketch: the real screens side by side in the order a person meets them, with the new part as a grey box labelled "New — sketch" | Screenshots and earlier mocks already on disk, in a minute |
+| "Mock up the settings screen" | A mock: the screen at the device's real size in DESIGN.md's colours, type and spacing, every state that changes the layout, a copy with the spacing drawn over it (margins in orange, padding in green, each labelled in px), and a values file naming the token behind every element | Your tokens and fonts, in minutes |
+
+- **A picture approves nothing by itself.** A diagram or a sketch says so in its footer: "Explains; approves
+  nothing." Only a mock is approved, and only by your yes naming its file, as the next section shows.
+- **The agent offers a picture; it never draws one unasked.** When a point would be quicker to judge as a picture,
+  it asks "Want me to show this?" The `ux-designer` maps a new flow as a diagram, and the `ui-designer` draws every
+  draft you approve as a mock, both with this skill.
+- **Pictures stay out of the repo.** Each is a file in the agent's scratch folder, or in an ignored `build/`, handed
+  to you as a link to click.
+  A doc that needs a diagram carries its own Mermaid.
+- **A diagram needs a connection.** The page loads its drawing library from the web; offline, the agent gives you the
+  diagram as text and says why.
+
 ### What you approve, and how
 
 **You speak; the agent records your words with one command, and only those words let it hand over.** Each row is one
@@ -107,7 +131,8 @@ verdict alone is not enough.
   state and fit to the medium. Each dimension has examples of what a 0, a 2 and a 4 look like, so a score is "nearest
   to this example", not a mood.
 - **Scripts measure what they can**: how many type sizes a screen uses, a gap against its group's, how long a sentence
-  runs. A measure out of range caps that dimension at 2, whatever the reviewer thought. Docs, code and words are
+  runs. A measure the change pushes out of range caps that dimension at 2, whatever the reviewer thought; debt the
+  change only carries through is reported, never held against it. Docs, code and words are
   measured from the start; screens once your project builds its screen audit
   ([UI_REVIEW_RUBRIC §6](.agents/skills/ui-designer/references/rubric.md#6-a-measured-screen-audit)).
 - **The weights turn the dimensions into one score.** They add up to 100, and the hand-over needs 75 or more, unless
@@ -135,7 +160,7 @@ write.
 | [.agents/project.py](.agents/project.py) | The one settings file: checks, UI paths, the design brief and token files, secrets, allowed hosts, commands that ask | Every list — commented examples for web, mobile and Python |
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |
-| [.agents/skills/](.agents/skills/) | 23 skills — the loop, docs, commits, UI design, UX design, accessibility, design tokens, layout, typography, motion, touch and gesture, UX content, Storybook stories, end-to-end tests with Playwright, e-paper displays, secrets handling, ESP-IDF setup, React and Vite setup, build and run, the working principles, blast radius, teaching, and help with the kit. The docs, accessibility, design-system, layout, typography, ux-designer, motion, touch-and-gesture, ui-designer, ux-content, storybook, playwright, e-ink, secrets-handling, esp-idf-setup, react-vite-setup, principles, blast-radius and teach skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
+| [.agents/skills/](.agents/skills/) | 24 skills — the loop, docs, commits, UI design, UX design, accessibility, design tokens, layout, typography, motion, touch and gesture, UX content, showing a topic visually, Storybook stories, end-to-end tests with Playwright, e-paper displays, secrets handling, ESP-IDF setup, React and Vite setup, build and run, the working principles, blast radius, teaching, and help with the kit. The docs, accessibility, design-system, layout, typography, ux-designer, motion, touch-and-gesture, ui-designer, ux-content, show-me, storybook, playwright, e-ink, secrets-handling, esp-idf-setup, react-vite-setup, principles, blast-radius and teach skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
 | [.agents/agents/](.agents/agents/) | 11 agents — `ui-designer`, `ux-designer`, `doc-writer`, `ux-content-writer`, `storybook`, `playwright`, `e-ink`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
 | [.agents/evals/](.agents/evals/) | Each reviewer's quality dimensions, weights and examples of good and poor, and every score; moves with your taste | Your own references, as you give them |
