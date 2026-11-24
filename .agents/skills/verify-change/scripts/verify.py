@@ -9,7 +9,12 @@ docs/AGENT_HARNESS.md §10).
     verify.py review <judge> pass|blocking [--note TEXT] [--score dim=0-4|na,... | --scores-file F | --out-of-scope]
                       [--no-proxy]   # --out-of-scope: refused unless the judge's proxy shows its scope empty
                       # with a score, --note gives a reason per dimension: "dim: why; dim: why"; the judge's proxy
-                      # runs first on the change, and caps only from metrics in the change's scope
+                      # runs first on the change, and caps only from what the change made worse than at the base
+                      [--nit "path:line[-line] TEXT" …]   # approve with nits: each nit with its lines
+    verify.py nits-fixed <judge>      # a pass re-stamped when every hunk since lies within a few lines of a nit
+    verify.py delta <judge>           # the diff since the judge's snapshot, with its verdict, note and nits
+    verify.py ask <judge>             # before briefing a judge: its files kept as it reads them, for its review
+    verify.py selfcheck               # the fast checks on the changed files, before asking the judges
     verify.py proxies [--judge J] [--all]   # run the measured proxies on the change (--all: the product), print caps
     verify.py accept <judge> "<the person's words>"   # they accept a quality score below the bar
     verify.py taste "<the person's words>" --judge J --dimension D [--anchor FILE] [--good|--poor]
@@ -49,9 +54,12 @@ and ask the person.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import importlib.util
+import io
 import json
+import math
 import os
 import re
 import shutil
@@ -59,6 +67,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tokenize
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -183,18 +192,470 @@ def watched(files: list[str]) -> list[str]:
     return [f for f in files if not f.startswith(EVALS)]
 
 
-def content_hash(paths, salt: str = "") -> str:
+def content_hash(paths, salt: str = "", root: Path | None = None) -> str:
+    """The paths' content under `root` (the repo, or a judge's snapshot), each with its name."""
     h = hashlib.sha256(salt.encode())
     for f in paths:
-        p = ROOT / f
+        p = (root or ROOT) / f
         h.update(f.encode() + b"\0" + (p.read_bytes() if p.is_file() else b"(deleted)") + b"\0")
     return h.hexdigest()[:16]
 
 
+def judge_files(judge: str, files: list[str] | None = None) -> list[str]:
+    """The changed files a judge reads."""
+    return [f for f in watched(files if files is not None else changed_files()) if JUDGES[judge](f)]
+
+
 def judge_fingerprint(judge: str, files: list[str] | None = None) -> str:
     """The content of the changed files a judge reads, so a change elsewhere leaves its review standing."""
-    files = watched(files if files is not None else changed_files())
-    return content_hash([f for f in files if JUDGES[judge](f)], judge)
+    return content_hash(judge_files(judge, files), judge)
+
+
+# --- What a verdict rests on: normalised content, snapshots, nits and deltas (.agents/HARNESS.md §13) -------------
+
+C_SOURCES = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx")
+NIT_SLACK = 3      # a hunk within this many lines of a nit is that nit's fix
+NIT_SPAN = 10      # the most lines one nit covers
+LINE_LIMIT = 120   # the longest code line `selfcheck` lets through
+SNAPSHOTS = STATE / "snapshots"
+RAW_STRING = re.compile(r"(?:^|\W)(?:u8|u|U|L)?R$")  # C++'s R"delim( … )delim", seen from its opening quote
+
+
+def read_text(p: Path) -> str | None:
+    return p.read_bytes().decode("utf-8", "replace") if p.is_file() else None
+
+
+def kind_of(path: str, text: str) -> str:
+    """How a file is normalised — c, py, sh, md or raw — by its extension, else by its shebang."""
+    for kind, ext in (("c", C_SOURCES), ("py", (".py",)), ("sh", (".sh", ".bash")), ("md", (".md",))):
+        if path.endswith(ext):
+            return kind
+    first = text.split("\n", 1)[0]
+    if first.startswith("#!"):
+        return "py" if "python" in first else "sh" if re.search(r"\b(?:ba|z|da|k)?sh\b", first) else "raw"
+    return "raw"
+
+
+def is_word(ch: str) -> bool:
+    return ch.isalnum() or ch in "_$"
+
+
+def c_units(text: str) -> list[tuple[int, int, str]]:
+    """C and C++ as statements: comments dropped, a run of whitespace one space — and none between a word and a sign
+    — a unit ending at `;`, `{`, `}` or a preprocessor line's end. Literals are kept as written, and a directive keeps
+    every space (`#define F (x)` is not `#define F(x)`)."""
+    out: list = []
+    buf: list = []
+    span = [0, 0]
+    i, n, line = 0, len(text), 1
+    directive, line_start, space = False, True, False
+
+    def put(s: str) -> None:
+        nonlocal space
+        if not buf:
+            span[0] = line
+        elif space and (directive or is_word(buf[-1][-1]) == is_word(s[0])):
+            buf.append(" ")
+        space = False
+        buf.append(s)
+        span[1] = line
+
+    def cut() -> None:
+        nonlocal space
+        if buf:
+            out.append((span[0], span[1], "".join(buf)))
+            buf.clear()
+        space = False
+
+    while i < n:
+        c = text[i]
+        if c == "\n":
+            if directive and not (text[i - 1:i] == "\\" or text[i - 2:i] == "\\\r"):
+                cut()
+                directive = False
+            space, line_start, line, i = True, True, line + 1, i + 1
+            continue
+        if c in " \t\r\f\v":
+            space, i = True, i + 1
+            continue
+        if text.startswith("//", i):  # a backslash before its newline splices the next line into it
+            j = text.find("\n", i)
+            while j > 0 and (text[j - 1] == "\\" or text[j - 2:j] == "\\\r"):
+                line += 1
+                j = text.find("\n", j + 1)
+            space, i = True, n if j < 0 else j
+            continue
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            line += text.count("\n", i, j)
+            line_start = line_start and "\n" not in text[i:j]
+            space, i = True, j
+            continue
+        if line_start and c == "#":
+            cut()
+            directive = True
+        line_start = False
+        if c == '"' and RAW_STRING.search(text[max(0, i - 3):i]):
+            opened = text.find("(", i)
+            close = text.find(")" + text[i + 1:opened] + '"', opened) if opened >= 0 else -1
+            j = n if close < 0 else close + opened - i + 1
+            put(text[i:j])
+            line += text.count("\n", i, j)
+            span[1], i = line, j
+            continue
+        if c in "\"'" and not (c == "'" and i and text[i - 1].isdigit()):  # 1'000 is a digit separator
+            j = i + 1
+            while j < n and text[j] not in (c, "\n"):
+                j += 2 if text[j] == "\\" else 1
+            j = j + 1 if j < n and text[j] == c else j
+            put(text[i:j])
+            line += text.count("\n", i, j)  # a backslash-newline inside the literal
+            span[1], i = line, j
+            continue
+        put(c)
+        i += 1
+        if c in ";{}" and not directive:
+            cut()
+    cut()
+    return out
+
+
+def py_units(text: str) -> list[tuple[int, int, str]]:
+    """Python as logical lines, from its own tokenizer: comments and the breaks inside brackets dropped, tokens one
+    space apart, each line led by its indent depth — strings kept as written. Source it cannot read is taken raw."""
+    out, cur, first, last, depth = [], [], 0, 0, 0
+    try:
+        for t in tokenize.generate_tokens(io.StringIO(text).readline):
+            if t.type in (tokenize.COMMENT, tokenize.NL, tokenize.ENCODING, tokenize.ENDMARKER):
+                continue
+            if t.type in (tokenize.INDENT, tokenize.DEDENT):
+                depth += 1 if t.type == tokenize.INDENT else -1
+                continue
+            if t.type == tokenize.NEWLINE:
+                if cur:
+                    out.append((first, last, f"{depth}|" + " ".join(cur)))
+                cur = []
+                continue
+            if not cur:
+                first = t.start[0]
+            cur.append(t.string)
+            last = t.end[0]
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        return raw_units(text)
+    if cur:
+        out.append((first, last, f"{depth}|" + " ".join(cur)))
+    return out
+
+
+HEREDOC = re.compile(r"(?<!<)<<(-?)\s*(['\"]?)([A-Za-z_]\w*)\2")
+
+
+def sh_units(text: str) -> list[tuple[int, int, str]]:
+    """Shell as lines: a comment — `#` where a word starts, outside quotes — dropped, a run of spaces outside quotes
+    one space, a blank line dropped. Line breaks are kept, since they end commands; a here-document is kept as
+    written."""
+    out, quote, heredoc = [], None, None
+    for ln, raw in enumerate(text.split("\n"), 1):
+        if heredoc:
+            body = raw.lstrip("\t") if heredoc[0] else raw
+            out.append((ln, ln, raw))
+            heredoc = None if body == heredoc[1] else heredoc
+            continue
+        res, opened, space, word_start, i = [], quote is not None, False, True, 0
+        while i < len(raw):
+            c = raw[i]
+            if quote:
+                if quote == '"' and c == "\\":
+                    res.append(raw[i:i + 2])
+                    i += 2
+                    continue
+                res.append(c)
+                quote = None if c == quote else quote
+                i += 1
+                continue
+            if c in " \t":
+                space, word_start, i = True, True, i + 1
+                continue
+            if c == "#" and word_start:
+                break
+            if space and res:
+                res.append(" ")
+            space = False
+            if c == "\\":
+                res.append(raw[i:i + 2])
+                i += 2
+                word_start = False
+                continue
+            quote = c if c in "'\"" else None
+            res.append(c)
+            word_start = c in ";|&()<>"
+            i += 1
+        line = "".join(res)
+        line = line if opened else line.lstrip()
+        line = line if quote else line.rstrip()
+        if line:
+            out.append((ln, ln, line))
+            m = None if quote else HEREDOC.search(line)
+            heredoc = (m.group(1) == "-", m.group(3)) if m else None
+    return out
+
+
+MD_BREAK = re.compile(r"\s*(?:[-*+]\s|\d+[.)]\s|#{1,6}(?:\s|$)|\||>|<|```|~~~)")
+
+
+def md_units(text: str) -> list[tuple[int, int, str]]:
+    """Markdown as blocks: a paragraph or a list item, its lines joined and its whitespace collapsed, so prose
+    re-wrapped with the same words is the same; a heading, a table row, a quote or a list marker starts a new block, a
+    blank line ends one. Front matter, fenced code — closed only by a fence of its own character at least as long — and
+    indented code outside a list are kept line by line, as written."""
+    out, cur, first, last, fence, in_list = [], [], 0, 0, None, False
+    lines = text.split("\n")
+    front = lines[0].strip() == "---" if lines else False
+
+    def cut() -> None:
+        if cur:
+            out.append((first, last, " ".join(cur)))
+            cur.clear()
+
+    for ln, raw in enumerate(lines, 1):
+        s = raw.strip()
+        if front:
+            out.append((ln, ln, raw.rstrip()))
+            front = not (ln > 1 and s == "---")
+            continue
+        if fence:
+            out.append((ln, ln, raw.rstrip()))
+            fence = None if s.startswith(fence) and not s.strip(fence[0]) else fence
+            continue
+        opened = re.match(r"(`{3,}|~{3,})", s)
+        if opened:
+            cut()
+            out.append((ln, ln, s))
+            fence = opened.group(1)
+            continue
+        if not s:
+            cut()
+            continue
+        if not cur and not in_list and re.match(r"(?: {4}|\t)", raw):  # an indented code block: as written
+            out.append((ln, ln, raw.rstrip()))
+            continue
+        if not cur and raw[:1] not in (" ", "\t"):
+            in_list = bool(re.match(r"(?:[-*+]|\d+[.)])\s", s))
+        if MD_BREAK.match(raw):
+            cut()
+        if not cur:
+            first = ln
+        cur.append(" ".join(s.split()))
+        last = ln
+        if s.startswith(("#", "|")):
+            cut()
+    cut()
+    return out
+
+
+def raw_units(text: str) -> list[tuple[int, int, str]]:
+    """Any other file as lines, trailing whitespace and blank lines dropped."""
+    return [(ln, ln, s.rstrip()) for ln, s in enumerate(text.split("\n"), 1) if s.strip()]
+
+
+UNITS = {"c": c_units, "py": py_units, "sh": sh_units, "md": md_units, "raw": raw_units}
+
+
+def file_units(path: str, text: str | None) -> list[tuple[int, int, str]]:
+    """A file's normalised units — (first line, last line, text) — or none for a file that is not there. A `#!` first
+    line is a unit of its own in Python and shell, whose readers take it for a comment: it names the interpreter."""
+    if text is None:
+        return []
+    kind = kind_of(path, text)
+    units = UNITS[kind](text)
+    if kind in ("py", "sh") and text.startswith("#!"):
+        units = [(1, 1, text.split("\n", 1)[0].rstrip())] + [u for u in units if u[0] != 1 or u[1] != 1]
+    return units
+
+
+def normal_hash(paths, salt: str = "", root: Path | None = None) -> str:
+    """content_hash of the files once normalised: a comment or whitespace edit leaves it as it was."""
+    h = hashlib.sha256(salt.encode())
+    for f in paths:
+        text = read_text((root or ROOT) / f)
+        body = "(deleted)" if text is None else "\x1e".join(u[2] for u in file_units(f, text))
+        h.update(f.encode() + b"\0" + body.encode() + b"\0")
+    return h.hexdigest()[:16]
+
+
+def stamp(judge: str, files: list[str] | None = None) -> dict:
+    """What a review keeps of the judge's files: the raw fingerprint, and the normalised one."""
+    jf = judge_files(judge, files)
+    return {"fingerprint": content_hash(jf, judge), "normal": normal_hash(jf, judge)}
+
+
+def review_stands(judge: str, r: dict, files: list[str] | None = None) -> str | None:
+    """'exact' when the judge's files are as it judged them; 'normalised' when only comments and whitespace changed
+    since; None when they changed and the review is stale. A review kept before the normalised stamp compares raw."""
+    if judge not in JUDGES or r.get("fingerprint") == judge_fingerprint(judge, files):
+        return "exact"
+    if r.get("normal") and r["normal"] == normal_hash(judge_files(judge, files), judge):
+        return "normalised"
+    return None
+
+
+def snapshot_dir(task: dict, judge: str) -> Path:
+    return SNAPSHOTS / (re.sub(r"[^0-9A-Za-z]+", "", task.get("started") or "") or "untimed") / judge
+
+
+def asked_dir(task: dict, judge: str) -> Path:
+    """Where `ask` keeps the judge's files as they were when it was asked, until its review takes them."""
+    return snapshot_dir(task, judge).with_name(f"{judge}.asked")
+
+
+def take_asked(task: dict, judge: str) -> dict | None:
+    """The review's stamp from the files as they were when `ask` was run — taken when the judge was asked after its
+    last review — with that snapshot moved into place, so an edit made while it read is in the next `delta`. None
+    when it was not asked since; the review then snapshots the tree as it is."""
+    asked, prev = (task.get("asked") or {}).get(judge), task["reviews"].get(judge)
+    src = asked_dir(task, judge)
+    if not asked or (prev and asked < prev["at"]) or not (src / "manifest.json").is_file():
+        return None
+    files = list(json.loads((src / "manifest.json").read_text())["files"])
+    d = snapshot_dir(task, judge)
+    shutil.rmtree(d, ignore_errors=True)
+    shutil.move(str(src), str(d))
+    del task["asked"][judge]
+    return {"fingerprint": content_hash(files, judge, d / "files"), "normal": normal_hash(files, judge, d / "files"),
+            "read_at": asked}
+
+
+def save_snapshot(task: dict, judge: str, files: list[str], d: Path | None = None) -> None:
+    """A copy of the files the judge read, as it read them — what `delta` and `nits-fixed` diff the tree against."""
+    d = d or snapshot_dir(task, judge)
+    shutil.rmtree(d, ignore_errors=True)
+    kept = {}
+    for f in files:
+        src = ROOT / f
+        kept[f] = file_hash(src)
+        if src.is_file():
+            (d / "files" / f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, d / "files" / f)
+    write_atomic(d / "manifest.json", json.dumps({"at": now(), "files": kept}, indent=1))
+
+
+def load_snapshot(task: dict, judge: str) -> dict | None:
+    try:
+        data = json.loads((snapshot_dir(task, judge) / "manifest.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data.get("files"), dict) else None
+
+
+def snapshot_text(task: dict, judge: str, f: str) -> str | None:
+    return read_text(snapshot_dir(task, judge) / "files" / f)
+
+
+NIT = re.compile(r"(?P<path>[^:\s]+):(?P<a>\d+)(?:-(?P<b>\d+))?(?:\s+(?P<text>.+))?", re.S)
+
+
+def parse_nits(specs: list[str] | None, files: list[str]) -> list[dict]:
+    """`path:line[-line] words` → {"path", "from", "to", "text"}, each on a file the judge read in the change."""
+    out = []
+    for spec in specs or ():
+        m = NIT.fullmatch(spec.strip())
+        if not m:
+            raise ValueError(f"--nit takes path:line or path:line-line, then its words: {spec!r}")
+        a, b = int(m["a"]), int(m["b"] or m["a"])
+        if not 1 <= a <= b:
+            raise ValueError(f"--nit's lines run from 1, first to last: {spec!r}")
+        if b - a + 1 > NIT_SPAN:
+            raise ValueError(f"a nit covers at most {NIT_SPAN} lines — polish on more is a finding to review: {spec!r}")
+        if m["path"] not in files:
+            raise ValueError(f"{m['path']} is not a file this judge read in the change — one of "
+                             f"{', '.join(files[:4]) or 'none'}{' …' if len(files) > 4 else ''}")
+        out.append({"path": m["path"], "from": a, "to": b, "text": (m["text"] or "").strip()})
+    return out
+
+
+def nit_name(n: dict) -> str:
+    return f"{n['path']}:{n['from']}" + (f"-{n['to']}" if n["to"] != n["from"] else "") \
+        + (f" {n['text']}" if n.get("text") else "")
+
+
+def unit_span(units: list, a: int, b: int) -> tuple[int, int, bool]:
+    """The lines units[a:b] cover, and whether they are real; for an empty slice, the line it follows."""
+    if a < b:
+        return units[a][0], units[b - 1][1], True
+    at = units[a - 1][1] if a else 0
+    return at, at, False
+
+
+def narrow_span(old: str, new: str, o: tuple, n: tuple) -> tuple[tuple, tuple]:
+    """A replaced unit's two spans, the same length, trimmed to the lines that differ as written — a one-word fix in a
+    six-line paragraph is one line, not six. The lines kept are those between the common first and last lines,
+    compared stripped. When no line differs as written, both spans stay whole."""
+    ol, nl = old.split("\n")[o[0] - 1:o[1]], new.split("\n")[n[0] - 1:n[1]]
+    p = 0
+    while p < len(ol) and ol[p].strip() == nl[p].strip():
+        p += 1
+    if p == len(ol):
+        return o, n
+    s = 0
+    while ol[-1 - s].strip() == nl[-1 - s].strip():
+        s += 1
+    return (o[0] + p, o[1] - s, True), (n[0] + p, n[1] - s, True)
+
+
+def unit_hunks(path: str, old: str | None, new: str | None) -> list[dict]:
+    """The hunks between two versions of a file once normalised — what a comment or whitespace edit never makes. Each
+    is {"path", "old": (a, b, real), "new": (c, d, real)}, in each version's own lines. A hunk that replaces units one
+    for one, each as many lines long as before, is narrowed to the lines that differ as written (narrow_span); any
+    other — a unit split, joined or read anew, as an unclosed comment or fence makes — keeps its whole span."""
+    ou, nu = file_units(path, old), file_units(path, new)
+    sm = difflib.SequenceMatcher(None, [u[2] for u in ou], [u[2] for u in nu], autojunk=False)
+    out = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            continue
+        o, n = unit_span(ou, i1, i2), unit_span(nu, j1, j2)
+        if tag == "replace" and [u[1] - u[0] for u in ou[i1:i2]] == [u[1] - u[0] for u in nu[j1:j2]] \
+                and o[1] - o[0] == n[1] - n[0]:
+            o, n = narrow_span(old, new, o, n)
+        out.append({"path": path, "old": o, "new": n})
+    return out
+
+
+def span_len(s: tuple) -> int:
+    return s[1] - s[0] + 1 if s[2] else 0
+
+
+def near_nit(h: dict, nits: list[dict]) -> dict | None:
+    """The nit a hunk fixes: it lies within NIT_SLACK lines of the nit, in the lines the judge read, and neither side
+    of it is longer than the nit's own lines plus NIT_SLACK — a hundred lines inserted after a nit are not its fix."""
+    a, b, _ = h["old"]
+    return next((n for n in nits if n["path"] == h["path"] and n["from"] - NIT_SLACK <= a
+                 and b <= n["to"] + NIT_SLACK
+                 and max(span_len(h["old"]), span_len(h.get("new", (0, 0, False))))
+                 <= n["to"] - n["from"] + 1 + NIT_SLACK), None)
+
+
+def delta_since(task: dict, judge: str, snap: dict, files: list[str]) -> list[tuple[str, str | None, str | None]]:
+    """(path, as the judge read it, as it is now) for each of its files that differs from its snapshot."""
+    out = []
+    for f in sorted(set(files) | set(snap["files"])):
+        old = snapshot_text(task, judge, f) if f in snap["files"] else None
+        new = read_text(ROOT / f) if f in files else None
+        if old != new:
+            out.append((f, old, new))
+    return out
+
+
+def carry_line(h: dict) -> str:
+    """A carry-forward in a review's history, in words."""
+    if h.get("kind") == "nits-fixed":
+        return (f"its pass re-stamped at {h['at']}: {h['hunks']} hunk(s) since its review, each within {NIT_SLACK} "
+                f"lines of a nit it raised")
+    if h.get("kind") == "acceptance":
+        return (f"the person's acceptance at {h['quality']}/100 ({h['from']}) holds — this review scored "
+                f"{h['now']}, the same or higher: \"{h['words']}\"")
+    return str(h)
 
 
 def tree_fingerprint() -> str:
@@ -371,19 +832,99 @@ SCOPES = ("portable", "project")  # a skill's or agent's metadata.scope (AGENT_H
 LINK = re.compile(r"\]\(([^)\s]+)\)")
 
 
+FM_KEY = re.compile(r"([A-Za-z_][\w-]*):(?:[ \t]+(.*?))?[ \t]*")
+
+
+def frontmatter(text: str) -> tuple[str | None, str | None]:
+    """(the frontmatter's body, why it cannot be read) — (None, None) for a file with none. CRLF line ends are read as
+    LF, so a file saved on Windows is checked like any other."""
+    text = text.replace("\r\n", "\n")
+    if not text.startswith("---\n"):
+        return None, None
+    m = re.match(r"---\n(?:(.*?)\n)?---[ \t]*(?:\n|$)", text, re.S)
+    if not m:
+        return None, "its frontmatter is never closed by a `---` line"
+    return m.group(1) or "", None
+
+
+def top_keys(body: str) -> list[list]:
+    """[key or None, value, [(line, child line)], line] for each top-level line of a frontmatter body; an indented line
+    belongs to the key above it — a folded block's text, a mapping's children — and so does an unindented `- ` item,
+    YAML's sequence under a key (`allowed-tools:` then `- Bash`). Lines are the file's own."""
+    out: list = []
+    for n, line in enumerate(body.split("\n"), 2):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line[0] in " \t" or re.match(r"-(?:\s|$)", line):
+            if out:
+                out[-1][2].append((n, line))
+            continue
+        m = FM_KEY.fullmatch(line)
+        out.append([m.group(1), m.group(2) or "", [], n] if m else [None, line, [], n])
+    return out
+
+
+def meta_value(text: str, name: str) -> str | None:
+    """A top-level key's value in the frontmatter, else the value of that key under `metadata:` — read by structure,
+    so words inside a folded `description: >-` block are never taken for a key."""
+    body, _ = frontmatter(text)
+    for key, value, children, _ in top_keys(body) if body is not None else []:
+        if key == name:
+            return value.strip()
+        if key == "metadata":
+            for _, line in children:
+                m = re.fullmatch(r"[ \t]+([\w-]+):(?:[ \t]+(.*?))?[ \t]*", line)
+                if m and m.group(1) == name:
+                    return (m.group(2) or "").strip()
+    return None
+
+
+def frontmatter_problems(text: str) -> list[str]:
+    """Why a frontmatter would not parse as YAML, in the shapes that broke one here: a block never closed, a line that
+    is no `key: value`, a plain (unquoted) value holding `: ` — YAML reads a nested mapping and refuses it — or ` #`,
+    which YAML drops as a comment, on its line or a continuation line; an open quote; a bad block indicator."""
+    body, problem = frontmatter(text)
+    if problem:
+        return [problem]
+    out = []
+    for key, value, children, n in top_keys(body) if body is not None else []:
+        if key is None:
+            out.append(f"frontmatter line {n} is not `key: value`: {value[:60]!r}")
+            continue
+        v = value.strip()
+        if not v or v[0] in "[{&*!":
+            continue
+        if v[0] in "|>":
+            if not re.fullmatch(r"[|>](?:[-+]?[1-9]?|[1-9][-+])", v):
+                out.append(f"frontmatter line {n}: `{key}:` has a bad block indicator {v!r} — `>-` folds it")
+            continue
+        if v[0] in "'\"":
+            closed = len(v) > 1 and v.endswith(v[0]) or any(c.rstrip().endswith(v[0]) for _, c in children)
+            if not closed:
+                out.append(f"frontmatter line {n}: `{key}:` opens a {v[0]} quote it never closes")
+            continue
+        for ln, part in [(n, v)] + [(c, t.strip()) for c, t in children]:
+            if ": " in part or part.endswith(":"):
+                out.append(f"frontmatter line {ln}: `{key}:`'s plain value holds `: `, which YAML reads as a nested "
+                           "mapping and refuses — fold it (`>-`, the text indented two spaces) or quote it")
+                break
+            if " #" in part:
+                out.append(f"frontmatter line {ln}: `{key}:`'s plain value holds ` #`, which YAML drops as a "
+                           "comment — fold it (`>-`) or quote it")
+                break
+    return out
+
+
 def scope_of(text: str) -> str | None:
     """`metadata: scope:` (or a top-level `scope:`) from a SKILL.md's or an agent's frontmatter."""
-    m = re.match(r"---\n(.*?)\n---", text, re.S)
-    if not m:
-        return None
-    s = re.search(r"^(?:metadata:\s*\n(?:[ \t]+\S.*\n)*?[ \t]+|)scope:\s*(\S+)", m.group(1) + "\n", re.M)
-    return s.group(1).strip("'\"") if s else None
+    v = meta_value(text, "scope")
+    m = re.match(r"\S+", v or "")
+    return m.group(0).strip("'\"") if m else None
 
 
 def requires_of(text: str) -> list[str]:
     """`metadata: requires: [a, b]` from an agent's frontmatter — the skills a portable agent needs."""
-    m = re.match(r"---\n(.*?)\n---", text, re.S)
-    r = re.search(r"^[ \t]+requires:\s*\[([^\]]*)\]", m.group(1), re.M) if m else None
+    r = re.fullmatch(r"\[([^\]]*)\]", meta_value(text, "requires") or "")
     return [s.strip().strip("'\"") for s in r.group(1).split(",") if s.strip()] if r else []
 
 
@@ -396,6 +937,7 @@ def scope_problems() -> list[str]:
     for f in files:
         rel = f.relative_to(ROOT).as_posix()
         text = f.read_text(errors="replace")
+        problems += [f"{rel}: {p}" for p in frontmatter_problems(text)]  # a runtime that cannot parse it drops it
         scope = scope_of(text)
         if scope not in SCOPES:
             problems.append(f"{rel}: metadata.scope is {scope or 'missing'} — one of {', '.join(SCOPES)}")
@@ -903,6 +1445,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         old = load()
         if old.get("runs"):
             write_atomic(STATE / "history" / f"{old['started'].replace(':', '')}.json", json.dumps(old, indent=2))
+        shutil.rmtree(SNAPSHOTS, ignore_errors=True)  # the last task's judges' snapshots: no delta reaches back
         save(new_task(args.task))
     print(f"task started: {args.task} — the retry limit is {MAX_FAILURES}")
     gated = [what for what, paths, kinds in project.GATES if paths and set(kinds) & set(KINDS_BEFORE)]
@@ -956,7 +1499,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         return stop_or_retry(task)
     judges = [j for j, wants in JUDGES.items() if judge_ready(j) and any(wants(f) for f in files)]
     if judges:
-        print(f"next: the judges — {', '.join(judges)} (ask them in parallel; record each with `verify.py review`)")
+        print(f"next: the judges — {', '.join(judges)} (ask them in parallel: `verify.py ask <judge>` for each before "
+              "briefing it, then record each with `verify.py review`)")
     return 0
 
 
@@ -974,8 +1518,14 @@ def stop_or_retry(task: dict) -> int:
 def cmd_review(args: argparse.Namespace) -> int:
     dims = load_weights()["judges"].get(args.judge, {})
     scored = None
+    files = changed_files()
+    try:
+        nits = parse_nits(args.nit, judge_files(args.judge, files))
+    except ValueError as e:
+        print(f"review: {e}", file=sys.stderr)
+        return 2
     if args.out_of_scope:
-        return review_out_of_scope(args, dims)
+        return review_out_of_scope(args, dims, files, nits)
     if args.score or args.scores_file:
         if not dims:
             print(f"review: {args.judge} has no quality dimensions in {WEIGHTS.relative_to(ROOT)}", file=sys.stderr)
@@ -990,12 +1540,26 @@ def cmd_review(args: argparse.Namespace) -> int:
             print(f"proxy ({SCOPE_CHANGE}): {run_proxy(args.judge)}")
         scored = scorecard(args.judge, raw, reasons, dims, SCOPE_CHANGE)
     with task_update() as task:  # a blocking verdict is fixed and asked again; it does not count toward the limit
-        task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note,
-                                       "fingerprint": judge_fingerprint(args.judge), "at": now(), **(scored or {})}
-    print(f"review recorded: {args.judge} {args.verdict}")
+        taken = take_asked(task, args.judge)  # the files as they were when the judge was asked, if it was
+        review = {"verdict": args.verdict, "note": args.note, **(taken or stamp(args.judge, files)), "at": now(),
+                  "nits": nits, "history": [], **(scored or {})}
+        carried = accepted(task, args.judge, review) if scored and scored["quality"] is not None \
+            and scored["quality"] < QUALITY_BAR else None
+        if carried:  # a carry-forward, kept in the review's history so status and finish show it
+            review["history"].append({"kind": "acceptance", "at": review["at"], "from": carried["review_at"],
+                                      "quality": carried["quality"], "now": scored["quality"],
+                                      "words": carried["words"]})
+        task["reviews"][args.judge] = review
+        if not taken:
+            save_snapshot(task, args.judge, judge_files(args.judge, files))
+    print(f"review recorded: {args.judge} {args.verdict}" + (f" with {len(nits)} nit(s)" if nits else "")
+          + (f" — on its files as they were when asked, {taken['read_at']}" if taken else ""))
     if scored:
         log_score({"kind": "review", "judge": args.judge, "verdict": args.verdict, **scored})
-        print_scorecard(args.judge, scored, dims)
+        print_scorecard(args.judge, scored, dims, gate=not carried)
+        if carried:
+            print(f"the person's acceptance at {carried['quality']}/100 carries to this review — its score "
+                  f"{scored['quality']} is the same or higher: \"{carried['words']}\"")
     elif dims:
         print(f"no quality score — finish holds {args.judge} to the bar ({QUALITY_BAR}): record its Score block with "
               "--score dim=n,... and a reason per dimension in --note, or --scores-file")
@@ -1006,7 +1570,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
-def review_out_of_scope(args: argparse.Namespace, dims: dict) -> int:
+def review_out_of_scope(args: argparse.Namespace, dims: dict, files: list[str], nits: list[dict]) -> int:
     """The verdict of a judge whose measured scope the change never touches, with no score — verify.py checks that
     the scope is empty, so the claim is never only the agent's word."""
     if args.score or args.scores_file or not dims:
@@ -1021,12 +1585,202 @@ def review_out_of_scope(args: argparse.Namespace, dims: dict) -> int:
               f"{args.verdict} --score dim=n,... --note \"dim: why; …\"", file=sys.stderr)
         return 1
     with task_update() as task:
+        taken = take_asked(task, args.judge)
         task["reviews"][args.judge] = {"verdict": args.verdict, "note": args.note, "quality": None,
                                        "out_of_scope": True, "scope": said, "scope_fingerprint": tree_fingerprint(),
-                                       "fingerprint": judge_fingerprint(args.judge), "at": now()}
+                                       **(taken or stamp(args.judge, files)), "at": now(), "nits": nits,
+                                       "history": []}
+        if not taken:
+            save_snapshot(task, args.judge, judge_files(args.judge, files))
     print(f"review recorded: {args.judge} {args.verdict} — {OUT_OF_SCOPE}, not held to the bar; finish still needs "
           "its verdict")
     return 1 if args.verdict == "blocking" else 0
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    """The judge is being asked: its files kept as they are now, and the time, so its review rests on what it read —
+    an edit made while it reads shows in the next `delta` (.agents/HARNESS.md §13)."""
+    with task_update() as task:
+        files = judge_files(args.judge)
+        save_snapshot(task, args.judge, files, asked_dir(task, args.judge))
+        task.setdefault("asked", {})[args.judge] = now()
+    print(f"asked: {args.judge} — its {len(files)} file(s) kept as it reads them; brief it now, and record its verdict "
+          f"with verify.py review {args.judge} …")
+    return 0
+
+
+def cmd_nits_fixed(args: argparse.Namespace) -> int:
+    """A pass re-stamped on the tree when every hunk since the judge's snapshot — normalised, so a comment or
+    whitespace edit is none — lies within NIT_SLACK lines of a nit it raised. A blocking verdict is never cleared here:
+    only a new pass clears it (.agents/HARNESS.md §13)."""
+    task, judge = load(), args.judge
+    r = (task.get("reviews") or {}).get(judge)
+    if not r:
+        print(f"nits-fixed: no review from {judge} this task", file=sys.stderr)
+        return 1
+    if r["verdict"] != "pass":
+        print(f"nits-fixed: {judge} said blocking — that stays in force until it records a new pass; fix it, then "
+              f"give it the delta: verify.py delta {judge}", file=sys.stderr)
+        return 1
+    files = changed_files()
+    if review_stands(judge, r, files):
+        print(f"nits-fixed: {judge}'s review already stands on this tree — nothing to re-stamp")
+        return 0
+    snap = load_snapshot(task, judge)
+    if snap is None:
+        print(f"nits-fixed: no snapshot of what {judge} read — ask it for a full review", file=sys.stderr)
+        return 1
+    jf = judge_files(judge, files)
+    moved = sorted(set(jf) ^ set(snap["files"]))
+    hunks = [h for f, old, new in delta_since(task, judge, snap, jf) for h in unit_hunks(f, old, new)]
+    away = [h for h in hunks if not near_nit(h, r.get("nits") or [])]
+    if moved or away or not r.get("nits"):
+        why = (f"files added to or gone from what it read: {', '.join(moved[:4])}" if moved
+               else "the review raised no nits" if not r.get("nits")
+               else f"{len(away)} hunk(s) by no nit — more than {NIT_SLACK} lines from every nit, or longer than "
+                    f"its lines plus {NIT_SLACK} — first at {away[0]['path']}:{away[0]['old'][0]}")
+        print(f"nits-fixed refused: {why}. Re-review the delta: verify.py delta {judge}, then verify.py review "
+              f"{judge} …", file=sys.stderr)
+        return 1
+    with task_update() as fresh:
+        rr = fresh["reviews"].get(judge)
+        if not rr or rr.get("at") != r["at"]:
+            print(f"nits-fixed: {judge} reviewed again meanwhile — nothing re-stamped", file=sys.stderr)
+            return 1
+        rr.setdefault("history", []).append({"kind": "nits-fixed", "at": now(), "hunks": len(hunks),
+                                             "from": rr.get("fingerprint")})
+        rr.update(stamp(judge, files))
+    print(f"nits-fixed: {judge}'s pass re-stamped — {len(hunks)} hunk(s), each within {NIT_SLACK} lines of a nit "
+          "it raised")
+    return 0
+
+
+def mark_hunk(lines: list[str], hunks: list[dict], nits: list[dict], path: str) -> str:
+    """A unified diff hunk's tag: comments or whitespace only, or changed — and the nit it lies by."""
+    old_n = new_n = 0
+    head = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)", lines[0])
+    if head:
+        old_n, new_n = int(head.group(1)), int(head.group(2))
+    olds, news = set(), set()
+    for ln in lines[1:]:
+        if ln.startswith("-"):
+            olds.add(old_n)
+            old_n += 1
+        elif ln.startswith("+"):
+            news.add(new_n)
+            new_n += 1
+        else:
+            old_n, new_n = old_n + 1, new_n + 1
+    hit = [h for h in hunks if (h["old"][2] and olds & set(range(h["old"][0], h["old"][1] + 1)))
+           or (h["new"][2] and news & set(range(h["new"][0], h["new"][1] + 1)))]
+    if not hit:
+        return "[comments or whitespace only]"
+    nit = next((n for n in (near_nit(h, nits) for h in hit) if n), None)
+    return "[changed]" + (f" [by the nit {nit_name(nit)}]" if nit and all(near_nit(h, nits) for h in hit) else "")
+
+
+def cmd_delta(args: argparse.Namespace) -> int:
+    """The brief for a re-review of only what changed: the judge's last verdict, note and nits, then the unified diff
+    between what it read and the tree, each hunk marked (.agents/HARNESS.md §13)."""
+    task, judge = load(), args.judge
+    r = (task.get("reviews") or {}).get(judge)
+    if not r:
+        print(f"delta: no review from {judge} this task — ask it for a full review", file=sys.stderr)
+        return 1
+    quality = f", quality {r['quality']}/100" if r.get("quality") is not None else ""
+    print(f"{judge}'s last verdict: {r['verdict']}{quality}, at {r['at']}")
+    if r.get("note"):
+        print(f"its note: {r['note']}")
+    for n in r.get("nits") or []:
+        print(f"its nit: {nit_name(n)}")
+    for h in r.get("history") or []:
+        print(f"carried forward: {carry_line(h)}")
+    snap = load_snapshot(task, judge)
+    if snap is None:
+        print(f"no snapshot of what {judge} read — ask it for a full review", file=sys.stderr)
+        return 1
+    changed = delta_since(task, judge, snap, judge_files(judge))
+    substantive = 0
+    for f, old, new in changed:
+        hunks = unit_hunks(f, old, new)
+        substantive += len(hunks)
+        diff = list(difflib.unified_diff((old or "").splitlines(), (new or "").splitlines(),
+                                         f"a/{f} (as {judge} read it)" if old is not None else "/dev/null",
+                                         f"b/{f}" if new is not None else "/dev/null", lineterm=""))
+        starts = [i for i, ln in enumerate(diff) if ln.startswith("@@")] + [len(diff)]
+        print("\n".join(diff[:starts[0]]))
+        for a, b in zip(starts, starts[1:]):
+            print(f"{diff[a]}  {mark_hunk(diff[a:b], hunks, r.get('nits') or [], f)}")
+            print("\n".join(diff[a + 1:b]))
+    if not changed:
+        print(f"nothing changed in {judge}'s files since it read them")
+    elif not substantive:
+        print("every hunk is comments or whitespace — the review stands on this tree")
+    else:
+        print(f"brief: re-review this delta and what it touches; the earlier passes stand for the rest — say so. "
+              f"Record the verdict: verify.py review {judge} pass|blocking …")
+    return 0
+
+
+def changed_lines_of(path: str) -> set[int] | None:
+    """The lines the change wrote in a file, against HEAD; None for a file git does not track (every line)."""
+    if not git("ls-files", "--", path).strip():
+        return None
+    lines: set[int] = set()
+    for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", git("diff", "-U0", "HEAD", "--", path), re.M):
+        start, count = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+        lines.update(range(start, start + count))
+    return lines
+
+
+def long_lines(files: list[str]) -> list[str]:
+    """The changed lines of the changed C, C++, Python and shell files longer than LINE_LIMIT."""
+    out = []
+    skip = tuple(getattr(project, "GENERATED", ())) + tuple(getattr(project, "MANAGED", ())) \
+        + tuple(getattr(project, "VENDORED", ()))
+    for f in files:
+        text = read_text(ROOT / f)
+        if text is None or project.matches(f, skip) or kind_of(f, text) not in ("c", "py", "sh"):
+            continue
+        wrote = changed_lines_of(f)
+        for n, line in enumerate(text.split("\n"), 1):
+            if (wrote is None or n in wrote) and len(line) > LINE_LIMIT:
+                out.append(f"{f}:{n} is {len(line)} characters — over {LINE_LIMIT}")
+    return out
+
+
+def cmd_selfcheck(_: argparse.Namespace) -> int:
+    """The fast, deterministic proxies on the changed files only — what a judge would otherwise flag as a nit — run by
+    the builder before it asks the judges (.agents/HARNESS.md §13)."""
+    t0, files, flagged = time.time(), changed_files(), []
+    log_dir = STATE / "selfcheck"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    docs = [f for f in files if f.endswith(".md") and is_kit_or_doc(f)]
+    ui = [f for f in files if project.matches(f, ux_paths())]
+    for judge, wanted, what in (("doc-reviewer", docs, "doc"), ("ux-content-writer", ui, "UI")):
+        if not wanted:
+            continue
+        if not proxy_built(judge):
+            print(f"{what} files changed, but {judge}'s proxy is not built (PROXIES in .agents/project.py)")
+            continue
+        print(f"{judge}'s proxy on {len(wanted)} changed {what} file(s): {run_proxy(judge)}")
+        caps, carried = split_metrics(proxy_data(judge), judge)
+        flagged += [f"{judge} {d}: {r}" for d, rs in caps.items() for r in rs]
+        if carried:
+            print(f"  {sum(map(len, carried.values()))} metric(s) of carried debt — out of range at the base too")
+    if ui and not proxy_built("ux-content-writer") and (ROOT / UX_LINT).is_file():
+        code, out = sh([sys.executable, UX_LINT, *ui], log_dir / "ux.log")
+        flagged += [] if code == 0 else [ln.strip() for ln in out.splitlines() if re.search(r"\bU\d+\b", ln)][:20]
+    flagged += long_lines(files)
+    anchors = ROOT / DOC_SCRIPTS / "check_anchors.py"
+    if anchors.is_file() and files:
+        code, out = sh([sys.executable, str(anchors)], log_dir / "anchors.log")
+        flagged += [] if code == 0 else failing(out) or tail(out, 4)
+    for line in flagged:
+        print(f"  nit: {line}")
+    print(f"selfcheck: {len(flagged)} thing(s) a judge would flag, on {len(files)} changed file(s), in "
+          f"{time.time() - t0:.1f} s" + ("" if flagged else " — ask the judges"))
+    return 1 if flagged else 0
 
 
 def cmd_approve(args: argparse.Namespace) -> int:
@@ -1314,17 +2068,81 @@ def proxy_built(judge: str, cmd=None) -> bool:
     return all((ROOT / a).is_file() for a in scripts)
 
 
-def caps_from(data: dict, judge: str) -> dict:
-    """{dimension: [the metric out of range, …]} from a proxy's JSON — every metric with ok false."""
+def number(v) -> float | None:
+    """A finite number, or None — a bool, a string, null or NaN is not one."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return float(v) if math.isfinite(v) else None
+
+
+def distance(value, rng) -> float | None:
+    """How far a value lies outside its [lo, hi] range, 0 inside it; None when the value or the range is not numbers."""
+    if not isinstance(rng, (list, tuple)) or len(rng) != 2:
+        return None
+    lo, hi, v = number(rng[0]), number(rng[1]), number(value)
+    if None in (lo, hi, v):
+        return None
+    return max(lo - v, v - hi, 0.0)
+
+
+def badness(v) -> float | None:
+    return number(v)
+
+
+def regression(m: dict) -> str | None:
+    """Why a metric out of its range caps a review — it is new since the base, worse than there, or at a new place —
+    or None when it is carried debt: out of range at the base already, no worse and nowhere new (SonarQube's Clean as
+    You Code; .agents/HARNESS.md §12.5). The proxy writes `base`, the value at the base for the same scope (null: no
+    such metric there), and may write `offenders` and `base_offenders`, {place: how bad}, which then decide alone. A
+    metric with neither, or with anything that cannot be compared, caps — the check fails closed."""
+    if m.get("ok") is not False:
+        return None
+    off, base_off = m.get("offenders"), m.get("base_offenders")
+    if isinstance(off, dict) and isinstance(base_off, dict):
+        if not off:
+            return "out of range, but it names no place"
+        if any(badness(v) is None for v in list(off.values()) + list(base_off.values())):
+            return "not comparable: a place's measure is not a number"
+        fresh = [k for k, v in off.items() if k not in base_off or badness(v) > badness(base_off[k])]
+        if not fresh:
+            return None
+        return f"new or worse at {str(fresh[0])[:80]}" + (f" (+{len(fresh) - 1} more)" if len(fresh) > 1 else "")
+    if "base" not in m:
+        return "no base value to compare"
+    if m["base"] is None:
+        return "new since the base"
+    now, was = distance(m.get("value"), m.get("range")), distance(m["base"], m.get("range"))
+    if now is None or was is None:
+        return "not comparable: the value, the base or the range is not numbers"
+    if now > was + 1e-9:
+        return f"worse than the base's {m['base']}"
+    return None
+
+
+def split_metrics(data: dict, judge: str) -> tuple[dict, dict]:
+    """({dimension: [what caps it]}, {dimension: [the carried debt]}) from a proxy's JSON. In the change's scope a
+    metric out of range caps only when `regression` says so; in the product's (an audit), every one caps."""
     caps: dict[str, list] = {}
+    carried: dict[str, list] = {}
     if not isinstance(data, dict) or data.get("judge") not in (None, judge):
-        return caps
+        return caps, carried
+    change = data.get("scope", SCOPE_CHANGE) == SCOPE_CHANGE
     for m in data.get("metrics") or []:
-        if isinstance(m, dict) and m.get("ok") is False and m.get("dimension"):
-            caps.setdefault(m["dimension"], []).append(
-                f"{m.get('name', '?')} {m.get('value', '?')} outside {m.get('range', '?')}"
+        if not (isinstance(m, dict) and m.get("ok") is False and m.get("dimension")):
+            continue
+        said = (f"{m.get('name', '?')} {m.get('value', '?')} outside {m.get('range', '?')}"
                 + (f" at {m['where']}" if m.get("where") else ""))
-    return caps
+        why = regression(m) if change else None
+        if not change or why:
+            caps.setdefault(m["dimension"], []).append(said + (f" — {why}" if why else ""))
+        else:
+            carried.setdefault(m["dimension"], []).append(said + f" — carried: {m.get('base', 'here')} at the base")
+    return caps, carried
+
+
+def caps_from(data: dict, judge: str) -> dict:
+    """{dimension: [the metric out of range, …]} from a proxy's JSON — those that cap (split_metrics)."""
+    return split_metrics(data, judge)[0]
 
 
 def epoch(at: str | None) -> float | None:
@@ -1355,34 +2173,35 @@ def proxy_last_run(judge: str) -> dict:
         return {}
 
 
-def proxy_state(judge: str, scope: str, files: list[str] | None = None) -> tuple[dict, str | None, str | None]:
-    """(caps, when the results were measured, why they were set aside). Results are used only when they measure the
-    wanted scope, the last run that wrote them passed, and they are newer than every changed file; otherwise a
-    warning, and no cap from them."""
+def proxy_state(judge: str, scope: str, files: list[str] | None = None) -> tuple[dict, str | None, str | None, dict]:
+    """(caps, when the results were measured, why they were set aside, the carried debt). Results are used only when
+    they measure the wanted scope, the last run that wrote them passed, and they are newer than every changed file;
+    otherwise a warning, and no cap from them."""
     try:
         data = json.loads((PROXY_DIR / f"{judge}.json").read_text())
     except (OSError, ValueError):
-        return {}, None, None
+        return {}, None, None, {}
     if not isinstance(data, dict):
-        return {}, None, "the results file is not a proxy's JSON"
+        return {}, None, "the results file is not a proxy's JSON", {}
     at, run = data.get("at"), proxy_last_run(judge)
     if run.get("exit") not in (None, 0):
-        return {}, at, f"the last proxy run failed (exit {run['exit']} at {run.get('at')}) — no cap applied from it"
+        return {}, at, f"the last proxy run failed (exit {run['exit']} at {run.get('at')}) — no cap applied from it", {}
     got = data.get("scope", SCOPE_CHANGE)
     if got != scope:
         return {}, at, (f"the results measure the {got}, not the {scope} — no cap applied from them; run "
-                        f"`verify.py proxies --judge {judge}{' --all' if scope == SCOPE_PRODUCT else ''}`")
+                        f"`verify.py proxies --judge {judge}{' --all' if scope == SCOPE_PRODUCT else ''}`"), {}
     newest, name = newest_change(files)
     when = epoch(at)
     if when is None or newest >= when + 1:  # `at` is kept to the second
         return {}, at, (f"stale: measured at {at}, before {name} changed — no cap applied from them; run "
-                        f"`verify.py proxies --judge {judge}` again")
-    return caps_from(data, judge), at, None
+                        f"`verify.py proxies --judge {judge}` again"), {}
+    caps, carried = split_metrics(data, judge)
+    return caps, at, None, carried
 
 
 def proxy_caps(judge: str, scope: str = SCOPE_CHANGE) -> tuple[dict, str | None]:
     """The caps from the judge's last proxy run, and when it ran; none when it has not run or is set aside."""
-    caps, at, _ = proxy_state(judge, scope)
+    caps, at, _, _ = proxy_state(judge, scope)
     return caps, at
 
 
@@ -1400,13 +2219,14 @@ def run_proxy(judge: str, product: bool = False) -> str:
 
 
 def scorecard(judge: str, raw: dict, reasons: dict, dims: dict, scope: str = SCOPE_CHANGE) -> dict:
-    caps, at, why = proxy_state(judge, scope)
+    caps, at, why, carried = proxy_state(judge, scope)
     if why:
         print(f"proxy for {judge} set aside: {why}")
     caps = {d: c for d, c in caps.items() if d in dims}
     scores = apply_caps(raw, caps)
     return {"scores": scores, "raw": raw, "reasons": reasons, "caps": caps, "proxy_at": at, "proxy_scope": scope,
-            "proxy_set_aside": why, "weights": weights_of(dims), "quality": weighted(scores, weights_of(dims))}
+            "proxy_set_aside": why, "weights": weights_of(dims), "quality": weighted(scores, weights_of(dims)),
+            "carried": {d: c for d, c in carried.items() if d in dims}}
 
 
 def brief(reasons: list[str], most: int = 1) -> str:
@@ -1421,6 +2241,8 @@ def print_scorecard(judge: str, card: dict, dims: dict, gate: bool = True) -> No
         cap = f" — capped at {PROXY_CAP}: {brief(card['caps'][d])}" if card["caps"].get(d) else ""
         print(f"  {d:13} {'n/a' if s is None else f'{s}/{SCORE_MAX}'}  weight {meta['weight']:>4}  "
               f"{card['reasons'].get(d, '')[:70]}{cap}")
+    for d, debt in (card.get("carried") or {}).items():
+        print(f"  {d}: {len(debt)} metric(s) of carried debt, not capped — {brief(debt)}")
     q = card["quality"]
     print(f"quality: {q}/100 — the bar is {QUALITY_BAR}" + ("" if q is None or q >= QUALITY_BAR else " — BELOW"))
     if q is not None and q < QUALITY_BAR:
@@ -1706,18 +2528,32 @@ def cmd_accept(args: argparse.Namespace) -> int:
 
 
 def accepted(task: dict, judge: str, review: dict) -> dict | None:
-    return next((a for a in reversed(task.get("acceptances", []))
-                 if a["judge"] == judge and a["review_at"] == review["at"]), None)
+    """The person's acceptance that covers this review: one given on it, or on an earlier review of the same judge
+    whose score was no higher — a later review at the same score or above keeps it; a lower one needs a new one."""
+    q = review.get("quality")
+    for a in reversed(task.get("acceptances", [])):
+        if a["judge"] != judge:
+            continue
+        if a["review_at"] == review["at"]:
+            return a
+        if q is not None and a.get("quality") is not None and q >= a["quality"] and a["review_at"] <= review["at"]:
+            return a
+    return None
 
 
-def review_line(judge: str, r: dict) -> str:
-    """A review's line in the Verified block: its verdict, and its quality score — or that it was out of scope."""
+def review_line(judge: str, r: dict, standing: str | None = "exact") -> str:
+    """A review's line in the Verified block: its verdict, and its quality score — or that it was out of scope; its
+    nits, its carried debt, and whether it stands only because the edits since were comments or whitespace."""
+    tail_ = (f" — {len(r['nits'])} nit(s)" if r.get("nits") else "") \
+        + (f" — {sum(map(len, r['carried'].values()))} metric(s) of carried debt, not capped" if r.get("carried")
+           else "") \
+        + (" — stands: only comments or whitespace changed in its files since" if standing == "normalised" else "")
     if r.get("out_of_scope"):
         return (f"- Review: {judge} {r['verdict']} — {OUT_OF_SCOPE} — not held to the bar ({r.get('scope', '')})"
-                + (f" — {r['note']}" if r.get("note") else ""))
+                + (f" — {r['note']}" if r.get("note") else "") + tail_)
     quality = f" — quality {r['quality']}/100 (bar {QUALITY_BAR})" if r.get("quality") is not None else ""
     note = r.get("note") if r.get("quality") is None else None  # a scored note is the reasons, in the card
-    return f"- Review: {judge} {r['verdict']}{quality}" + (f" — {note}" if note else "")
+    return f"- Review: {judge} {r['verdict']}{quality}" + (f" — {note}" if note else "") + tail_
 
 
 def proxy_data(judge: str) -> dict:
@@ -1735,7 +2571,7 @@ def out_of_scope_check(judge: str) -> tuple[bool, str]:
     tree, passed, and names what it measured (`in_scope`) can show the scope empty."""
     if not proxy_built(judge):
         return False, f"{judge} has no built proxy to show its scope empty (PROXIES in .agents/project.py) — score it"
-    _, at, why = proxy_state(judge, SCOPE_CHANGE)
+    _, at, why, _ = proxy_state(judge, SCOPE_CHANGE)
     if why or at is None:
         return False, f"its scope cannot be shown empty: {why or 'the proxy wrote no results'}"
     data = proxy_data(judge)
@@ -1774,7 +2610,7 @@ def quality_problems(task: dict, judge: str) -> list[str]:
 
 def print_proxy(judge: str, scope: str) -> None:
     """What the judge's last proxy results cap, or why they are set aside."""
-    caps, at, why = proxy_state(judge, scope)
+    caps, at, why, carried = proxy_state(judge, scope)
     if why:
         print(f"  set aside — {why}")
         return
@@ -1784,8 +2620,12 @@ def print_proxy(judge: str, scope: str) -> None:
     print(f"  results for the {scope} at {at}")
     for d, reasons in caps.items():
         print(f"  {d}: capped at {PROXY_CAP} — {brief(reasons, 3)}")
+    for d, debt in carried.items():
+        print(f"  {d}: {len(debt)} metric(s) of carried debt, out of range at the base too — not capped: "
+              f"{brief(debt, 2)}")
     if not caps:
-        print("  every metric in range — nothing capped")
+        print("  nothing capped — " + ("what is out of range was so at the base" if carried
+                                       else "every metric in range"))
 
 
 def cmd_proxies(args: argparse.Namespace) -> int:
@@ -1894,11 +2734,18 @@ def cmd_status(_: argparse.Namespace) -> int:
     if last:
         stale = " — the tree changed since" if last["fingerprint"] != tree_fingerprint() else ""
         print(f"last run: {last['n']} {'PASS' if last['ok'] else 'FAIL'} at {last['at']}{stale}")
+    files = changed_files()
     for judge, r in task["reviews"].items():
-        stale = " — its files changed since" if judge in JUDGES and r["fingerprint"] != judge_fingerprint(judge) else ""
+        standing = review_stands(judge, r, files)
+        stale = {"exact": "", "normalised": " — stands: only comments or whitespace changed in its files since"} \
+            .get(standing, f" — its files changed since (verify.py delta {judge})")
         quality = f", quality {r['quality']}/100 (bar {QUALITY_BAR})" if r.get("quality") is not None else \
             f", {OUT_OF_SCOPE} — not held to the bar" if r.get("out_of_scope") else ""
         print(f"review: {judge} {r['verdict']}{quality}" + (f" — {r['note']}" if r.get("note") else "") + stale)
+        for n in r.get("nits") or []:
+            print(f"  nit: {nit_name(n)}")
+        for h in r.get("history") or []:
+            print(f"  carried forward: {carry_line(h)}")
     for a in task.get("acceptances", []):
         print(f"accepted below the bar by the person: {a['judge']} at {a['quality']}/100 — {a['words']}")
     for a in task.get("approvals", []):
@@ -1948,9 +2795,11 @@ def cmd_finish(_: argparse.Namespace) -> int:
             if not r:
                 open_items.append(f"no review recorded from {judge}")
             elif r["verdict"] != "pass":
-                open_items.append(f"{judge} said blocking")
-            elif r["fingerprint"] != judge_fingerprint(judge, files):
-                open_items.append(f"{judge} reviewed an older version of its files")
+                open_items.append(f"{judge} said blocking — in force until it records a new pass")
+            elif not review_stands(judge, r, files):
+                open_items.append(f"{judge} reviewed an older version of its files — give it only what changed: "
+                                  f"verify.py delta {judge}" + (f", or verify.py nits-fixed {judge} if the edits "
+                                                                "fixed its nits" if r.get("nits") else ""))
     # The quality layer: every judge the files call for, and any judge asked this task, at or above the bar.
     for judge in JUDGES:
         if (judge_ready(judge) and any(JUDGES[judge](f) for f in files)) or judge in task["reviews"]:
@@ -1964,7 +2813,9 @@ def cmd_finish(_: argparse.Namespace) -> int:
     if not checks:
         print("- Checks: none ran — no file a check covers changed")
     for judge, r in task["reviews"].items():
-        print(review_line(judge, r))
+        print(review_line(judge, r, review_stands(judge, r, files)))
+        for h in r.get("history") or []:
+            print(f"- Carried forward: {judge} — {carry_line(h)}")
     for a in task.get("acceptances", []):
         print(f"- Accepted below the bar by the person: {a['judge']} at {a['quality']}/100 — {a['words']}")
     for a in task.get("approvals", []):
@@ -2497,7 +3348,16 @@ def quality_self_test() -> list[tuple[str, bool]]:
     task["acceptances"].append({"judge": "ui-designer", "review_at": "t1", "quality": 70, "words": "ok"})
     case("the person's acceptance closes it", quality_problems(task, "ui-designer") == [])
     task["reviews"]["ui-designer"]["at"] = "t2"
-    case("an acceptance holds for its review only", not has_dims or len(quality_problems(task, "ui-designer")) == 1)
+    case("an acceptance carries to a later review at the same score", quality_problems(task, "ui-designer") == [])
+    task["reviews"]["ui-designer"]["quality"] = 72
+    case("an acceptance carries to a later review scored higher", quality_problems(task, "ui-designer") == [])
+    task["reviews"]["ui-designer"]["quality"] = 65
+    case("a later review scored lower needs a new acceptance",
+         not has_dims or len(quality_problems(task, "ui-designer")) == 1)
+    task["reviews"]["ui-designer"]["at"] = "t0"
+    task["reviews"]["ui-designer"]["quality"] = 70
+    case("an acceptance never reaches back to an earlier review",
+         not has_dims or len(quality_problems(task, "ui-designer")) == 1)
     task["reviews"]["ui-designer"]["quality"] = QUALITY_BAR
     case("at the bar passes", quality_problems(task, "ui-designer") == [])
     del task["reviews"]["ui-designer"]["quality"]
@@ -2522,6 +3382,190 @@ def quality_self_test() -> list[tuple[str, bool]]:
     out += proxy_self_test()
     out += write_self_test()
     out += out_of_scope_self_test()
+    out += clean_as_you_code_self_test()
+    out += normalise_self_test()
+    out += frontmatter_self_test()
+    return out
+
+
+def frontmatter_self_test() -> list[tuple[str, bool]]:
+    """A skill's or agent's frontmatter that YAML would refuse fails the scope check; a folded description passes, and
+    its words are never read as a key."""
+    folded = ("---\nname: x\ndescription: >-\n  Use when: the build fails. scope: project, requires: [y]\n"
+              "  Its # is text.\nmetadata:\n  scope: portable\n  requires: [a, b]\n---\n# X\n")
+    bad = lambda value: f"---\nname: x\ndescription: {value}\nmetadata:\n  scope: portable\n---\n"  # noqa: E731
+    return [
+        ("frontmatter: a plain description holding `: ` fails",
+         len(frontmatter_problems(bad("Use when: it fails"))) == 1),
+        ("frontmatter: a plain description holding ` #` fails", "comment" in " ".join(frontmatter_problems(
+            bad("Runs step #1 and # 2")))),
+        ("frontmatter: a plain value ending in `:` fails", len(frontmatter_problems(bad("Use when:"))) == 1),
+        ("frontmatter: `: ` on a plain value's continuation line fails",
+         len(frontmatter_problems(bad("Runs the loop\n  then: the gate"))) == 1),
+        ("frontmatter: a block never closed fails", "never closed" in " ".join(frontmatter_problems(
+            "---\nname: x\nmetadata:\n  scope: portable\n# X\n"))),
+        ("frontmatter: an open quote fails", len(frontmatter_problems(bad('"Use when: it fails'))) == 1),
+        ("frontmatter: a line that is no key fails", len(frontmatter_problems("---\nname: x\njust words\n---\n")) == 1),
+        ("frontmatter: a quoted value and a plain one without `: ` pass",
+         frontmatter_problems(bad('"Use when: it fails"')) == [] and frontmatter_problems(bad("Runs the loop")) == []),
+        ("frontmatter: a folded description passes", frontmatter_problems(folded) == []),
+        ("frontmatter: a CRLF file is read, not taken for one with none",
+         len(frontmatter_problems(bad("Use when: it fails").replace("\n", "\r\n"))) == 1
+         and scope_of(folded.replace("\n", "\r\n")) == "portable"),
+        ("frontmatter: an unindented sequence under a key passes",
+         frontmatter_problems("---\nname: x\nallowed-tools:\n- Bash\n- Read\nmetadata:\n  scope: project\n---\n")
+         == []),
+        ("frontmatter: scope and requires read past a folded description's words",
+         scope_of(folded) == "portable" and requires_of(folded) == ["a", "b"]),
+    ]
+
+
+def clean_as_you_code_self_test() -> list[tuple[str, bool]]:
+    """A metric out of range caps a review only when the change made it: new, worse or somewhere new; one out of range
+    at the base already is carried debt; an audit caps from every one (.agents/HARNESS.md §12.5)."""
+    def m(value, base="absent", rng=(0, 50), **extra) -> dict:
+        out = {"dimension": "plain", "name": "n", "value": value, "range": list(rng), "ok": rng[0] <= value <= rng[1],
+               **extra}
+        if base != "absent":
+            out["base"] = base
+        return out
+    data = lambda *ms, scope=SCOPE_CHANGE: {"judge": "j", "scope": scope, "metrics": list(ms)}  # noqa: E731
+    return [
+        ("clean as you code: a metric in range caps nothing", regression(m(10, None)) is None),
+        ("clean as you code: no base value caps, as before", regression(m(60)) == "no base value to compare"),
+        ("clean as you code: a metric new since the base caps", "new" in (regression(m(60, None)) or "")),
+        ("clean as you code: the same value as at the base is carried", regression(m(60, 60)) is None),
+        ("clean as you code: better than the base, still out, is carried", regression(m(55, 70)) is None),
+        ("clean as you code: worse than the base caps", "worse" in (regression(m(70, 60)) or "")),
+        ("clean as you code: in range at the base, out now, caps", "worse" in (regression(m(60, 40)) or "")),
+        ("clean as you code: a range's low side counts as far", "worse" in (regression(m(0.5, 0.8, (0.9, 1))) or "")),
+        ("clean as you code: the same places as at the base are carried",
+         regression(m(1, 1, (0, 0), offenders={"a": 1}, base_offenders={"a": 1, "b": 1})) is None),
+        ("clean as you code: a new place caps",
+         "new or worse at b" in (regression(m(1, 1, (0, 0), offenders={"b": 1}, base_offenders={"a": 1})) or "")),
+        ("clean as you code: a place made worse caps",
+         regression(m(70, 70, offenders={"f": 70}, base_offenders={"f": 65})) is not None),
+        ("clean as you code: places decide over the value",
+         regression(m(80, 60, offenders={"f": 80}, base_offenders={"f": 80})) is None),
+        ("clean as you code: carried debt is split from the caps",
+         split_metrics(data(m(60, 60), m(70, None)), "j") == (
+             {"plain": ["n 70 outside [0, 50] — new since the base"]},
+             {"plain": ["n 60 outside [0, 50] — carried: 60 at the base"]})),
+        ("clean as you code: an audit caps from every metric",
+         list(split_metrics(data(m(60, 60), scope=SCOPE_PRODUCT), "j")[0]) == ["plain"]),
+        ("clean as you code: a value that is not a number caps, not comparable",
+         "not comparable" in (regression(dict(m(60, 60), value="sixty")) or "")),
+        ("clean as you code: a range with a null bound, or none, caps",
+         "not comparable" in (regression(dict(m(60, 60), range=[0, None])) or "")
+         and "not comparable" in (regression({k: v for k, v in m(60, 60).items() if k != "range"}) or "")),
+        ("clean as you code: a null value or base value that is not a number caps",
+         "not comparable" in (regression(dict(m(60, 60), value=None)) or "")
+         and "not comparable" in (regression(m(60, "60")) or "")),
+        ("clean as you code: out of range with no place named caps",
+         regression(m(1, 1, (0, 0), offenders={}, base_offenders={"a": 1})) is not None),
+        ("clean as you code: a refactor that adds no hit is uncapped",
+         apply_caps({"plain": 4}, caps_from(data(m(60, 60), m(1, 1, (0, 0))), "j")) == {"plain": 4}),
+    ]
+
+
+def normalise_self_test() -> list[tuple[str, bool]]:
+    """What a review survives: comment and whitespace edits in C, C++, Python and shell, prose re-wrapped in Markdown
+    with the same words — never a change inside a literal, a word, or whitespace that means something."""
+    def same(path: str, a: str, b: str) -> bool:
+        return [u[2] for u in file_units(path, a)] == [u[2] for u in file_units(path, b)]
+    c = 'int f(int x) {\n    return x + 1;  // one more\n}\nconst char *s = "a // b";\n'
+    py = 'def f(x):\n    # one more\n    return g(x,\n             1)\ns = "a # b"\n'
+    sh = '#!/bin/sh\n# say it\necho  "a # b"   # done\nn=${#x}\ncat <<EOF\n# kept\nEOF\n'
+    md = "# Title\n\nOne two three\nfour five.\n\n- a\n- b\n\n```\n  x  = 1\n```\n"
+    out = [
+        ("normalise: a C comment edit is no change", same("a.c", c, c.replace("one more", "add one"))),
+        ("normalise: C indentation and spacing are no change",
+         same("a.cpp", c, c.replace("    return x + 1;", "  return x+1;").replace("{\n", "{ "))),
+        ("normalise: a C block comment over lines is no change", same("a.h", c, "/* a\n b */\n" + c)),
+        ("normalise: `//` inside a C string is kept", not same("a.c", c, c.replace("a // b", "a // c"))),
+        ("normalise: a C token change is a change", not same("a.c", c, c.replace("x + 1", "x + 2"))),
+        ("normalise: `a - -b` is not `a--b`", not same("a.c", "y = a - -b;", "y = a--b;")),
+        ("normalise: a directive keeps its spaces", not same("a.h", "#define F(x) x\n", "#define F (x) x\n")),
+        ("normalise: a directive's end is kept", not same("a.h", "#define A 1\nint x;\n", "#define A 1 int x;\n")),
+        ("normalise: a C++ raw string is kept as written",
+         not same("a.cpp", 'auto s = R"(a  // b)";\n', 'auto s = R"(a // b)";\n')),
+        ("normalise: a Python comment edit is no change", same("a.py", py, py.replace("one more", "add one"))),
+        ("normalise: Python re-wrapped inside brackets is no change",
+         same("a.py", py, py.replace("g(x,\n             1)", "g(x, 1)"))),
+        ("normalise: Python indentation that moves a line is a change",
+         not same("a.py", "if a:\n    b()\nc()\n", "if a:\n    b()\n    c()\n")),
+        ("normalise: `#` inside a Python string is kept", not same("a.py", py, py.replace("a # b", "a # c"))),
+        ("normalise: a shell comment edit is no change",
+         same("x.sh", sh, sh.replace("# say it", "# say").replace("# done", ""))),
+        ("normalise: `#` in shell quotes, ${#x} and a here-document are kept",
+         not same("x.sh", sh, sh.replace("a # b", "a")) and not same("x.sh", sh, sh.replace("${#x}", "${x}"))
+         and not same("x.sh", sh, sh.replace("# kept", "# gone"))),
+        ("normalise: a shebang names the kind", kind_of(".agents/githooks/pre-commit", "#!/usr/bin/env python3\n")
+         == "py" and kind_of("hook", "#!/bin/bash\n") == "sh" and kind_of("a.txt", "x") == "raw"),
+        ("normalise: Markdown re-wrapped with the same words is no change",
+         same("a.md", md, md.replace("three\nfour", "three four").replace("One two", "One\ntwo"))),
+        ("normalise: a word changed in Markdown is a change", not same("a.md", md, md.replace("four", "for"))),
+        ("normalise: a Markdown list run into a paragraph is a change", not same("a.md", md, md.replace("- a\n- b",
+                                                                                                   "- a - b"))),
+        ("normalise: whitespace in a Markdown fence is kept", not same("a.md", md, md.replace("  x  = 1", "x = 1"))),
+        ("normalise: a `//` comment ending in a backslash swallows the next line",
+         not same("a.c", "int x; // note\nint y = f();\n", "int x; // note \\\nint y = f();\n")),
+        ("normalise: so does a directive's trailing `//` comment",
+         not same("a.h", "#define A 1 // n\nint y;\n", "#define A 1 // n \\\nint y;\n")),
+        ("normalise: lines spliced into a comment or a literal still count",
+         c_units("int x; // a \\\nb\nint y;\n")[-1][0] == 3 and c_units('s = "a\\\nb";\nint y;\n')[-1][0] == 3),
+        ("normalise: a Python shebang is kept", not same("t.py", "#!/usr/bin/env python3\nx = 1\n",
+                                                          "#!/usr/bin/env python2\nx = 1\n")),
+        ("normalise: a shell shebang and its flags are kept",
+         not same("x.sh", "#!/bin/sh -e\necho a\n", "#!/bin/sh\necho a\n")
+         and not same("hook", "#!/bin/bash\necho a\n", "#!/bin/zsh\necho a\n")),
+        ("normalise: a four-backtick fence holds a triple-backtick line, whitespace kept",
+         not same("a.md", "````\n```\n  a  b\n````\n", "````\n```\na b\n````\n")),
+        ("normalise: indented code keeps its whitespace; a list's indented paragraph does not",
+         not same("a.md", "Para.\n\n    x  =  1\n", "Para.\n\n    x = 1\n")
+         and same("a.md", "- a\n\n    b  c\n", "- a\n\n    b c\n")),
+    ]
+    hunks = unit_hunks("a.c", c, c.replace("x + 1", "x + 2").replace("one more", "plus one"))
+    out.append(("delta: a code edit and a comment edit are one hunk, at its line",
+                [(h["old"][:2], h["new"][:2]) for h in hunks] == [((2, 2), (2, 2))]))
+    nits = [{"path": "a.c", "from": 5, "to": 5, "text": ""}]
+    out.append(("nits: a hunk within the slack of a nit is its fix, one farther is not",
+                near_nit({"path": "a.c", "old": (2, 2, True)}, nits) is not None
+                and near_nit({"path": "a.c", "old": (1, 1, True)}, nits) is None
+                and near_nit({"path": "b.c", "old": (5, 5, True)}, nits) is None))
+    at = "a.c" + ":3"  # a nit's place, kept apart so the source holds no file:line reference
+    try:
+        parse_nits([f"{at} too long"], ["b.c"])
+        refused = False
+    except ValueError:
+        refused = True
+    out.append(("nits: a nit on a file the judge never read is refused", refused))
+    out.append(("nits: a nit's lines and words parse", parse_nits([f"{at}-4 name it"], ["a.c"])
+                == [{"path": "a.c", "from": 3, "to": 4, "text": "name it"}]))
+    try:
+        parse_nits([f"{at}-99999 all of it"], ["a.c"])
+        wide = False
+    except ValueError:
+        wide = True
+    out.append((f"nits: a nit over more than {NIT_SPAN} lines is refused", wide))
+    one = [{"path": "a.c", "from": 5, "to": 5, "text": ""}]
+    out.append(("nits: a hundred lines inserted after a nit are not its fix; two are",
+                near_nit({"path": "a.c", "old": (5, 5, False), "new": (6, 105, True)}, one) is None
+                and near_nit({"path": "a.c", "old": (5, 5, False), "new": (6, 7, True)}, one) is not None
+                and near_nit({"path": "a.c", "old": (5, 5, True), "new": (5, 30, True)}, one) is None))
+    para = "Title.\n\n" + "\n".join(f"line {i} of the paragraph" for i in range(3, 9)) + "\n"
+    word = unit_hunks("a.md", para, para.replace("line 5 of the", "line 5 of a"))
+    md_nit = [{"path": "a.md", "from": 5, "to": 5, "text": ""}]
+    out.append(("nits: a one-word fix in a long Markdown paragraph is a one-line hunk, the nit's fix",
+                [(h["old"][:2], h["new"][:2]) for h in word] == [((5, 5), (5, 5))]
+                and all(near_nit(h, md_nit) for h in word)))
+    rewrap = para.replace("line 5 of the", "line 5 of a").replace(" paragraph\nline", " paragraph line")
+    out.append(("nits: a word fix that also re-wraps the paragraph stays wide, and is no nit's fix",
+                not all(near_nit(h, md_nit) for h in unit_hunks("a.md", para, rewrap))))
+    code = "int a;\n" + "".join(f"int v{i};\n" for i in range(2, 12))
+    opened = unit_hunks("a.c", code, code.replace("int a;\n", "int a; /*\n") + "*/\n")
+    out.append(("nits: an unclosed comment that hides the rest of a file is no one-line nit fix",
+                not all(near_nit(h, [{"path": "a.c", "from": 1, "to": 1, "text": ""}]) for h in opened)))
     return out
 
 
@@ -2672,6 +3716,74 @@ def cli_self_test() -> list[tuple[str, bool]]:
         rows = [json.loads(ln) for ln in (root / EVALS / "scores.jsonl").read_text().splitlines()]
         out.append(("cli: every score and the taste are logged", [r["kind"] for r in rows] == ["review", "taste",
                                                                                                 "review"]))
+        code, said = cli("review", "ui-designer", "pass", "--score", ",".join(f"{d}=1" for d in dims), "--note", note)
+        _, done = cli("finish")
+        out.append(("cli: an acceptance carries to a later review at the same score, in its history",
+                    code == 0 and "acceptance at" in said and "is below the bar" not in done
+                    and "Carried forward: ui-designer" in done))
+        out += review_cli_self_test(root, cli)
+    return out
+
+
+def review_cli_self_test(root: Path, cli) -> list[tuple[str, bool]]:
+    """End to end: a pass with a nit, kept across a comment and whitespace edit, made stale by a code edit, the delta
+    marked, re-stamped by nits-fixed, refused for a hunk far from the nit and for a blocking verdict; selfcheck."""
+    out = []
+    (root / ".agents/agents").mkdir(parents=True, exist_ok=True)
+    (root / ".agents/agents/code-reviewer.md").write_text("# code-reviewer\n")  # the judge joins finish's plan
+    src = root / "main/a.cpp"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    body = "int f(int x)\n{\n    return x + 1;  // one\n}\n" + "".join(f"int g{i}() {{ return {i}; }}\n"
+                                                                    for i in range(20))
+    src.write_text(body)
+    nit = "main/a.cpp" + ":3"  # kept apart so the source holds no file:line reference
+    code, said = cli("review", "code-reviewer", "pass", "--nit", f"{nit} name the one")
+    out.append(("cli: a pass with a nit is recorded with it", code == 0 and "1 nit(s)" in said))
+    code, _ = cli("review", "code-reviewer", "pass", "--nit", nit.replace("a.cpp", "b.cpp") + " x")
+    out.append(("cli: a nit on a file the judge never read is refused", code == 2))
+    src.write_text(body.replace("// one", "// add one").replace("    return x + 1", "  return x+1"))
+    _, said = cli("status")
+    out.append(("cli: a comment and whitespace edit leaves the review standing, and status says so",
+                "stands: only comments or whitespace" in said))
+    _, said = cli("finish")
+    out.append(("cli: finish does not hold a review stale for a comment edit",
+                "code-reviewer reviewed an older version" not in said))
+    src.write_text(body.replace("x + 1", "x + kOne"))
+    _, said = cli("status")
+    _, done = cli("finish")
+    out.append(("cli: a code edit makes the review stale", "its files changed since (verify.py delta" in said
+                and "code-reviewer reviewed an older version of its files — give it only what changed" in done))
+    code, said = cli("delta", "code-reviewer")
+    out.append(("cli: delta prints the diff since the snapshot, marked, with the verdict and the nit",
+                code == 0 and f"[changed] [by the nit {nit}" in said and f"its nit: {nit}" in said
+                and "+    return x + kOne;" in said and "last verdict: pass" in said))
+    code, said = cli("nits-fixed", "code-reviewer")
+    _, status = cli("status")
+    out.append(("cli: nits-fixed re-stamps a pass whose hunks lie by its nit, and status shows it",
+                code == 0 and "re-stamped" in said and "carried forward: its pass re-stamped" in status
+                and "its files changed since" not in status))
+    src.write_text(body.replace("x + 1", "x + kOne").replace("return 19;", "return 91;"))
+    code, said = cli("nits-fixed", "code-reviewer")
+    out.append(("cli: nits-fixed refuses a hunk far from every nit", code == 1 and "verify.py delta" in said))
+    cli("review", "code-reviewer", "blocking", "--nit", f"{nit} x")
+    src.write_text(body.replace("x + 1", "x + 2"))
+    code, said = cli("nits-fixed", "code-reviewer")
+    _, done = cli("finish")
+    out.append(("cli: nits-fixed never clears a blocking verdict, and finish keeps it",
+                code == 1 and "blocking" in said and "code-reviewer said blocking" in done))
+    src.write_text(body)
+    cli("ask", "code-reviewer")
+    src.write_text(body.replace("return 5;", "return 55;"))  # an edit while the judge reads
+    code, said = cli("review", "code-reviewer", "pass")
+    _, status = cli("status")
+    _, delta = cli("delta", "code-reviewer")
+    out.append(("cli: a review after `ask` rests on the files as asked; an edit made meanwhile shows in the delta",
+                code == 0 and "as they were when asked" in said and "its files changed since" in status
+                and "+int g5() { return 55; }" in delta))
+    (root / "tool.py").write_text("x = 1\ny = '" + "a" * 130 + "'\n")
+    code, said = cli("selfcheck")
+    out.append(("cli: selfcheck flags a changed line over 120 characters", code == 1
+                and "tool.py" + ":2 is 136" in said))
     return out
 
 
@@ -2695,6 +3807,14 @@ def main() -> int:
     v.add_argument("--out-of-scope", action="store_true",
                    help="the change touches none of the judge's measured scope: the verdict, no score, not held to "
                         "the bar — refused unless the judge's proxy shows the scope empty")
+    v.add_argument("--nit", action="append", metavar="PATH:LINE[-LINE] TEXT",
+                   help="a nit the judge raised, on lines of a file it read; repeat it for each — a pass with nits "
+                        "is approve-with-nits, and nits-fixed re-stamps it once they are fixed")
+    for name, what in (("ask", "keep the judge's files as they are now, before briefing it, for its review to rest on"),
+                       ("nits-fixed", "re-stamp the judge's pass when every hunk since lies by a nit it raised"),
+                       ("delta", "the diff since the judge read its files, with its verdict, note and nits")):
+        sub.add_parser(name, help=what).add_argument("judge", choices=sorted(JUDGES))
+    sub.add_parser("selfcheck", help="the fast checks on the changed files, before asking the judges")
     quality_judges = sorted(load_weights()["judges"])
     ac = sub.add_parser("accept")
     ac.add_argument("judge", choices=quality_judges)
@@ -2785,7 +3905,9 @@ def main() -> int:
             "decline": cmd_decline, "kitdiff": cmd_kitdiff,
             "dispute": cmd_dispute, "status": cmd_status, "finish": cmd_finish, "calibration": cmd_calibration,
             "doctor": cmd_doctor, "unverified": cmd_unverified, "accept": cmd_accept, "taste": cmd_taste,
-            "rate": cmd_rate, "weight": cmd_weight, "audit": cmd_audit, "proxies": cmd_proxies}[args.command](args)
+            "rate": cmd_rate, "weight": cmd_weight, "audit": cmd_audit, "proxies": cmd_proxies,
+            "nits-fixed": cmd_nits_fixed, "delta": cmd_delta, "selfcheck": cmd_selfcheck,
+            "ask": cmd_ask}[args.command](args)
 
 
 if __name__ == "__main__":

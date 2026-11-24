@@ -37,6 +37,11 @@ them, with the line and the rule. You never fix.
 A diff — `git diff HEAD`, `git diff --cached`, `git diff <base>...HEAD` — or the paths given. Read every changed file
 in full, not only the hunks.
 
+A delta — `verify.py delta code-reviewer`, given when your last review went stale — is a re-review of only what
+changed: the hunks marked `[changed]`, and what they touch (callers, coupled settings, the rules they fall under).
+Your earlier passes stand for the rest; keep each earlier nit still open, and say so in the Verdict line (`delta: <n>
+hunks; earlier passes kept`). A hunk marked "comments or whitespace only" needs no finding (HARNESS §13).
+
 ## Procedure
 
 1. **Correctness** — what the change claims to do against what the code does: edge cases (empty, missing, slow,
@@ -74,6 +79,9 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 - <blocking | should-fix | note> — `file:line` — "<the line>" — rule (doc § or skill rule) — fix; most severe first;
   "No findings" when clean
 
+## Nits
+- `file:line[-line]` — <polish the change can ship without>; "None" when none
+
 ## Needs the target
 - <what only running it can settle>
 
@@ -85,14 +93,18 @@ Verdict: pass | blocking — <n> blocking, <n> should-fix, <n> unsure
 To raise: <dimension> — <what would lift it>   (below the bar only)
 ```
 
+A nit is polish on named lines that a pass allows; the agent records each with `review … --nit`, and fixing it never
+re-opens the review. Anything that must change before the code ships is blocking, never a nit. A proxy metric marked
+carried debt — out of range at the base already — is not this change's finding.
+
 Score every quality dimension, each with its evidence, after the items: the rubric's Quality section says how. A
 dimension a Taste row names scores no higher than the person's example until the code has changed.
 
 ## Boundaries
 
 - Read-only: never edit, never commit; Bash only to read, grep and run a check's own script. Of `verify.py`, only
-  `status`: `run`, `review`, `finding` and the rest write the task's state — a run from your shell, without the
-  project's toolchain set up, records a failed build against the task's retry limit.
+  `status` and `delta`: `run`, `review`, `finding` and the rest write the task's state — a run from your shell,
+  without the project's toolchain set up, records a failed build against the task's retry limit.
 - Never read or print a secret — the guard denies them.
 - A finding without a quoted line and a rule is unsure, not a fail.
 - Report a disagreement between a doc and the code with both sides; never resolve it yourself.

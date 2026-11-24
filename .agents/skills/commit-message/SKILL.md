@@ -1,6 +1,7 @@
 ---
 name: commit-message
-description: Writes a commit message in this repo's convention — a subject `<areas>: <outcome the user sees>` naming every area touched, a body of per-area bullets, a `Docs:` bullet naming each doc § updated, an honest verification line (what ran, what the person approved and signed off, what was not checked), moved and removed items for a doc rewrite, and the coding tool's trailer. Use when asked to commit, write or review a commit message, or squash; never commit unless the person asked.
+description: >-
+  Writes a commit message in this repo's convention — a subject `<areas>: <outcome the user sees>` naming every area touched, a body of per-area bullets, a `Docs:` bullet naming each doc § updated, an honest verification line (what ran, what the person approved and signed off, what was not checked), moved and removed items for a doc rewrite, and the coding tool's trailer. Use when asked to commit, write or review a commit message, or squash; never commit unless the person asked.
 metadata:
   scope: project
 ---

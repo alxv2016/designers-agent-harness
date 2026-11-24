@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- The show-me page (SKILL.md → Making a diagram, step 3): replace TITLE, CONTEXT and the diagrams; delete what is
+     unused. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Show me — TITLE</title>
+<style>
+  body { margin: 0; padding: 32px 24px; background: #fff; color: #000;
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 4px; }
+  p { margin: 0 0 16px; color: #555; max-width: 64ch; }
+  .diagram { overflow-x: auto; border-top: 1px solid #ddd; padding-top: 16px; }
+  .frames { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .frames figure { margin: 0; }
+  .frames img { display: block; border: 1px solid #ddd; image-rendering: pixelated; }
+  .frames figcaption { font-size: 13px; color: #555; margin-top: 4px; }
+  footer { margin-top: 32px; font-size: 13px; color: #555; }
+</style>
+</head>
+<body>
+<h1>TITLE</h1>
+<p>CONTEXT — one line on what to look at.</p>
+
+<h2>1. Overview</h2>
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    a["Step one"] --> b["Step two"]
+    b --> c["New step"]
+    classDef new stroke-dasharray: 6 4
+    class c new
+</pre>
+</div>
+
+<!-- Only when the look is the point: frames already on disk, one caption each. -->
+<div class="frames">
+  <figure><img src="FRAME_PATH" alt="FRAME_NAME"><figcaption>FRAME_NAME — where it came from</figcaption></figure>
+</div>
+
+<footer>Explains; approves nothing.</footer>
+<script type="module">
+  // Pinned to one release, so a page draws the same tomorrow; move it on purpose, after a look at one page.
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@12.3.0/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "base",
+    themeVariables: { primaryColor: "#ffffff", primaryBorderColor: "#000000", primaryTextColor: "#000000",
+                      lineColor: "#000000", fontFamily: "-apple-system, sans-serif" } });
+</script>
+</body>
+</html>

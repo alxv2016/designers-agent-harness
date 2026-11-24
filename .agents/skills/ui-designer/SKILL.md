@@ -42,10 +42,12 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
 2. **Agree the look on a draft before any code** — gate 1; only the person's yes, naming the draft
    (`<screen>_mock<n>.png`), passes it, recorded against that file; a yes from an earlier task is recorded again
    (DESIGN_GATES §2, §3).
-3. **Draw the draft where it costs nothing** — in the scratchpad, at the target's real sizes, in the project's real
-   tokens and type, every state that changes the layout — never as a change to the product (DESIGN_GATES §4).
-4. **Write the draft's values down beside it** — `<screen>_mock<n>.md`: each element's component, tokens, states, the
-   focus order, and each text's contrast against what is painted under it (DESIGN_GATES §4).
+3. **Draw the draft as a mock with the `show-me` skill** → Making a mock — in the scratchpad, at the target's real
+   sizes, in the project's real tokens and type, every state that changes the layout — never as a change to the
+   product (DESIGN_GATES §4).
+4. **Write the draft's values down beside it** — `<screen>_mock<n>.md`, as `show-me` → Making a mock lists: each
+   element's component, tokens, states, the focus order, and each text's contrast against what is painted under it
+   (DESIGN_GATES §4).
 5. **Build from the approved draft's values, unchanged** — a layout change is a new draft and a new yes, back at gate 1
    (DESIGN_GATES §5).
 6. **Show the built screen beside the draft** — a screenshot at the same size, side by side, read against the draft
@@ -63,9 +65,9 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
     show timing, and a gesture needs a prototype on the device (the `motion` and `touch-and-gesture` skills).
 11. **Draft copy as copy** — the words in place in the draft, written to the `ux-content` skill's rules (its
     `ux-content-writer` agent writes and reviews them); a change to meaning is the person's.
-12. **Ask the open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it
-    matters; never guess a behaviour the target can show. This is for one open question inside a design; a whole
-    design with no precedent starts from options (Do 13).
+12. **Ask the open questions with concrete outcomes** (`show-me` → Making a mock); never guess a behaviour the
+    target can show. This is for one open question inside a design; a whole design with no precedent starts from
+    options (Do 13).
 13. **For a screen or component with no precedent, offer two or three options that differ in kind before the full
     draft** — surface, structure or interaction model, not one value; each with what it gets the person and what it
     costs; recommend one. The person picks, then the picked option becomes the full draft and takes the yes; with a
@@ -75,7 +77,7 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
     most often a learned item for this skill's review: what in a draft predicts it and what to do instead — before
     drawing the next (DESIGN_GATES §2, §3).
 15. **Draw spacing overlays on every mock, built sheet and review specimen**, on a copy beside the clean frame
-    (DESIGN_GATES §4).
+    (`show-me` → Making a mock; DESIGN_GATES §4).
 
 ### Never
 
@@ -131,10 +133,9 @@ Input: a described screen, component or flow. Everything here is written in the 
    panel, its shape and insets — written into the values file as its layout spec.
 7. **Give each text its role** — the `typography` skill's "Choosing type for a screen": role, emphasis, measure,
    wrap and numbers, and the largest text size — written into the values file as its type spec.
-8. **Draw the draft** in DESIGN.md's tokens at the sizes its layout section names, with what renders them at real size
-   — a static page that loads the token file, an SVG, a frame exported from the design file — and save it as
-   `<screen>_mock<n>.png` with its values in `<screen>_mock<n>.md`. Look at the picture yourself; fix every contrast
-   failure before showing it.
+8. **Draw the draft** with the `show-me` skill → Making a mock, in DESIGN.md's tokens at the sizes its layout section
+   names, and save it as `<screen>_mock<n>.png` with its values in `<screen>_mock<n>.md`. Look at the picture
+   yourself; fix every contrast failure before showing it.
 9. **When anything moves, brief it and draft it as motion** (the `motion` skill → Deciding motion, Drafting the
    study); **a gesture gets its spec and a prototype on the device** (the `touch-and-gesture` skill → Specifying a
    gesture, Prototyping and building).

@@ -55,14 +55,17 @@ flowchart TD
    Record the approach that failed and why (Recording what was learned), write down the one premise the failed
    attempts shared and the observation that would test it, report each failure, and ask the person (AGENT_HARNESS §1,
    Do 6; §9.2).
-4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** A blocking
-   verdict is fixed and asked again, and each item it raised that you fix is logged as a catch — `verify.py finding
-   "<what>" --source agent --route <route> --judge <judge> --caught yes`; a pass stands until that judge's own files
-   change — not the judgements log, which a yes or a lesson appends to — ask again only the judges `finish` names.
-   Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in its skill's
-   `references/rubric.md`, its learned ones in that file) and opens its report with `Verdict: pass | blocking`; that
-   word is the one `review` records (AGENT_HARNESS §8, §9). It ends with the Score block — every quality dimension
-   0–4 with its evidence — recorded with `--score` (Quality and taste, below).
+4. **Ask the judges `verify.py run` names, in parallel, and record each verdict with `verify.py review`.** First run
+   `verify.py selfcheck` and fix what it prints: a judge's round is for judgment, not a long line (HARNESS §13). A
+   blocking verdict is fixed and asked again, and each item it raised that you fix is logged as a catch — `verify.py
+   finding "<what>" --source agent --route <route> --judge <judge> --caught yes`. Record a pass's nits with `--nit
+   "path:line words"`; once they are fixed, `verify.py nits-fixed <judge>` keeps the pass. A pass stands until that
+   judge's own files change past comments and whitespace — not the judgements log, which a yes or a lesson appends to
+   — ask again only the judges `finish` names, with `verify.py delta <judge>` as the brief: the delta, its last
+   verdict and nits. Each judge scores its rubric in `.agents/rubrics/<judge>.md` (the `ui-designer`'s items are in
+   its skill's `references/rubric.md`, its learned ones in that file) and opens its report with `Verdict: pass |
+   blocking`; that word is the one `review` records (AGENT_HARNESS §8, §9). It ends with the Score block — every
+   quality dimension 0–4 with its evidence — recorded with `--score` (Quality and taste, below).
 5. **Draft what the person must like before building it, and record their yes with `verify.py approve <file> --kind
    ux|mock|motion|copy` the moment they give it, naming the file** — `ux` for a UX brief, which comes before the
    mock for a new flow (the `ux-designer` skill). After the build, their yes on the built screen beside
@@ -125,9 +128,14 @@ flowchart TD
 3. Edit. Then `V run`: each check's PASS or FAIL with the lines that matter, and the judges to ask.
    - exit 1: read the failing lines, fix, run again.
    - exit 3: stop — the retry limit (Do 3).
-4. Ask each judge `V run` named, in parallel, with the diff; each returns its findings, a Verdict and its Score block.
-   Record each: `V review <judge> pass|blocking --score dim=n,… --note "dim: why; dim: why"` (or `--scores-file`).
-   Blocking: fix and go back to step 3. Below the bar: raise what it names, or the person accepts it.
+4. `V selfcheck` — the fast proxies on the changed files, in seconds; fix each `nit:` it prints, then run again.
+   Then ask each judge `V run` named, in parallel, with the diff — `V ask <judge>` for each just before briefing it,
+   so its review rests on the files it reads; each returns its findings, a Verdict and its Score block. Record each:
+   `V review <judge> pass|blocking --score dim=n,… --note "dim: why; dim: why"` (or `--scores-file`), and each nit a
+   pass raised with `--nit "path:line[-line] words"`. Blocking: fix and go back to step 3. Below the bar: raise what
+   it names, or the person accepts it.
+   - Nits fixed after the pass: `V nits-fixed <judge>` re-stamps it when every hunk lies by a nit; refused, or any
+     other edit to its files: `V delta <judge>` is the brief, and the judge re-reviews only that delta.
 5. A visible change: show the person the built screen beside the approved mock ([`ui-designer`](../ui-designer/SKILL.md)
    gate 2); their yes: `V approve <side-by-side> --kind built`.
 6. The change needs the target? The target, below; then `V target --where "<where>" --build "<which build>"
@@ -199,14 +207,18 @@ Every judge scores its quality dimensions 0–4 against the anchors in `.agents/
 
 | When | Run |
 | --- | --- |
-| Before a judge scores — the judge runs it | `V proxies --judge <judge>` — the measured proxies; one out of range caps its dimension at 2 |
+| Before asking the judges | `V selfcheck` — what a judge would flag on the changed files, from the fast proxies; exit 1 lists each |
+| Just before briefing each judge | `V ask <judge>` — its files kept as it reads them; its `review` rests on them, and an edit made meanwhile shows in `V delta` |
+| Before a judge scores — the judge runs it | `V proxies --judge <judge>` — the measured proxies; one the change made worse than at the base caps its dimension at 2, and one out of range there already is carried debt, reported and never a cap |
+| A pass with polish left | `V review <judge> pass --nit "path:line[-line] words" …`; once fixed, `V nits-fixed <judge>` |
+| A judge's files changed since its pass | `V delta <judge>` — give the judge that output; it reviews the delta and what it touches, keeps its earlier passes and says so |
 | A judge returns its Score block | `V review <judge> <verdict> --score dim=n,… --note "dim: why; …"` |
 | A judge named whose measured scope the change never touches | `V review <judge> <verdict> --out-of-scope --note "…"` — the verdict, no score, not held to the bar; refused unless its proxy shows the scope empty |
 | The person says a look, a word or a flow is good or poor | `V taste "<their words>" --judge <j> --dimension <d> [--anchor <their image>] [--good]` |
 | `taste` prints PROMOTE — the second miss on a dimension | Write `L<n>` in the judge's Learned table (what in a diff predicts it, from the Taste rows), show the person, then `V decision "promote taste on <j> <d> to L<n>: <their words>"` |
 | The person scores a file themselves | `V rate <file> --judge <j> --dimension <d> --score <0-4>` |
 | The person sets how much a dimension counts | `V weight --judge <j> --dimension <d> --set <5-40> --words "<their words>"` |
-| A score under the bar the person accepts | `V accept <judge> "<their words>"` |
+| A score under the bar the person accepts | `V accept <judge> "<their words>"` — it carries to a later review of that judge scored the same or higher |
 | A whole-product audit | `V audit <judge> --scores-file <file>` — kept in `.agents/evals/scores.jsonl`, with the trend |
 
 ### State
@@ -214,8 +226,9 @@ Every judge scores its quality dimensions 0–4 against the anchors in `.agents/
 `.cache/harness/` (git-ignored): `task.json` — the task, runs, reviews, approvals with each file's hash, decisions,
 the target and the sign-offs, findings, failures in a row; `nudged` — the tree the stop reminder last asked about;
 `runs/<n>/` — each check's log; `logs/` — the quiet wrapper's logs; `history/` — earlier tasks; `proxies/` — each
-judge's proxy results. Committed: `.agents/evals/` — the judgements log, the weights, the scores and the anchors. Read `V status`
-instead of searching the chat for where the task stands.
+judge's proxy results, and `proxies/base/<commit>/` a proxy's results at the base when it cannot read `HEAD` with
+`git show`; `snapshots/` — the files each judge read at its last review. Committed: `.agents/evals/` — the judgements
+log, the weights, the scores and the anchors. Read `V status` instead of searching the chat for where the task stands.
 
 ## Checks
 
@@ -230,8 +243,11 @@ instead of searching the chat for where the task stands.
 ## Traps
 
 - **`V finish`: "the tree changed after the last run"** → an edit after the last `V run`, even a doc fix → run again;
-  "reviewed an older version of its files" → a file that judge reads changed since its pass → ask that judge again,
-  only that one.
+  "reviewed an older version of its files" → a file that judge reads changed since its pass, past comments and
+  whitespace → the edits fixed its nits: `V nits-fixed <judge>`; else give that judge, only that one, `V delta
+  <judge>`.
+- **`V nits-fixed` refuses** → a hunk lies more than 3 lines from every nit, a file was added or removed, or the
+  verdict was blocking → the judge re-reviews the delta; a blocking verdict only a new pass clears.
 - **`V status`: "the file changed since the yes"** → the approved mock was redrawn → show the person the new file; the
   old yes does not cover it.
 - **`V finish`: "came after the first run that built it"** → the mock was approved once the code was already built →
@@ -270,7 +286,8 @@ instead of searching the chat for where the task stands.
 | The guard, the hooks, the adapters, each agent's model | [HARNESS §2, §3, §7, §8](../../HARNESS.md#2-the-guard) |
 | The loop's design: commands, exit codes, task state, the hand-over | [AGENT_HARNESS §10](../../../docs/AGENT_HARNESS.md#10-the-verify-loop) |
 | Rubrics, learned items, routes, calibration | [AGENT_HARNESS §9](../../../docs/AGENT_HARNESS.md#9-rubrics-learnings-and-calibration) |
-| Quality scores, anchors, weights, proxies, the person's taste | [HARNESS §12](../../HARNESS.md#12-quality-taste-and-weights), [AGENT_HARNESS §24](../../../docs/AGENT_HARNESS.md#24-quality-scores-and-taste) |
+| Quality scores, anchors, weights, proxies, carried debt, the person's taste | [HARNESS §12](../../HARNESS.md#12-quality-taste-and-weights), [AGENT_HARNESS §24](../../../docs/AGENT_HARNESS.md#24-quality-scores-and-taste) |
+| Reviews kept across comment and whitespace edits, nits, `nits-fixed`, `delta`, `selfcheck` | [HARNESS §13](../../HARNESS.md#13-what-a-review-rests-on), [AGENT_HARNESS §10.3](../../../docs/AGENT_HARNESS.md#103-task-state) |
 | The person in the loop, approval before building | [AGENT_HARNESS §20](../../../docs/AGENT_HARNESS.md#20-human-in-the-loop) |
 | Build, run, the target's steps | [`build-run-test`](../build-run-test/SKILL.md) |
 | Doc checks | [`docs-authoring-and-sync`](../docs-authoring-and-sync/SKILL.md) |

@@ -93,40 +93,23 @@ is visible.**
 
 ## 4. The draft
 
-**Draft where it costs nothing — in a scratch folder, at the target's real sizes, in the project's real tokens and
-type — never as a change to the product.**
+**A draft is a mock made with the `show-me` skill → Making a mock.** It lives in a scratch folder, at the target's
+real sizes, in the project's real tokens and type, never as a change to the product. That skill holds how a mock is
+drawn on each platform, its states, its values file and its overlays. This section holds what the gate asks of it.
 
-- **Every state that changes the layout** — empty, loading, error, long text, the largest text size.
-- **What renders it at real size** — something that draws the project's tokens and type as the product will; look at
-  the picture before showing it, and fix every contrast failure first.
-  - **Web** — a static page that loads the project's token file, at each breakpoint the product supports.
-  - **iOS, Android** — a frame at the device sizes the product supports, in the platform's text sizes.
-  - **Embedded (ESP-IDF, LVGL)** — a frame at the panel's resolution, pixel for pixel, in the fonts compiled into the
-    firmware; a host build of the UI on LVGL's SDL display renders it in the real widgets. Judge it also at the
-    panel's physical size — the same pixels on a small dense panel read far smaller than on a monitor — and on the
-    panel's shape when it is round or has cut corners.
-- **Or a frame exported from the design file**, when the person designs there.
-- **Spacing overlays on a copy beside the clean frame, never over the only frame.** Margins (the space between
-  elements) are yellow or orange hatching and padding (the space inside an element) is green, the kit's convention.
-  Each band is labelled with its px and, where there is room, its role or token. A built sheet and a review specimen
-  get the same.
-- **The values file beside it** (`<screen>_mock<n>.md`) — each element's component, its tokens (colour role, type
-  role, spacing, radius), its states, the focus order, each text's contrast against what is painted under it, and the
-  accessibility decisions (the `accessibility` skill).
-- **The layout is drafted tier by tier** — the draft is drawn at each tier where the layout changes and its values
-  file holds the layout spec: regions, navigation, panes, margins, spacing, density, what survives a resize (the
-  `layout` skill).
-- **Each text has its role** — the values file holds the type spec: each text's role from the brief, emphasis,
-  measure, wrap and numbers; the draft is drawn with the longest strings and at the largest text size too (the
-  `typography` skill).
+- **The values file is the gate's record** — the build reads it unchanged (§5); a value the draft did not fix is not
+  built.
+- **A built sheet and a review specimen get the overlays too**, on a copy of the built frame: overlays on the mock's
+  side alone measure the draft, not the build.
 - **Motion and gestures are drafted as themselves** — the motion brief and study (the `motion` skill); the gesture
   spec and a prototype on the device (the `touch-and-gesture` skill).
-- **Ask open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it matters.
 - **With no precedent, options come before the draft** — when no screen in the product and no platform convention
   already does the job, two or three options that differ in kind (surface, structure or interaction model, never one
   value), each at the main size in the real tokens with the states that tell them apart, and what each gets the
   person and costs; the agent recommends one. The person's pick is recorded (§3); only the picked option is drawn as
   the full draft, and the yes goes on that draft. With a precedent, the draft follows it — consistency beats novelty.
+- **A diagram or a sketch from `show-me` is no draft** — it explains a flow or places a new part; only a mock passes
+  gate 1.
 - **A change is a new draft, `n + 1`, and a new yes.**
 
 ## 5. The build

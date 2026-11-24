@@ -422,7 +422,7 @@ skill.>
 
 ### 7.3 The harness's skills
 
-The template ships twenty-three skills: nineteen `portable`, and four `project` — `verify-change`, `commit-message`
+The template ships twenty-four skills: twenty `portable`, and four `project` — `verify-change`, `commit-message`
 and `harness-help` belong to the kit and copy across with it, and `build-run-test` is filled in from the project. A
 project adds its own domain skills as the code grows.
 
@@ -457,6 +457,7 @@ no UI file.
 | `esp-idf-setup` | An ESP-IDF firmware project from the hardware spec in `docs/`: the installed ESP-IDF and the version to pin, the spec and the questions that fill it, the project from the templates — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and the layering rules — carried in the skill | `references/esp-idf.md`, the templates, `esp_idf.py` | `portable` — the folder works in any repo; the facts are the project's spec |
 | `react-vite-setup` | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app from the templates — the shell, features, components with their stories, `tokens.css` from `DESIGN.md`, three layers of tests — and the layering rules — carried in the skill | `references/react-vite.md`, the templates, `react_vite.py` | `portable` — the folder works in any repo; the facts are the project's spec, the values its `DESIGN.md` |
 | `ux-content` | The words in an interface: voice and tone, the four tests, mechanics, one name per thing, the pattern for each element, accessible content, strings ready for translation — carried in the skill | `references/ux-content.md`, `ux_lint.py` | `portable` — the voice, case and word list are the project's DESIGN.md |
+| `show-me` | Every picture the work needs, at the lowest fidelity that answers: a diagram, a sketch beside the real screens, or a mock at real size in the project's tokens — the one place the UX and UI designers draw from, and the person's on demand; the gates decide which mock needs a yes | `references/template.html`; technique inspired by HumanLayer's show-me | `portable` |
 | `secrets-handling` | The secrets a product holds for its users: from the person at run time, stored as readable unless encrypted, shown as a prefix at most, wiped, kept out of logs and shipped builds; bench and CI credentials; after a leak — carried in the skill | `references/secrets.md`, `secret_scan.py` | `portable` — each project keeps its own secret inventory |
 | `storybook` | A component's stories, written once it exists or its props change: the template's layout, every prop, one concept per story, JSDoc summaries, light and dark pinned, play functions, the accessibility test; Storybook's MCP server and manifest — carried in the skill | `references/storybook.md`, `templates/component.stories.tsx.tpl`, `story_check.py` | `portable` — the folder works in any Storybook project; the themes are the project's `DESIGN.md` |
 | `e-ink` | Designing and building for e-paper: how the film works, controllers, waveforms, the refresh policy, the toolkit glue, design in 1 bit, components, focus, touch, accessibility, power, testing on the glass, the panel spec — carried in the skill | `references/e-ink.md`, `references/drivers.md`, `references/validation.md`, `templates/panel-spec.md`, `e_ink_check.py` | `portable` — the folder works in any repo with an e-paper screen; the values are the project's panel spec |
@@ -898,7 +899,11 @@ each command, and the exit codes follow it.
 | --- | --- |
 | `start "<task>"` | Archives the previous task to `history/` when it had a run, and resets the runs, reviews, approvals, target, findings and failure count |
 | `run [--only a,b]` | Picks the checks from the changed files, runs them in parallel, records the run with a tree fingerprint, counts a failure of a counted check (`"counts": True` — the build, the tests), names the judges to ask |
-| `review <judge> pass\|blocking [--note] [--score d=n,… \| --scores-file F \| --out-of-scope]` | Records a verdict with a fingerprint of that judge's files; a blocking verdict is fixed and asked again, and does not count toward the retry limit. With a score: every quality dimension 0–4 with a reason, capped by the proxies, weighted to 0–100 (§24) |
+| `review <judge> pass\|blocking [--note] [--score d=n,… \| --scores-file F \| --out-of-scope] [--nit "path:line[-line] words"]…` | Records a verdict with a raw and a normalised fingerprint of that judge's files, a snapshot of them, and each nit with its lines; a blocking verdict is fixed and asked again, and does not count toward the retry limit. With a score: every quality dimension 0–4 with a reason, capped by what the change made worse, weighted to 0–100 (§24) |
+| `ask <judge>` | Keeps the judge's files and the time when it is asked, before its brief; its next review rests on them |
+| `nits-fixed <judge>` | Re-stamps a pass when every normalised hunk since its snapshot lies within a few lines of a nit it raised; never clears a blocking verdict |
+| `delta <judge>` | Prints the judge's last verdict, note and nits, and the diff since its snapshot, each hunk marked — the brief for a re-review of only what changed |
+| `selfcheck` | Runs the fast deterministic proxies on the changed files and prints what a judge would flag, before the judges are asked |
 | `approve <file> --kind <kind> [--note]` | Records the person's yes to a named file with its hash — a draft (`ux`, `mock`, `motion`, `copy`), the built thing (`built`) or the diff of a change to a skill or an agent (`kit`); refuses a file the person said no to, unchanged |
 | `kitdiff <file>` | Writes the whole diff of the paths a `kit` gate covers — tracked changes and every new file in full — for the person to read before their `kit` yes |
 | `decline <file> "<their words>" --kind <kind> --about <area> --route <r> [--judge <agent>] [--edit <path>]` | Records the person's no to a draft — a brief, an option, a mock, a motion study, the copy, the built screen — or to a kit change's diff (`kit`), in the task and the judgements log, routed like a lesson (§9.2); a route of `none` needs no edit |
@@ -948,7 +953,7 @@ file.
 | UI paths, the `storybook` skill | `storybook` — the story check's self-test; once UI paths are set, the story files against SB1–SB7 | `storybook` in review mode, when asked |
 | The UI strings' paths, the `ux-content` skill | `ux` — the string check's self-test; once string or UI paths are set, the strings against U1–U14 | `ux-content-writer` in review mode, when asked |
 | Every change | `secrets` — no key-shaped string in the change, counted and never printed; the scan's self-test when its skill changes | — |
-| The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3) | — |
+| The skills and agents | `scope` — the scope labels and what a portable skill or agent may depend on (§7.3); a frontmatter YAML would refuse — never closed, or a plain value holding a colon and a space, or a space and a hash — fails it | — |
 | `docs/`, the root's Markdown, `.agents/` — not the judgements log | `docs` — doc lint against baselines, anchor and citation check (a nameless `§` or a line number in code fails it, GUIDELINES §4.8), link check | `doc-reviewer` |
 | The hooks, git hooks, the settings file, the verify-change skill, the adapters, CI | `harness` — the guard's, the flag's and the loop's self-tests, the pre-commit hook on the index | — |
 
@@ -971,11 +976,25 @@ file.
 | `logs/` | The quiet build wrapper's logs |
 | `nudged` | The tree the stop reminder last asked about |
 | `history/<started>.json` | Earlier tasks |
+| `snapshots/<task>/<judge>/` | The files each judge read at its last review, for `delta` and `nits-fixed`; `start` clears them |
+| `proxies/` | Each judge's proxy results; `proxies/base/<commit>/`, a proxy's whole-product results at the base when it cannot read them from `git show` |
 
 - **Each run stores a tree fingerprint**: a hash of `HEAD` plus the content of every changed file, whether staged,
   unstaged or untracked. `finish` compares fingerprints to tell whether anything changed after the last run.
 - **Each review stores a fingerprint of that judge's files only.** A fix elsewhere leaves its pass standing; an edit
   to a file it reads makes the pass stale, and `finish` names only that judge.
+- **A review also stores the fingerprint of those files normalised**, and stands while either matches. Comments and
+  whitespace are dropped from C, C++, Python and shell, never inside a literal or where a space means something.
+  Markdown prose re-wrapped with the same words is the same. So an edit that changes no token never re-asks a judge,
+  as in Gerrit's trivial rebase. `status` says when a review stands only because of normalisation.
+- **A review rests on the files as the judge read them.** `ask` keeps them when the judge is asked, and its review
+  stamps that copy. An edit made while the judge reads then makes the review stale, and shows in the next delta.
+- **A stale review is re-asked with its delta.** `delta` gives the judge the diff since its snapshot, its last
+  verdict, note and nits. The judge reviews that delta and what it touches, and keeps its earlier passes, as
+  CodeRabbit reviews the commits since its last review.
+- **A nit never re-opens a pass; a blocking finding stays until a new pass.** `review --nit` records approve-with-nits.
+  `nits-fixed` re-stamps the pass when every hunk since lies by a nit, and the review's history keeps the re-stamp.
+  This is Critique's LGTM with comments, and Gerrit's `is:MIN` keeping a veto in force.
 - **Each approval stores the file's hash and the fingerprint of the gated code**; a `built` yes is held against that
   fingerprint. A redrawn mock or a changed screen is no longer the one approved.
 - **The target and its sign-off store a fingerprint of the deployed code** — every changed file but docs and the
@@ -990,7 +1009,8 @@ of these holds:
 - the tree changed after the last run;
 - a debug line is in the code;
 - a project invariant is broken, such as a switch off its shipping value;
-- a judge the changed files call for has no review, said blocking, or reviewed an older version of its files;
+- a judge the changed files call for has no review, said blocking, or reviewed an older version of its files once
+  comments and whitespace are set aside — `finish` names `delta` and, where the judge raised nits, `nits-fixed`;
 - a gated change lacks the person's yes of a kind its gate names, the approved file changed since, a draft's yes came
   after the first run that built it, or the built thing changed after its yes — unless the person recorded "no visible
   change" or, for the draft, "design given". The first run that built it is the first whose gated files differ from
@@ -1854,6 +1874,16 @@ the person's feedback moves the second.
   those whose sources changed, a shared component reaching every screen that uses it. So old debt in a file the change
   passed through never caps it. A change that touches no screen gets no screen cap. The whole-product measure is the
   audit's.
+- **Within the change's scope, only what the change adds caps** — SonarQube's Clean as You Code, which gates on new
+  code and reports old debt as a trend. Each metric carries its value at the base commit, and may name the places
+  out of range there and here. A metric caps when it is new, farther out than at the base, or at a new or worse place.
+  One out of range at the base already, no worse and nowhere new, is carried debt: reported, never a cap. So a
+  refactor through old debt that adds no hit is scored uncapped, and needs no acceptance. A metric with no base value
+  caps as before.
+- **Get each base value the cheapest correct way.** A proxy that reads files measures the base's copy with `git
+  show`, keying each place by its words or its name so a moved or re-wrapped one is still carried. A proxy that must
+  build and run the product runs once per base commit in a git worktree that shares the tree's build caches. Its
+  results are cached by the commit's hash, and the worktree is removed.
 - **A judge with nothing in scope is exempt from the bar, not from its verdict.** The loop checks the claim itself:
   the judge's change-scope measure must find nothing, or the review is scored as any other.
 - **A stale measure caps nothing.** Results older than the newest changed file, from a run that failed, or of the other
@@ -1866,6 +1896,11 @@ the person's feedback moves the second.
 - **The hand-over needs the floors to pass and each judge's score to reach the project's bar** (75 by default), or the
   person to accept the lower score by name for that review. Below the bar, the judge says what would raise each
   dimension at 2 or under.
+- **An acceptance carries to a later review of the same judge scored the same or higher**, and that review's history
+  says so. A lower score needs the person again: they accepted a level, not a judge.
+- **Run the deterministic checks before any judge.** A self-check of the fast proxies on the changed files prints
+  what a judge would flag as a nit, in seconds, so the judge's round is spent on judgment (Anthropic's advice to use
+  code-based graders wherever possible).
 - **An audit scores the whole product, not only the change**, and keeps each score in a committed log, so the trend
   shows and old debt surfaces.
 

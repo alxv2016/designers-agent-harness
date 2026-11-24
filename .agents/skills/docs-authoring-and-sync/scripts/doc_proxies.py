@@ -22,8 +22,12 @@ of it); a sentence the change never touched never caps its review. Measures, by 
                 (GUIDELINES §5)
 Docs are docs/*.md, DESIGN.md, README.md, AGENTS.md, .agents/HARNESS.md and the skills' references/*.md. Writes
 .cache/harness/proxies/doc-reviewer.json — {"judge", "at", "scope": "change" | "product" | "files", "metrics":
-[{"dimension", "name", "value", "range": [lo, hi], "ok", "where"}]} — and prints a summary. Python 3.9+, standard
-library only.
+[{"dimension", "name", "value", "range": [lo, hi], "ok", "where", "offenders"?, "base"?, "base_offenders"?}]} — and
+prints a summary. In the change's scope each metric carries its `base`: its value over the lines of HEAD's doc the
+change replaced (null: none there). The sentences, sections and history words out of range are `offenders`, keyed by
+their normalised words, and `base_offenders` are HEAD's whole doc's — so verify.py caps only what the change made
+worse, and a sentence re-wrapped or moved is carried debt (.agents/HARNESS.md §12.5). Python 3.9+, standard library
+only.
 """
 
 from __future__ import annotations
@@ -159,9 +163,15 @@ def normal(sentence: str) -> str:
 
 # --- The proxies --------------------------------------------------------------------------------------------------------
 
-def metric(dimension: str, name: str, value: float, lo: float, hi: float, where: str) -> dict:
-    return {"dimension": dimension, "name": name, "value": value, "range": [lo, hi], "ok": lo <= value <= hi,
-            "where": where}
+def metric(dimension: str, name: str, value: float, lo: float, hi: float, where: str,
+           offenders: dict | None = None) -> dict:
+    """A metric; `offenders`, {place: how bad}, names what is out of range by a key an edit elsewhere keeps — the
+    normalised sentence, the section's heading — so verify.py can tell carried debt from new."""
+    out = {"dimension": dimension, "name": name, "value": value, "range": [lo, hi], "ok": lo <= value <= hi,
+           "where": where}
+    if offenders is not None:
+        out["offenders"] = offenders
+    return out
 
 
 def opens_with_answer(first: tuple | None) -> bool:
@@ -192,21 +202,36 @@ def section_spans(bl: list) -> list:
 def measure_doc(doc: str, text: str, homes: dict, lines: set | None = None) -> list:
     """The doc's metrics; with `lines`, only from the prose on those lines and the sections that hold one."""
     bl = blocks(text)
-    sents = [(line, s) for line, kind, t, last in bl if kind == "prose" and touched(line, last, lines)
-             for s in sentences(t)]
+    seen: dict = {}
+
+    def nth(kind: str, key: str) -> str:
+        """A place's key with its occurrence in the whole doc — counted over lines the change never touched too, as
+        HEAD's whole doc counts them — so a second copy the change adds is a new place."""
+        seen[(kind, key)] = seen.get((kind, key), 0) + 1
+        return key if seen[(kind, key)] == 1 else f"{key} #{seen[(kind, key)]}"
+
+    sents = []
+    for line, kind, t, last in bl:
+        if kind == "prose":
+            for s in sentences(t):
+                place = nth("sentence", normal(s)[:200])
+                if touched(line, last, lines):
+                    sents.append((line, s, place))
     out = []
     if sents:
-        lengths = [words(s) for _, s in sents]
+        lengths = [words(s) for _, s, _ in sents]
         mean = sum(lengths) / len(lengths)
         k = max(range(len(lengths)), key=lengths.__getitem__)
         out.append(metric("plain", f"mean sentence length (words) {doc}", round(mean, 1), 0, MEAN_WORDS,
                           f"{doc}: {len(sents)} sentences"))
         out.append(metric("plain", f"longest sentence (words) {doc}", lengths[k], 0, LONGEST_WORDS,
-                          f"{doc}:{sents[k][0]} \"{sents[k][1][:90]}…\""))
+                          f"{doc}:{sents[k][0]} \"{sents[k][1][:90]}…\"",
+                          {p: n for (_, _, p), n in zip(sents, lengths) if n > LONGEST_WORDS}))
     # Answer first: each ## and ### section's first content — with `lines`, each section the change wrote in.
-    sections, misses = 0, []
+    sections, misses, missed = 0, [], {}
     for idx, line, end in section_spans(bl):
         t = bl[idx][2]
+        place = nth("section", f"§{t}")
         if not touched(line, end, lines):
             continue
         sections += 1
@@ -215,30 +240,80 @@ def measure_doc(doc: str, text: str, homes: dict, lines: set | None = None) -> l
             first = None  # a heading straight away: an empty section, or one that holds only its subsections
         if not opens_with_answer(first):
             misses.append(f"{doc}:{line} §{t[:40]}")
+            missed[place] = 1
     if lines is not None and not sents and not sections:
         return out  # the change wrote no prose and no section here: a table, a fence, a heading's level
     if sections:
         share = (sections - len(misses)) / sections
         out.append(metric("answer-first", f"sections that open with the answer {doc}", round(share, 3), ANSWER_FIRST, 1,
-                          f"{len(misses)} of {sections}: " + ("; ".join(misses[:3]) or "every section")))
-    # History words, in prose only.
-    hist = []
+                          f"{len(misses)} of {sections}: " + ("; ".join(misses[:3]) or "every section"), missed))
+    # History words, in prose only — each kept with the sentence it stands in.
+    hist, used = [], {}
     for line, kind, t, last in bl:
-        if kind == "prose" and touched(line, last, lines):
+        if kind == "prose":
             quoted = re.sub(r"(?<![*\w])\*[^*\s][^*]*\*(?!\*)|\"[^\"]*\"|“[^”]*”", " ", t)  # a word named, not used
-            for m in HISTORY.finditer(plain_text(quoted)):
-                hist.append(f"{doc}:{line} \"{m.group(0)}\"")
-    out.append(metric("accuracy", f"history words {doc}", len(hist), 0, 0, "; ".join(hist[:4]) or f"{doc}: none"))
+            for s in sentences(quoted):
+                for m in HISTORY.finditer(s):
+                    place = nth("history", f"{m.group(0).lower()}: {normal(s)[:160]}")
+                    if touched(line, last, lines):
+                        hist.append(f"{doc}:{line} \"{m.group(0)}\"")
+                        used[place] = 1
+    out.append(metric("accuracy", f"history words {doc}", len(hist), 0, 0, "; ".join(hist[:4]) or f"{doc}: none",
+                      used))
     # One home: a long sentence word for word in another doc.
-    dupes = []
-    for line, s in sents:
+    dupes, shared = [], {}
+    for line, s, place in sents:
         if words(s) >= ONE_HOME_WORDS:
             others = [d for d in homes.get(normal(s), ()) if d != doc]
             if others:
                 dupes.append(f"{doc}:{line} also in {others[0]}: \"{s[:70]}…\"")
+                shared[place] = 1
     out.append(metric("concise", f"sentences found word for word in another doc {doc}", len(dupes), 0, 0,
-                      "; ".join(dupes[:3]) or f"{doc}: none"))
+                      "; ".join(dupes[:3]) or f"{doc}: none", shared))
     return out
+
+
+# --- The base: what the change's lines held at HEAD, so verify.py caps only what the change made -------------------
+
+def at_head(path: str) -> str | None:
+    """The file as HEAD holds it; None when HEAD does not have it."""
+    proc = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=ROOT, capture_output=True, text=True, errors="replace")
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def old_lines(path: str) -> set:
+    """The lines of HEAD's version the change replaced, and for a pure insertion the line it follows."""
+    lines: set = set()
+    for m in re.finditer(r"^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@", git("diff", "-U0", "HEAD", "--", path), re.M):
+        start, count = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+        lines.update(range(start, start + count) if count else {start} if start else set())
+    return lines
+
+
+def with_base(metrics: list, scoped: list, whole: list) -> list:
+    """Each metric with `base` — its value over the lines the change replaced (null: no such metric there) — and, where
+    it names offenders, `base_offenders` from HEAD's whole doc: a sentence moved or re-wrapped is carried, not new."""
+    by_scoped = {m["name"]: m for m in scoped}
+    by_whole = {m["name"]: m for m in whole}
+    for m in metrics:
+        b = by_scoped.get(m["name"])
+        m["base"] = b["value"] if b else None
+        if "offenders" in m:
+            m["base_offenders"] = (by_whole.get(m["name"]) or {}).get("offenders", {})
+    return metrics
+
+
+def homes_at_head(docs: list) -> dict:
+    """homes_of over HEAD's docs."""
+    homes: dict = {}
+    for d in docs:
+        text = at_head(d)
+        for _, kind, t, _ in blocks(text or ""):
+            if kind == "prose":
+                for s in sentences(t):
+                    if words(s) >= ONE_HOME_WORDS:
+                        homes.setdefault(normal(s), set()).add(d)
+    return homes
 
 
 def homes_of(docs: list) -> dict:
@@ -342,9 +417,38 @@ was = 1;  // not prose
                     "sentences found word for word in another doc"], f"a table row changed reads its section, no prose "
           f"sentence: {names}")
     check(measure_doc("docs/A.md", text, {}, set()) == [], "a doc the change wrote nothing in measures nothing")
+    # The base: a long sentence re-wrapped is the same offender; one the change wrote is new.
+    long_line = next(k for k, ln in enumerate(text.split("\n"), 1) if ln.startswith("word word"))
+    wrapped = text.replace(" ".join(["word"] * 60), " ".join(["word"] * 30) + "\n" + " ".join(["word"] * 30))
+    now = {m["name"]: m for m in measure_doc("docs/A.md", wrapped, {}, {long_line, long_line + 1})}
+    head = measure_doc("docs/A.md", text, {}, {long_line})
+    based = {m["name"]: m for m in with_base(list(now.values()), head, measure_doc("docs/A.md", text, {}))}
+    lng = based.get("longest sentence (words) docs/A.md", {})
+    check(lng.get("base") == 60 and lng.get("offenders") and lng["offenders"].keys() <= lng["base_offenders"].keys(),
+          f"a re-wrapped long sentence is the one at the base: {lng}")
+    fresh = with_base(measure_doc("docs/B.md", long, {}), [], [])
+    lng = next((m for m in fresh if m["name"].startswith("longest")), {})
+    check(lng.get("base") is None and lng.get("base_offenders") == {}, f"a new doc's metrics have no base: {lng}")
+    hist = by.get("history words") or {}
+    check(any(k.startswith("was: the value was 15 px") for k in hist.get("offenders", {})), "a history word is kept "
+          f"with its sentence: {hist.get('offenders')}")
+    twice = "## 1. A\n\nThis section is one.\n\n## 1. A\n\nThis section is two.\n"
+    af = next(m for m in measure_doc("docs/C.md", twice, {}) if m["name"].startswith("sections that open"))
+    sign = "§"  # spelled as an escape, so the citation check does not read the fixture as a bare citation
+    check(sorted(af["offenders"]) == [f"{sign}1. A", f"{sign}1. A #2"],
+          f"the same heading twice is two places: {af['offenders']}")
+    # HEAD holds a long sentence once; the change adds it again elsewhere: the copy is a new place, though only its
+    # lines are measured and the first copy is untouched.
+    copied = text + "\n## 6. Again\n\n" + " ".join(["word"] * 60) + ".\n"
+    added = {len(text.split("\n")) + 3}
+    lng = next(m for m in measure_doc("docs/A.md", copied, {}, added) if m["name"].startswith("longest"))
+    head_lng = next(m for m in measure_doc("docs/A.md", text, {}) if m["name"].startswith("longest"))
+    fresh = set(lng["offenders"]) - set(head_lng["offenders"])
+    check(len(fresh) == 1 and next(iter(fresh)).endswith(" #2"), f"a second copy of an untouched long sentence is "
+          f"new: {sorted(lng['offenders'])} against {sorted(head_lng['offenders'])}")
     for f in failures:
         print(f"FAIL  {f}")
-    total = 15
+    total = 20
     print(f"doc_proxies self-test: {total - len(failures)} of {total} checks pass")
     return 1 if failures else 0
 
@@ -361,6 +465,7 @@ def main(argv: list) -> int:
     scope = "files" if args.files else "product" if args.all else "change"
     targets = args.files or (docs if args.all else changed_docs())
     homes = homes_of(sorted(set(docs) | set(targets)))
+    base_homes = homes_at_head(docs) if scope == "change" and targets else {}
     metrics, measured = [], []
     for d in targets:
         try:
@@ -369,6 +474,10 @@ def main(argv: list) -> int:
         except OSError as e:
             print(f"doc proxies: cannot read {d}: {e.strerror}")
             continue
+        if scope == "change":  # the base: HEAD's doc, over the lines the change replaced and whole
+            head = at_head(d)
+            found = with_base(found, measure_doc(d, head, base_homes, old_lines(d)) if head is not None else [],
+                              measure_doc(d, head, base_homes) if head is not None else [])
         metrics += found
         measured += [d] if found else []
     path = write("doc-reviewer", metrics, scope, measured, "the prose and sections the change wrote in the docs")
