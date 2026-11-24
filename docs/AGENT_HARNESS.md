@@ -1777,9 +1777,9 @@ ask: "Give the settings rows more breathing room and a bigger tap target." `V` i
 work in the repo. It holds the product's principles and every design token by role with its value in each theme, and
 the design skills and the `ui-designer` read it before any UI work. Agents design from it, and a script keeps it honest.
 It is written in [Google's DESIGN.md format](https://github.com/google-labs-code/design.md), the open specification for
-a design system in plain text: YAML front matter holds every token value, with a sub-map per theme
-(`colors.light`, `colors.dark`), and Markdown sections in Google's order say how to apply them — so Google's tools and
-any agent that knows the format read it as they find it.
+a design system in plain text. YAML front matter holds every token value: the base theme under `colors`, and a
+sub-map per other theme (`colors.dark`). Markdown sections in Google's order say how to apply them, so Google's tools
+and any agent that knows the format read it as they find it.
 
 | Section | Holds |
 | --- | --- |

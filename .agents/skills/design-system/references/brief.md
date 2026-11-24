@@ -58,11 +58,11 @@ prose their context.
 | Front matter key | Holds | Token names it gives (§15) |
 | --- | --- | --- |
 | `version`, `name`, `description`, `omitted` | `alpha`; the product's name; a line on what it is; the sections left out on purpose, so Google's linter does not warn | — |
-| `colors` | Every colour role, one sub-map per theme (`light`, `dark`), the same roles in each (§5) | `color.<role>` |
+| `colors` | Every colour role: the base theme's values as its own keys, and a sub-map per other theme (`dark`) holding the same roles (§5) | `color.<role>` |
 | `typography` | Each type role: `fontFamily`, `fontSize`, `lineHeight`, `fontWeight`, `letterSpacing` | `text.<role>` |
 | `spacing`, `rounded` | The spacing scale; the radius scale | `space.<step>`, `radius.<step>` |
 | `motion` | Each move: `duration`, `timingFunction`, `delay` — written as references to the primitives | `motion.<move>` |
-| The product's own keys | What Google's schema has no key for: `size`, `breakpoint`, `elevation` (a sub-map per theme), `border`, `layer`, `duration`, `delay`, `easing`, `scale`, `font` | Their own name: `size.target` |
+| The product's own keys | What Google's schema has no key for: `size`, `breakpoint`, `elevation` (themed as `colors` is), `border`, `layer`, `duration`, `delay`, `easing`, `scale`, `font` | Their own name: `size.target` |
 
 | Section, in Google's order | Holds |
 | --- | --- |
@@ -82,14 +82,20 @@ prose their context.
   do not know.
 - **Keep the tables the design check reads.** The colour table gives each role its kinds — `| Token | Kind | Use |`, the
   kinds comma-separated; the pairs table is `| Foreground | Background | Floor | <Theme> | … |`, one ratio column per
-  theme, named as the front matter's sub-maps are, in any case.
+  theme, named as the front matter's themes are, in any case.
 - **Write each colour as quoted hex** — `"#2457D6"`, the value the checks measure, quoted so YAML does not read the `#`
   as a comment. A product that authors in another space (OKLCH, a palette tool) keeps its source there and writes the
   resulting hex here. The token files spell it the platform's way (§15).
 - **Write the front matter as block mappings** — one `key: value` a line, nested by two spaces. The kit reads it with
   Python's standard library alone, so it refuses a flow mapping (`{a: 1}`), an anchor or a block scalar and says
   where (D0, §16).
-- **Name a primary colour** — `colors.<theme>.primary`. Google's linter warns without one.
+- **Name a primary colour in the base theme** — `colors.primary`. Google's linter knows no themes and reads only the
+  keys directly under `colors`; without `primary` there it warns `missing-primary`, and its tools invent one.
+- **Expect Google's linter to warn on the product's own keys** — `token-like-ignored` on a group whose values look
+  like colours or sizes (`size`, `breakpoint`, `border`, `duration`, `delay`): its exports skip them, the kit reads
+  them, and the spec has no way to silence the warning. Its errors are what must be zero. The released linter
+  (`@google/design.md` 0.4.0) knows eight sections; Motion and Voice & Content Strategy come from the spec on GitHub,
+  and the linter keeps a section it does not know.
 - **Start from the template** ([templates/DESIGN.md](templates/DESIGN.md)); it passes the design check as it stands.
 - **A brief still in tables reads as before.** A `| Token | <Theme> | … |` table with a value per theme column is read
   as the front matter is, so a product moves to Google's format when it chooses; the template and new briefs use the
@@ -162,8 +168,9 @@ theme.**
 ## 5. Themes
 
 **A theme is a second set of values for the same roles — complete, checked, and chosen on the first frame.** In the
-front matter, each theme is a sub-map holding every role: `colors.light` and `colors.dark`, `elevation.light` and
-`elevation.dark`; a token that is the same in every theme sits outside them.
+front matter, the base theme's values are the group's own keys — `colors.bg.canvas`, `elevation.raised` — and each
+other theme is a sub-map holding every role: `colors.dark`, `elevation.dark`. The base theme is `light`, or `dark`
+when a `light` sub-map is written instead; a token that is the same in every theme sits outside the themed groups.
 
 - **Every role has a value in every theme** (D5), and every image, illustration and embedded widget has a
   version per theme. Half a dark mode — a white dropdown on dark — is worse than none (Apple HIG, Dark Mode).
@@ -416,7 +423,7 @@ step by hand.**
 | Any | A token file in the W3C Design Tokens Community Group format, built to each platform by a tool such as Style Dictionary | `color.text.secondary` |
 
 - **The front matter's path is the token's name, with Google's group names in the words code uses** — `colors` is
-  `color`, `typography` is `text`, `spacing` is `space`, `rounded` is `radius`, and a theme sub-map drops out:
+  `color`, `typography` is `text`, `spacing` is `space`, `rounded` is `radius`, and a theme's sub-map drops out:
   `colors.dark.text.secondary` is `color.text.secondary` in dark, `--color-text-secondary` on the web. A typography or
   motion token is one role with a property per part (`--text-body-size`, `--motion-hover-duration`). A role and a
   group of the same name cannot both be keys, so a variant takes a hyphen: `primary` and `primary-pressed`.

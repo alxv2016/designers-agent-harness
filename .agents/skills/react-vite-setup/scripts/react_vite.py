@@ -467,7 +467,8 @@ PROP_PART = {"fontSize": "size", "lineHeight": "line height", "fontWeight": "wei
 
 
 def ref_var(raw) -> str | None:
-    """`{colors.light.primary}` as `var(--color-primary)`: a reference written as one, so the CSS keeps the link."""
+    """`{colors.primary}` or `{colors.dark.primary}` as `var(--color-primary)`: a reference written as one, so the CSS
+    keeps the link."""
     m = design_md.REF.match(raw.strip()) if isinstance(raw, str) else None
     if not m:
         return None
@@ -477,7 +478,7 @@ def ref_var(raw) -> str | None:
 
 
 def front_matter_tokens(data: dict) -> tuple[list[str], list[tuple[str, dict]]]:
-    """DESIGN.md in Google's format: the themes its sub-maps name, and a custom property per token with its value
+    """DESIGN.md in Google's format: the themes it names, and a custom property per token with its value
     per theme — a typography or motion token one property per part (`--text-body-size`, `--motion-hover-duration`), a
     reference as `var()`. A font family that only points at a `font.*` token is left to that token."""
     themes = design_md.themes(data)

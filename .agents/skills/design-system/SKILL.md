@@ -50,8 +50,8 @@ run` runs both checks, and the `ui-designer` skill and agent apply these rules a
 3. **Use semantic roles at the call site** — `color.text.secondary`, `space.lg`, not `grey-600` or `16px`; a primitive
    ramp lives only in the token files (DESIGN_BRIEF §3).
 4. **Decide a token in DESIGN.md, then carry it to the token files, in the same change** (DESIGN_BRIEF §3, §15).
-5. **Make a theme a second set of values for the same roles — a sub-map holding every role**, with dark accents
-   re-chosen by lightness on the same hue (DESIGN_BRIEF §5).
+5. **Make a theme a second set of values for the same roles — the base theme under `colors`, each other theme a
+   sub-map holding every role**, with dark accents re-chosen by lightness on the same hue (DESIGN_BRIEF §5).
 6. **Give a new colour role its kind in DESIGN.md's colour roles, then every pair its kind calls for in its contrast
    pairs, with its floor and its ratio per theme**, before any screen uses it (DESIGN_BRIEF §4).
 7. **Give every interactive state its token** — rest, hover, pressed, focus, disabled, selected; never an opacity

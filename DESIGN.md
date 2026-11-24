@@ -3,26 +3,26 @@ version: alpha
 name: <Project>
 description: The template's demo design brief. Every value is an example; replace them with your product's.
 colors:
-  light:
-    bg:
-      canvas: "#FFFFFF"
-      surface: "#F4F5F7"
-      overlay: "#FFFFFF"
-      selected: "#E3EBFC"
-    scrim: "#00000066"
-    text:
-      primary: "#1B1D21"
-      secondary: "#585E69"
-      on-primary: "#FFFFFF"
-      disabled: "#A3A8B0"
-    primary: "#2457D6"
-    primary-pressed: "#1B45AD"
-    border: "#7D838D"
-    border-subtle: "#E1E3E8"
-    edge: "#0000001A"
-    focus: "#2457D6"
-    danger: "#B42318"
-    success: "#177433"
+  # the base theme, light; the dark sub-map below holds the same roles
+  bg:
+    canvas: "#FFFFFF"
+    surface: "#F4F5F7"
+    overlay: "#FFFFFF"
+    selected: "#E3EBFC"
+  scrim: "#00000066"
+  text:
+    primary: "#1B1D21"
+    secondary: "#585E69"
+    on-primary: "#FFFFFF"
+    disabled: "#A3A8B0"
+  primary: "#2457D6"
+  primary-pressed: "#1B45AD"
+  border: "#7D838D"
+  border-subtle: "#E1E3E8"
+  edge: "#0000001A"
+  focus: "#2457D6"
+  danger: "#B42318"
+  success: "#177433"
   dark:
     bg:
       canvas: "#111317"
@@ -96,9 +96,9 @@ rounded:
   lg: 16px
   full: 9999px
 elevation:
-  light:
-    raised: "0 1px 2px rgba(0, 0, 0, 0.12)"
-    overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
+  # the base theme, light; the dark sub-map below holds the same roles
+  raised: "0 1px 2px rgba(0, 0, 0, 0.12)"
+  overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
   dark:
     raised: none
     overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
@@ -249,10 +249,12 @@ in [Do's and Don'ts](#dos-and-donts).
 ### Roles
 
 Screens use roles, never raw values; a theme is a second set of values for the same roles (design-system Do 3, Do 5)
-— the front matter's `colors.light` and `colors.dark`, which hold the same roles. A role's token is its path under
-its theme: `colors.light.bg.canvas` and `colors.dark.bg.canvas` are both `color.bg.canvas`. Each role has a kind,
-which says what it may be painted on and which floor applies; the design check reads it
-([Contrast pairs](#contrast-pairs)).
+— light is the front matter's `colors` keys, the base theme Google's tools read, and dark is `colors.dark`, which
+holds the same roles. A further theme is another sub-map beside it (`colors.contrast`) holding every role; the
+design check fails a role left without a value in any theme (D5). A theme's name — `light`, `dark`, `dim`,
+`contrast`, `high-contrast` — is never a role's name. A role's token is its path without the theme:
+`colors.bg.canvas` and `colors.dark.bg.canvas` are both `color.bg.canvas`. Each role has a kind, which says what it
+may be painted on and which floor applies; the design check reads it ([Contrast pairs](#contrast-pairs)).
 
 | Kind | Means | Paired in [Contrast pairs](#contrast-pairs) |
 | --- | --- | --- |
@@ -394,9 +396,9 @@ is the token `space.<step>`.
 
 ## Elevation & Depth
 
-Elevation has a value per theme — the front matter's `elevation.light` and `elevation.dark`. Border widths and the
-stacking order sit beside it — the layers are ordinals, not pixels: a screen names the layer, and only the order
-matters.
+Elevation has a value per theme, themed as colours are — the front matter's `elevation` keys for light and
+`elevation.dark` for dark. Border widths and the stacking order sit beside it — the layers are ordinals, not pixels:
+a screen names the layer, and only the order matters.
 
 | Token | Use |
 | --- | --- |

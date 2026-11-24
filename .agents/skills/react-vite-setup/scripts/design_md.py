@@ -13,9 +13,12 @@ block scalar (`|`, `>`) raises YamlError with its line, so a check reports it in
 
 Token names (DESIGN_BRIEF §15): Google's groups keep the names code already uses — `colors` is `color`, `typography`
 is `text`, `spacing` is `space`, `rounded` is `radius`; any other group keeps its own name. A theme is a sub-map whose
-key names one (`light`, `dark`, `contrast`, `dim`, …) and is dropped from the name: `colors.light.bg.canvas` is
-`color.bg.canvas` in theme `light`. A typography or motion token is one composite (`text.body`, `motion.menu-enter`)
-with its properties. A value written `"{path.to.token}"` is a reference, resolved against the front matter.
+key names one (`light`, `dark`, `contrast`, `dim`, …) and is dropped from the name: `colors.dark.bg.canvas` is
+`color.bg.canvas` in theme `dark`. Keys beside a theme sub-map belong to the base theme — `light`, or `dark` when
+`light` is a sub-map — so `colors.bg.canvas` beside `colors.dark` is `color.bg.canvas` in theme `light`, and Google's
+tools, which know no themes, see the base palette. A typography or motion token is one composite (`text.body`,
+`motion.menu-enter`) with its properties. A value written `"{path.to.token}"` is a reference, resolved against the
+front matter.
 
     python3 design_md.py [FILE]     # print every token a DESIGN.md's front matter holds
     python3 design_md.py --test     # the reader's self-test
@@ -165,11 +168,13 @@ def tokens(data: dict) -> list[dict]:
                 out.append({"name": ".".join([PREFIX.get(group, group)] + path), "theme": None, "value": None,
                             "group": group, "props": {k: resolve(data, v) for k, v in raw.items()}, "raw": raw})
                 return
+            subs = {str(k).lower() for k, v in node.items() if THEME.match(str(k)) and isinstance(v, dict)}
+            base = next((t for t in ("light", "dark") if t not in subs), None) if not path and subs else None
             for k, v in node.items():
                 if THEME.match(str(k)) and theme is None:
                     walk(group, v, path, str(k).lower())
                 else:
-                    walk(group, v, path + [str(k)], theme)
+                    walk(group, v, path + [str(k)], theme or base)
         elif node is not None and path:
             out.append({"name": ".".join([PREFIX.get(group, group)] + path), "theme": theme,
                         "value": resolve(data, node), "group": group, "props": None, "raw": node})
@@ -190,8 +195,9 @@ def themes(data: dict) -> list[str]:
 
 
 def self_test() -> int:
-    doc = ("---\nversion: alpha\nname: Demo  # a comment\ncolors:\n  light:\n    bg:\n      canvas: \"#FFFFFF\"\n"
-           "    primary: \"#2457D6\"\n  dark:\n    bg:\n      canvas: '#111317'\n    primary: \"#7EA2FF\"\n"
+    doc = ("---\nversion: alpha\nname: Demo  # a comment\ncolors:\n  bg:\n    canvas: \"#FFFFFF\"\n"
+           "  primary: \"#2457D6\"\n  dark:\n    bg:\n      canvas: '#111317'\n    primary: \"#7EA2FF\"\n"
+           "elevation:\n  light:\n    raised: none\n  dark:\n    raised: none\n"
            "font:\n  sans: \"system-ui, \\\"Segoe UI\\\", sans-serif\"\ntypography:\n  body:\n"
            "    fontFamily: \"{font.sans}\"\n    fontSize: 17px\nspacing:\n  xs: 4px\nmotion:\n  hover:\n"
            "    duration: \"{duration.fast}\"\nduration:\n  fast: 120ms\nomitted:\n  - components\n---\n\n# Demo\n")
@@ -200,7 +206,10 @@ def self_test() -> int:
     cases = [
         (start == doc.splitlines().index("---", 1) + 2, "the body starts after the closing ---"),
         (data["name"] == "Demo", "a comment after a value is dropped"),
-        (toks[("color.bg.canvas", "light")]["value"] == "#FFFFFF", "colors.light.bg.canvas is color.bg.canvas, light"),
+        (toks[("color.bg.canvas", "light")]["value"] == "#FFFFFF", "a key beside colors.dark is the base theme, light"),
+        (toks[("color.primary", "dark")]["value"] == "#7EA2FF", "colors.dark.primary is color.primary, dark"),
+        (("color.primary", None) not in toks, "no base-theme colour is left without a theme"),
+        (toks[("elevation.raised", "light")]["value"] == "none", "a light sub-map still names its theme"),
         (toks[("color.bg.canvas", "dark")]["value"] == "#111317", "a single-quoted value is read"),
         (toks[("text.body", None)]["props"]["fontFamily"] == 'system-ui, "Segoe UI", sans-serif',
          "a reference resolves, escapes and all"),

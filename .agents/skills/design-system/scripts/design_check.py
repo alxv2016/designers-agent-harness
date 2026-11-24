@@ -38,8 +38,8 @@ table:
      and every `on-fill` role a row on every `fill`; `scrim` and `exempt` roles are not paired. With no `Kind`
      column, the names decide: `color.text.*` (but `disabled` and `on-*`) on every `color.bg.*`.
   D5 theme value missing — a colour token gives a hex value in one theme and none in another, so a theme is half
-     made (DESIGN_BRIEF §5). The front matter's themes are its theme sub-maps; a table's are its columns that hold a
-     colour in some row, so a `Use` or `Usage` column is never one
+     made (DESIGN_BRIEF §5). The front matter's themes are its base theme and its theme sub-maps; a table's are its
+     columns that hold a colour in some row, so a `Use` or `Usage` column is never one
   D6 translucent surface or fill — a role of kind `surface` or `fill` has an alpha value, so its painted colour
      depends on what is under it and no pair can be checked; only `scrim` and `exempt` roles may be translucent
      (DESIGN_BRIEF §4)

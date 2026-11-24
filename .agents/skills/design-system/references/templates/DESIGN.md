@@ -3,21 +3,21 @@ version: alpha
 name: <Project>
 description: <One line — what the product is and how it should feel.>
 colors:
-  light:
-    bg:
-      canvas: "#FFFFFF"
-      surface: "#F4F5F7"
-      overlay: "#FFFFFF"
-    scrim: "#00000066"
-    text:
-      primary: "#1B1D21"
-      secondary: "#585E69"
-      on-primary: "#FFFFFF"
-      disabled: "#A3A8B0"
-    primary: "#2457D6"
-    primary-pressed: "#1B45AD"
-    border: "#7D838D"
-    focus: "#2457D6"
+  # the base theme, light; the dark sub-map below holds the same roles
+  bg:
+    canvas: "#FFFFFF"
+    surface: "#F4F5F7"
+    overlay: "#FFFFFF"
+  scrim: "#00000066"
+  text:
+    primary: "#1B1D21"
+    secondary: "#585E69"
+    on-primary: "#FFFFFF"
+    disabled: "#A3A8B0"
+  primary: "#2457D6"
+  primary-pressed: "#1B45AD"
+  border: "#7D838D"
+  focus: "#2457D6"
   dark:
     bg:
       canvas: "#111317"
@@ -73,8 +73,8 @@ rounded:
   md: 8px
   lg: 16px
 elevation:
-  light:
-    overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
+  # the base theme, light; the dark sub-map below holds the same roles
+  overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
   dark:
     overlay: "0 8px 24px rgba(0, 0, 0, 0.24)"
 layer:
@@ -164,9 +164,13 @@ both pass the rules, the lower-numbered principle decides; each principle's prac
 
 ### Roles
 
-Screens use roles, never raw values; a theme is a second set of values for the same roles — the front matter's
-`colors.light` and `colors.dark`. A role's token is its path under its theme: `colors.light.bg.canvas` is
-`color.bg.canvas`. Each role has a kind, which says what it may be painted on and which floor applies.
+Screens use roles, never raw values; a theme is a second set of values for the same roles — light is the front
+matter's `colors` keys, the base theme Google's tools read, and dark is `colors.dark`. A further theme is another
+sub-map beside it (`colors.contrast`) holding every role, and `elevation` is themed the same way; the design check
+fails a role left without a value in any theme (D5). A theme's name — `light`, `dark`, `dim`, `contrast`,
+`high-contrast` — is never a role's name. A role's token is its path without the theme: `colors.bg.canvas` and
+`colors.dark.bg.canvas` are both `color.bg.canvas`. Each role has a kind, which says what it may be painted on and
+which floor applies.
 
 | Kind | Means | Paired in [Contrast pairs](#contrast-pairs) |
 | --- | --- | --- |
